@@ -1,0 +1,143 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+
+<!--
+    Diálogo simple para seleccionar un color.
+    Muestra una grilla de colores predefinidos.
+-->
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.subtitle1">Selecciona un color</MudText>
+            
+            <div class="color-picker-grid">
+                @foreach (var color in PredefinedColors)
+                {
+                    <div class="color-option @(selectedColor == color ? "selected" : "")"
+                         style="background-color: @color;"
+                         @onclick="() => SelectColor(color)"
+                         title="@color">
+                        @if (selectedColor == color)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Medium" Color="Color.Inherit" />
+                        }
+                    </div>
+                }
+            </div>
+            
+            <!-- Selector de color personalizado -->
+            <MudTextField @bind-Value="customColor"
+                          Label="O personalizado (hex)"
+                          Variant="Variant.Outlined"
+                          Placeholder="#7e6fff"
+                          Style="margin-top: 8px;" />
+        </MudStack>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        
+        <MudButton OnClick="Submit"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled">
+            Aplicar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .color-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
+    }
+    
+    .color-option {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 2px solid transparent;
+    }
+    
+    .color-option:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .color-option.selected {
+        border-color: white;
+        box-shadow: 0 0 0 3px var(--mud-palette-primary);
+    }
+</style>
+
+@code {
+    /// <summary>
+    /// Referencia al diálogo.
+    /// </summary>
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>
+    /// Columna a la que se le cambiará el color.
+    /// </summary>
+    [Parameter]
+    public TodoColumn Column { get; set; } = new();
+
+    /// <summary>
+    /// Lista de colores predefinidos.
+    /// </summary>
+    [Parameter]
+    public List<string> PredefinedColors { get; set; } = new()
+    {
+        "#7e6fff", "#ff6b6b", "#4ecdc4", "#ffe66d",
+        "#95e1d3", "#f38181", "#aa96da", "#fcbad3",
+        "#a8d8ea", "#ff9a8b", "#88d8b0", "#f9d423"
+    };
+
+    /// <summary>
+    /// Color seleccionado actualmente.
+    /// </summary>
+    private string selectedColor = "#7e6fff";
+
+    /// <summary>
+    /// Color personalizado (para el picker).
+    /// </summary>
+    private string customColor = "#7e6fff";
+
+    protected override void OnInitialized()
+    {
+        selectedColor = Column.Color;
+        customColor = Column.Color;
+    }
+
+    /// <summary>
+    /// Selecciona un color de la grilla.
+    /// </summary>
+    private void SelectColor(string color)
+    {
+        selectedColor = color;
+        customColor = color;
+    }
+
+    /// <summary>
+    /// Aplica el color seleccionado y cierra.
+    /// </summary>
+    private void Submit()
+    {
+        MudDialog?.Close(DialogResult.Ok(selectedColor));
+    }
+
+    /// <summary>
+    /// Cancela la operación.
+    /// </summary>
+    private void Cancel() => MudDialog?.Cancel();
+}

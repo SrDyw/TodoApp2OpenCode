@@ -1,0 +1,88 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+
+<!--
+    Componente de diálogo para confirmar la eliminación de elementos.
+    Utiliza MudBlazor Dialog para mostrar una ventana de confirmación.
+    
+    Uso típico:
+    <DeletionConfirmDialog ContentText="¿Eliminar este elemento?" 
+                          ButtonText="Eliminar" 
+                          Color="Color.Error" />
+    
+    El componente retorna true si el usuario confirma, false si cancela.
+-->
+
+<MudDialog>
+    <!-- Título del diálogo -->
+    <DialogContent>
+        <!-- Contenido textual de la confirmación -->
+        <MudText>@ContentText</MudText>
+    </DialogContent>
+    
+    <DialogActions>
+        <!-- Botón de cancelar -->
+        <MudButton OnClick="Cancel"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        
+        <!-- Botón de confirmación (personalizable con texto y color) -->
+        <MudButton OnClick="Submit"
+                   Color="@Color"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Warning">
+            @ButtonText
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>
+    /// Referencia al MudDialog para poder cerrarlo desde el código.
+    /// </summary>
+    /// <remarks>
+    /// Se inyecta automáticamente por MudBlazor gracias a la directiva @inherits.
+    /// </remarks>
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>
+    /// Texto descriptivo que se muestra en el cuerpo del diálogo.
+    /// </summary>
+    /// <example>"¿Estás seguro de que deseas eliminar este elemento?"</example>
+    [Parameter]
+    public string ContentText { get; set; } = "¿Estás seguro?";
+
+    /// <summary>
+    /// Texto que aparece en el botón de confirmación.
+    /// </summary>
+    /// <example>"Eliminar"</example>
+    [Parameter]
+    public string ButtonText { get; set; } = "Confirmar";
+
+    /// <summary>
+    /// Color de MudBlazor para el botón de confirmación.
+    /// </summary>
+    /// <remarks>
+    /// Se recomienda usar Color.Error para acciones destructivas.
+    /// </remarks>
+    [Parameter]
+    public Color Color { get; set; } = Color.Error;
+
+    /// <summary>
+    /// Maneja el evento de confirmación (clic en el botón principal).
+    /// </summary>
+    /// <remarks>
+    /// Cierra el diálogo retornando el valor true como datos.
+    /// </remarks>
+    private void Submit() => MudDialog?.Close(DialogResult.Ok(true));
+
+    /// <summary>
+    /// Maneja el evento de cancelación (clic en el botón cancelar o cerrar).
+    /// </summary>
+    /// <remarks>
+    /// Cierra el diálogo sin retornar ningún valor (cancelado).
+    /// </remarks>
+    private void Cancel() => MudDialog?.Cancel();
+}

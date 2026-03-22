@@ -1,0 +1,97 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+
+<!--
+    Diálogo genérico para obtener texto del usuario.
+    Usado principalmente para crear nuevas columnas.
+-->
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="InputValue"
+                      Label="@ContentText"
+                      Placeholder="@Placeholder"
+                      Variant="Variant.Outlined"
+                      Immediate="true"
+                      AutoFocus="true"
+                      OnKeyDown="HandleKeyDown" />
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        
+        <MudButton OnClick="Submit"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@string.IsNullOrWhiteSpace(InputValue)">
+            @ButtonText
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>
+    /// Referencia al diálogo de MudBlazor.
+    /// </summary>
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>
+    /// Título del diálogo.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Entrada";
+
+    /// <summary>
+    /// Texto de la etiqueta del campo de entrada.
+    /// </summary>
+    [Parameter]
+    public string ContentText { get; set; } = "Ingresa un valor:";
+
+    /// <summary>
+    /// Placeholder del campo de texto.
+    /// </summary>
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    /// <summary>
+    /// Texto del botón de confirmación.
+    /// </summary>
+    [Parameter]
+    public string ButtonText { get; set; } = "Aceptar";
+
+    /// <summary>
+    /// Valor ingresado por el usuario.
+    /// </summary>
+    private string InputValue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Maneja el evento de tecla presionada.
+    /// </summary>
+    private void HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && !string.IsNullOrWhiteSpace(InputValue))
+        {
+            Submit();
+        }
+    }
+
+    /// <summary>
+    /// Confirma la entrada y cierra el diálogo.
+    /// </summary>
+    private void Submit()
+    {
+        if (!string.IsNullOrWhiteSpace(InputValue))
+        {
+            MudDialog?.Close(DialogResult.Ok(InputValue.Trim()));
+        }
+    }
+
+    /// <summary>
+    /// Cancela y cierra el diálogo.
+    /// </summary>
+    private void Cancel() => MudDialog?.Cancel();
+}

@@ -1,0 +1,114 @@
+@using TodoApp2OpenCode.Models
+<MudDialog ContentStyle="width: 500px; max-width: 500px;">
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="Title" 
+                          Label="Título de la tarea" 
+                          Variant="Variant.Outlined" 
+                          Required="true"
+                          Placeholder="¿Qué necesitas hacer?" />
+            
+            <MudSelect @bind-Value="SelectedColumnId" 
+                       Label="Columna" 
+                       Variant="Variant.Outlined"
+                       Required="true">
+                @foreach (var column in Columns)
+                {
+                    <MudSelectItem Value="@column.Id">
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <div class="column-color-dot" style="background-color: @column.Color;"></div>
+                            <span>@column.Name</span>
+                        </MudStack>
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            
+            <MudTextField @bind-Value="Description" 
+                          Label="Descripción (opcional)" 
+                          Variant="Variant.Outlined"
+                          Lines="3"
+                          Placeholder="Agrega más detalles..." />
+            
+            <MudSelect @bind-Value="Priority" 
+                       Label="Prioridad" 
+                       Variant="Variant.Outlined">
+                <MudSelectItem Value="TodoPriority.Normal">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Remove" Size="Size.Small" Color="Color.Default" />
+                        <span>Normal</span>
+                    </MudStack>
+                </MudSelectItem>
+                <MudSelectItem Value="TodoPriority.Low">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" Color="Color.Default" />
+                        <span>Baja</span>
+                    </MudStack>
+                </MudSelectItem>
+                <MudSelectItem Value="TodoPriority.High">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" Color="Color.Error" />
+                        <span>Alta</span>
+                    </MudStack>
+                </MudSelectItem>
+            </MudSelect>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="Submit"
+                   Disabled="@IsSubmitDisabled">
+            Crear Tarea
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .column-color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public List<TodoColumn> Columns { get; set; } = new();
+
+    private string Title { get; set; } = string.Empty;
+    private string? SelectedColumnId { get; set; }
+    private string Description { get; set; } = string.Empty;
+    private TodoPriority Priority { get; set; } = TodoPriority.Normal;
+
+    private bool IsSubmitDisabled => string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(SelectedColumnId);
+
+    protected override void OnInitialized()
+    {
+        if (Columns.Any())
+        {
+            SelectedColumnId = Columns.First().Id;
+        }
+    }
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(SelectedColumnId))
+            return;
+
+        var item = new TodoItem
+        {
+            Title = Title.Trim(),
+            Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            ColumnId = SelectedColumnId,
+            Priority = Priority
+        };
+
+        MudDialog?.Close(DialogResult.Ok(item));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}

@@ -1,0 +1,137 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+
+<!--
+    Componente de diálogo para editar una tarea existente.
+    Permite modificar el título, descripción y prioridad de una tarea.
+    
+    Uso típico:
+    var parameters = new DialogParameters<EditTodoDialog>();
+    parameters.Add(x => x.TodoItem, tareaAEditar);
+    var dialog = await DialogService.ShowAsync<EditTodoDialog>("Editar Tarea", parameters, options);
+    
+    El componente retorna los datos modificados cuando el usuario guarda.
+-->
+
+<MudDialog>
+    <!-- Título del diálogo -->
+    <DialogContent>
+        <!-- Formulario de edición -->
+        <MudStack Spacing="3">
+            <!-- Campo de título (obligatorio) -->
+            <MudTextField @bind-Value="TodoItem.Title"
+                          Label="Título de la tarea"
+                          Placeholder="¿Qué necesitas hacer?"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          Immediate="true"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Edit" />
+            
+            <!-- Campo de descripción (opcional) -->
+            <MudTextField @bind-Value="TodoItem.Description"
+                          Label="Descripción (opcional)"
+                          Placeholder="Agrega más detalles..."
+                          Variant="Variant.Outlined"
+                          Lines="3"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Description" />
+            
+            <!-- Selector de prioridad -->
+            <MudSelect @bind-Value="TodoItem.Priority"
+                       Label="Prioridad"
+                       Variant="Variant.Outlined">
+                <MudSelectItem Value="TodoPriority.Low">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Color="Color.Default" Size="Size.Small" />
+                        <span>Baja</span>
+                    </MudStack>
+                </MudSelectItem>
+                <MudSelectItem Value="TodoPriority.Normal">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Remove" Color="Color.Info" Size="Size.Small" />
+                        <span>Normal</span>
+                    </MudStack>
+                </MudSelectItem>
+                <MudSelectItem Value="TodoPriority.High">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowUp" Color="Color.Error" Size="Size.Small" />
+                        <span>Alta</span>
+                    </MudStack>
+                </MudSelectItem>
+            </MudSelect>
+            
+            <!-- Información adicional (solo lectura) -->
+            <MudStack Row="true" Spacing="2" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Creada: @TodoItem.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Estado: @(TodoItem.IsCompleted ? "Completada" : "Pendiente")
+                </MudText>
+            </MudStack>
+        </MudStack>
+    </DialogContent>
+    
+    <DialogActions>
+        <!-- Botón de cancelar -->
+        <MudButton OnClick="Cancel"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        
+        <!-- Botón de guardar (habilitado solo si hay título) -->
+        <MudButton OnClick="Submit"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@string.IsNullOrWhiteSpace(TodoItem.Title)">
+            Guardar Cambios
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>
+    /// Referencia al MudDialog para poder cerrarlo desde el código.
+    /// </summary>
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>
+    /// Objeto de tarea que se está editando.
+    /// </summary>
+    /// <remarks>
+    /// Se bindea directamente con @bind-Value para actualizar en tiempo real.
+    /// </remarks>
+    [Parameter]
+    public TodoItem TodoItem { get; set; } = new();
+
+    /// <summary>
+    /// Maneja el evento de guardar cambios.
+    /// </summary>
+    /// <remarks>
+    /// Valida que el título no esté vacío antes de cerrar el diálogo.
+    /// </remarks>
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(TodoItem.Title))
+        {
+            return; // No permite guardar sin título
+        }
+        
+        // Actualiza la fecha de modificación
+        TodoItem.UpdatedAt = DateTime.Now;
+        
+        // Cierra el diálogo retornando los datos modificados
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+
+    /// <summary>
+    /// Maneja el evento de cancelación.
+    /// </summary>
+    /// <remarks>
+    /// Cierra el diálogo sin guardar cambios.
+    /// </remarks>
+    private void Cancel() => MudDialog?.Cancel();
+}

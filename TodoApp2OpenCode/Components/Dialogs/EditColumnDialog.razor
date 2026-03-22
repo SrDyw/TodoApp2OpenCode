@@ -1,0 +1,143 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+
+<!--
+    Diálogo para editar las propiedades de una columna.
+    Permite cambiar el nombre y seleccionar un color.
+-->
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <!-- Campo de nombre -->
+            <MudTextField @bind-Value="Column.Name"
+                          Label="Nombre de la columna"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          Immediate="true" />
+            
+            <!-- Selector de color -->
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.subtitle2">Color de la columna</MudText>
+                <div class="color-picker-grid">
+                    @foreach (var color in predefinedColors)
+                    {
+                        <div class="color-option @(Column.Color == color ? "selected" : "")"
+                             style="background-color: @color;"
+                             @onclick="() => SelectColor(color)">
+                            @if (Column.Color == color)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Inherit" />
+                            }
+                        </div>
+                    }
+                </div>
+            </MudStack>
+            
+            <!-- Vista previa -->
+            <MudPaper Class="pa-3" Style="@($"border-left: 4px solid {Column.Color};")">
+                <MudText Typo="Typo.body1" fontweight="FontWeight.Medium">
+                    Vista previa: @Column.Name
+                </MudText>
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        
+        <MudButton OnClick="Submit"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@string.IsNullOrWhiteSpace(Column.Name)">
+            Guardar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .color-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+    }
+    
+    .color-option {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 2px solid transparent;
+    }
+    
+    .color-option:hover {
+        transform: scale(1.1);
+    }
+    
+    .color-option.selected {
+        border-color: white;
+        box-shadow: 0 0 0 2px var(--mud-palette-primary);
+    }
+</style>
+
+@code {
+    /// <summary>
+    /// Referencia al diálogo.
+    /// </summary>
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>
+    /// Columna a editar.
+    /// </summary>
+    [Parameter]
+    public TodoColumn Column { get; set; } = new();
+
+    /// <summary>
+    /// Lista de colores predefinidos disponibles.
+    /// </summary>
+    [Parameter]
+    public List<string> PredefinedColors { get; set; } = new()
+    {
+        "#7e6fff", "#ff6b6b", "#4ecdc4", "#ffe66d", 
+        "#95e1d3", "#f38181", "#aa96da", "#fcbad3",
+        "#a8d8ea", "#ff9a8b", "#88d8b0", "#f9d423"
+    };
+
+    /// <summary>
+    /// Alias para PredefinedColors (para compatibilidad con el caller).
+    /// </summary>
+    private List<string> predefinedColors => PredefinedColors;
+
+    /// <summary>
+    /// Selecciona un color.
+    /// </summary>
+    private void SelectColor(string color)
+    {
+        Column.Color = color;
+    }
+
+    /// <summary>
+    /// Guarda los cambios.
+    /// </summary>
+    private void Submit()
+    {
+        if (!string.IsNullOrWhiteSpace(Column.Name))
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+    }
+
+    /// <summary>
+    /// Cancela la edición.
+    /// </summary>
+    private void Cancel() => MudDialog?.Cancel();
+}

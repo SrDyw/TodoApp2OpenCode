@@ -1,0 +1,54 @@
+
+
+<MudNavMenu>
+    <MudNavGroup Title="Tableros" Icon="@Icons.Material.Filled.Dashboard" Expanded="true">
+        @if (isLoading)
+        {
+            <div class="skeleton-wrapper">
+                @for (int i = 0; i < 4; i++)
+                {
+                    <MudSkeleton Width="100%" Height="28px" Class="mb-2" />
+                }
+            </div>
+        }
+        else
+        {
+            @foreach (var board in boards)
+            {
+                <MudNavLink Href="@($"/board/{board.Id}")" Match="NavLinkMatch.All" Class="board-nav-link" Icon="@Icons.Material.Filled.ViewKanban">
+                    @board.Name
+                </MudNavLink>
+            }
+        }
+    </MudNavGroup>
+</MudNavMenu>
+
+<style>
+    .skeleton-wrapper {
+        padding: 8px 16px;
+    }
+</style>
+
+@code {
+    private List<BoardInfo> boards = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(800);
+        boards = new List<BoardInfo>
+        {
+            new() { Id = "1", Name = "Mi Tablero" },
+            new() { Id = "2", Name = "Proyecto Alpha" },
+            new() { Id = "3", Name = "Sprint 2024" },
+            new() { Id = "4", Name = "Ideas" }
+        };
+        isLoading = false;
+    }
+
+    private class BoardInfo
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+}

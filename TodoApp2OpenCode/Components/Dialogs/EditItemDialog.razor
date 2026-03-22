@@ -1,0 +1,158 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+
+<!--
+    Diálogo para editar una tarea existente.
+    Permite modificar título, descripción, prioridad y columna.
+-->
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <!-- Campo de título -->
+            <MudTextField @bind-Value="Item.Title"
+                          Label="Título de la tarea"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          Immediate="true"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Edit" />
+            
+            <!-- Campo de descripción -->
+            <MudTextField @bind-Value="Item.Description"
+                          Label="Descripción (opcional)"
+                          Variant="Variant.Outlined"
+                          Lines="3"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Description" />
+            
+            <!-- Selector de prioridad -->
+            <MudSelect @bind-Value="Item.Priority"
+                       Label="Prioridad"
+                       Variant="Variant.Outlined">
+                <MudSelectItem Value="TodoPriority.Low">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Color="Color.Default" Size="Size.Small" />
+                        <span>Baja</span>
+                    </MudStack>
+                </MudSelectItem>
+                <MudSelectItem Value="TodoPriority.Normal">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Remove" Color="Color.Info" Size="Size.Small" />
+                        <span>Normal</span>
+                    </MudStack>
+                </MudSelectItem>
+                <MudSelectItem Value="TodoPriority.High">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowUp" Color="Color.Error" Size="Size.Small" />
+                        <span>Alta</span>
+                    </MudStack>
+                </MudSelectItem>
+            </MudSelect>
+            
+            <!-- Selector de columna -->
+            <MudSelect @bind-Value="selectedColumnId"
+                       Label="Columna"
+                       Variant="Variant.Outlined">
+                @foreach (var column in Columns)
+                {
+                    <MudSelectItem Value="column.Id">
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background-color: @column.Color;"></div>
+                            <span>@column.Name</span>
+                        </MudStack>
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            
+            <!-- Metadatos (solo lectura) -->
+            <MudStack Row="true" Spacing="2" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Creada: @Item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @(Item.IsCompleted ? "✅ Completada" : "⏳ Pendiente")
+                </MudText>
+            </MudStack>
+        </MudStack>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        
+        <MudButton OnClick="Submit"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@string.IsNullOrWhiteSpace(Item.Title)">
+            Guardar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>
+    /// Referencia al diálogo.
+    /// </summary>
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>
+    /// Tarea a editar.
+    /// </summary>
+    [Parameter]
+    public TodoItem Item { get; set; } = new();
+
+    /// <summary>
+    /// Lista de columnas disponibles.
+    /// </summary>
+    [Parameter]
+    public List<TodoColumn> Columns { get; set; } = new();
+
+    /// <summary>
+    /// ID de la columna seleccionada (para el selector).
+    /// </summary>
+    private string selectedColumnId = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        selectedColumnId = Item.ColumnId;
+    }
+
+    /// <summary>
+    /// Guarda los cambios de la tarea.
+    /// </summary>
+    private async void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(Item.Title))
+        {
+            return;
+        }
+
+        // Actualizamos la columna si cambió
+        if (Item.ColumnId != selectedColumnId)
+        {
+            // Movemos la tarea a la nueva columna
+            await TodoService.MoveItemToColumnAsync(Item.Id, selectedColumnId);
+            Item.ColumnId = selectedColumnId;
+        }
+
+        // Actualizamos la tarea
+        Item.UpdatedAt = DateTime.Now;
+        await TodoService.UpdateItemAsync(Item);
+
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+
+    /// <summary>
+    /// Cancela la edición.
+    /// </summary>
+    private void Cancel() => MudDialog?.Cancel();
+
+    // Inyectamos el servicio para las operaciones de movimiento
+    [Inject]
+    private TodoService TodoService { get; set; } = null!;
+}

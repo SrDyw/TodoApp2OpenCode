@@ -1,0 +1,862 @@
+@page "/"
+@page "/dashboard"
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject TodoService TodoService
+@inject BottomNavService BottomNavService
+
+<PageTitle>FlowBoard - Organiza tu flujo</PageTitle>
+
+<!-- Elemento que sigue el cursor durante el arrastre de tareas -->
+@if (isDraggingItem && draggedItem != null)
+{
+    <div class="drag-ghost" 
+         style="@($"left: {dragPosition.X}px; top: {dragPosition.Y}px;")">
+        <MudCard Class="todo-card-dragging">
+            <MudCardContent Class="pa-3">
+                <MudText Typo="Typo.body1" Style="word-break: break-word;">
+                    @draggedItem.Title
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </div>
+}
+
+<!-- Elemento que sigue el cursor durante el arrastre de columnas -->
+@if (isDraggingColumn && draggedColumn != null)
+{
+    <div class="drag-ghost-column" 
+         style="@($"left: {dragPosition.X}px; top: {dragPosition.Y}px;")">
+        <div class="column-header-dragging">
+            <div class="column-color-dot" style="background-color: @draggedColumn.Color;"></div>
+            <MudText Typo="Typo.h6" Class="column-title">@draggedColumn.Name</MudText>
+        </div>
+    </div>
+}
+
+<!-- Encabezado de la página -->
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">
+        <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
+        Mi tablero
+    </MudText>
+</MudStack>
+
+<!-- Barra de acciones flotante estilo Win11 -->
+<div class="action-bar">
+    <MudButton Color="Color.Primary" 
+               Variant="Variant.Filled" 
+               Size="Size.Medium"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenNewTaskDialogAsync">
+        Nueva Tarea
+    </MudButton>
+</div>
+
+<!-- Barra de estado de sincronización -->
+@if (_syncStatus != SyncStatus.Idle)
+{
+    <div class="sync-status-bar visible">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            @if (_syncStatus == SyncStatus.Syncing)
+            {
+                <MudProgressCircular Size="Size.Small" Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.body2">Guardando cambios...</MudText>
+            }
+            else if (_syncStatus == SyncStatus.Success)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                <MudText Typo="Typo.body2" Color="Color.Success">Tablero actualizado</MudText>
+            }
+            else if (_syncStatus == SyncStatus.Error)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
+                <MudText Typo="Typo.body2" Color="Color.Error">Error al guardar</MudText>
+            }
+        </MudStack>
+    </div>
+}
+
+<!-- Tablero de columnas estilo Kanban -->
+<div class="board-container @((isDraggingItem || isDraggingColumn) ? "no-select" : "")" @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp">
+    @if (columnLoading)
+    {
+        <div class="columns-wrapper">
+            @for (int i = 0; i < 3; i++)
+            {
+                <div class="board-column skeleton-column">
+                    <div class="column-header">
+                        <div class="column-title-area">
+                            <MudSkeleton Width="16px" Height="16px" Class="mr-1" />
+                            <MudSkeleton Width="8px" Height="8px" Class="mr-1" />
+                            <MudSkeleton Width="100px" Height="24px" />
+                        </div>
+                    </div>
+                    <div class="column-content">
+                        @for (int j = 0; j < 3; j++)
+                        {
+                            <MudCard Class="todo-card-skeleton mb-3">
+                                <MudCardContent Class="pa-3">
+                                    <MudSkeleton Width="80%" Height="18px" Class="mb-2" />
+                                    <MudSkeleton Width="60%" Height="14px" />
+                                </MudCardContent>
+                            </MudCard>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="columns-wrapper">
+            @foreach (var column in columns)
+            {
+                <div class="board-column @(hoveredColumnId == column.Id && isDraggingItem ? "drop-zone-hover" : "") @(isDraggingColumn && draggedColumn?.Id == column.Id ? "column-being-dragged" : "") @(hoveredColumnId == column.Id && isDraggingColumn && draggedColumn?.Id != column.Id ? "column-drop-target" : "")" 
+                     style="--column-color: @column.Color;"
+                     data-column-id="@column.Id"
+                     @onmouseenter="() => HandleColumnHover(column.Id)"
+                     @onmouseleave="() => HandleColumnLeave()">
+                    <div class="column-header column-drag-handle" >
+                        <div class="column-title-area" @onmousedown="(e) => StartColumnDrag(e, column)">
+                            <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Class="mr-1 column-drag-icon" />
+                            <div class="column-color-dot" style="background-color: @column.Color;"></div>
+                            <MudText Typo="Typo.h6" Class="column-title">@column.Name</MudText>
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">
+                                @GetColumnItemCount(column.Id)
+                            </MudChip>
+                        </div>
+                        
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" edge="Edge.End">
+                            <MudMenuItem OnClick="() => OpenEditColumnDialog(column)">
+                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                                    <span>Editar</span>
+                                </MudStack>
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem OnClick="() => DeleteColumnAsync(column)" Class="text-danger">
+                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" />
+                                    <span>Eliminar</span>
+                                </MudStack>
+                            </MudMenuItem>
+                        </MudMenu>
+                    </div>
+                    
+                    <div class="column-content"
+                         >
+                        @foreach (var item in GetColumnItems(column.Id))
+                        {
+                            <div class="todo-card-wrapper @(item.IsCompleted ? "completed" : "")"
+                                 draggable="false"
+                                 @onmousedown="(e) => StartItemDrag(e, item)"
+                                 style="@(item.Priority == TodoPriority.High && !item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
+                                <MudCard Class="@($"todo-card{(item.IsCompleted ? " completed" : "")}")">
+                                    <MudCardContent Class="pa-3">
+                                        <MudStack Spacing="2">
+                                            <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+                                                <MudStack Spacing="0" Style="flex: 1;" 
+                                                >
+                                                    <MudText Typo="Typo.body1" 
+                                                             Class="@(item.IsCompleted ? "text-strikethrough" : null)"
+                                                             Style="word-break: break-word;"
+                                                             
+                                                             >
+                                                        @item.Title
+                                                    </MudText>
+                                                </MudStack>
+                                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Color="Color.Default" Class="drag-handle" />
+                                            </MudStack>
+                                            
+                                            @if (!string.IsNullOrEmpty(item.Description))
+                                            {
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="@(item.IsCompleted ? "text-strikethrough" : "")" Style="word-break: break-word;">
+                                                    @item.Description
+                                                </MudText>
+                                            }
+                                            
+                                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                @if (item.Priority != TodoPriority.Normal)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(item.Priority == TodoPriority.High ? Color.Error : Color.Default)">
+                                                        @(item.Priority == TodoPriority.High ? "🔴 Alta" : "⚪ Baja")
+                                                    </MudChip>
+                                                }
+                                                else
+                                                {
+                                                    <div></div>
+                                                }
+                                                
+                                                <MudStack Row="true" Spacing="0">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditItemDialog(item)" aria-label="Editar" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItemAsync(item)" aria-label="Eliminar" />
+                                                </MudStack>
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudCardContent>
+                                </MudCard>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            
+            <div class="board-column add-column-trigger" @onclick="AddColumnAsync">
+                <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Class="add-column-icon" />
+                <MudText>Nueva Columna</MudText>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .drag-ghost {
+        position: fixed;
+        z-index: 9999;
+        pointer-events: none;
+        transform: rotate(25deg) scale(1.05);
+        opacity: 0.95;
+        filter: drop-shadow(0 8px 24px rgba(0,0,0,0.3));
+        cursor: grabbing;
+    }
+    
+    .todo-card-dragging {
+        background: var(--mud-palette-surface);
+        border-radius: 8px;
+        max-width: 300px;
+    }
+    
+    .drag-ghost-column {
+        position: fixed;
+        z-index: 9999;
+        pointer-events: none;
+        transform: rotate(5deg) scale(1.02);
+        opacity: 0.9;
+        filter: drop-shadow(0 12px 32px rgba(0,0,0,0.3));
+        cursor: grabbing;
+        width: 320px;
+    }
+    
+    .column-header-dragging {
+        padding: 16px;
+        background: var(--mud-palette-surface);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+    
+    .board-container {
+        width: 100%;
+        height: calc(100vh - 200px);
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 20px;
+    }
+    
+    .columns-wrapper {
+        display: flex;
+        gap: 16px;
+        height: 100%;
+        min-height: 500px;
+        padding: 4px;
+    }
+    
+    .board-column {
+        flex: 0 0 320px;
+        max-width: 320px;
+        background: var(--mud-palette-surface);
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        max-height: 100%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .board-column.drop-zone-hover {
+        background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
+    }
+    
+    .board-column.column-being-dragged {
+        opacity: 0.4;
+        transform: scale(0.95);
+    }
+    
+    .board-column.column-drop-target {
+        outline: 3px dashed var(--mud-palette-primary);
+        outline-offset: -3px;
+    }
+    
+    .column-header {
+        padding: 16px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(to right, var(--column-color) 4px, transparent 4px);
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .column-drag-handle { cursor: grab; }
+    .column-drag-handle:active { cursor: grabbing; }
+    
+    .column-title-area {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .column-color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    .column-title {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .column-drag-icon { opacity: 0.5; cursor: grab; }
+    .column-header:hover .column-drag-icon { opacity: 1; }
+    
+    .column-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 100px;
+    }
+    
+    .todo-card-wrapper {
+        border-radius: 8px;
+        transition: transform 0.2s, opacity 0.2s;
+        cursor: grab;
+    }
+    
+    .todo-card-wrapper:hover { transform: scale(1.02); }
+    .todo-card-wrapper:active { cursor: grabbing; }
+    .todo-card-wrapper.completed { opacity: 0.6; }
+    
+    .todo-card {
+        background: var(--mud-palette-background);
+        border-radius: 8px;
+        pointer-events: none;
+    }
+    
+    .drag-handle { opacity: 0.4; transition: opacity 0.2s; cursor: grab; }
+    .todo-card-wrapper:hover .drag-handle { opacity: 1; }
+    
+    .text-strikethrough { text-decoration: line-through; color: var(--mud-palette-text-disabled); }
+    
+    .add-item-form { margin-top: auto; padding-top: 8px; }
+
+    .skeleton-column {
+        background: var(--mud-palette-surface);
+        border-radius: 12px;
+        flex: 0 0 320px;
+        max-width: 320px;
+    }
+
+    .todo-card-skeleton {
+        background: var(--mud-palette-background);
+        border-radius: 8px;
+    }
+
+    .add-column-trigger {
+        flex: 0 0 320px;
+        max-width: 320px;
+        background: transparent;
+        border: 2px dashed var(--mud-palette-lines-default);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s, background 0.2s;
+        min-height: 200px;
+    }
+    
+    .add-column-trigger:hover { opacity: 1; background: var(--mud-palette-surface); border-color: var(--mud-palette-primary); }
+    .add-column-icon { font-size: 48px; margin-bottom: 8px; color: var(--mud-palette-primary); }
+
+    .column-content::-webkit-scrollbar { width: 6px; }
+    .column-content::-webkit-scrollbar-track { background: transparent; }
+    .column-content::-webkit-scrollbar-thumb { background: var(--mud-palette-primary); border-radius: 3px; }
+    .column-content::-webkit-scrollbar-thumb:hover { background: var(--mud-palette-primary); filter: brightness(1.1); }
+    .column-content::-webkit-scrollbar-button { display: none; }
+    .column-content::-webkit-scrollbar-corner { background: transparent; }
+
+    .board-container::-webkit-scrollbar { height: 6px; }
+    .board-container::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 3px; }
+    .board-container::-webkit-scrollbar-thumb { background: var(--mud-palette-primary); border-radius: 3px; transition: filter 0.2s; }
+    .board-container::-webkit-scrollbar-thumb:hover { filter: brightness(1.15); }
+    .board-container::-webkit-scrollbar-thumb:active { filter: brightness(1.2); }
+    .board-container::-webkit-scrollbar-button { display: none; }
+    .board-container::-webkit-scrollbar-corner { background: transparent; }
+
+    .no-select {
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .action-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .sync-status-bar {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        padding: 12px 24px;
+        border-radius: 8px;
+        z-index: 1000;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .sync-status-bar.visible {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+</style>
+
+@code {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // ============================================
+    // PROPIEDADES
+    // ============================================
+    [CascadingParameter]
+    private EventCallback<string>? BottomNavCallback { get; set; }
+
+    private enum SyncStatus { Idle, Syncing, Success, Error }
+    private SyncStatus _syncStatus = SyncStatus.Idle;
+    private int _pendingOperations = 0;
+    private System.Timers.Timer? _syncTimer;
+
+    private bool isDraggingItem = false;
+    private TodoItem? draggedItem;
+    private string? sourceColumnId;
+
+    private bool isDraggingColumn = false;
+    private TodoColumn? draggedColumn;
+    private int draggedColumnIndex;
+    private (double X, double Y) dragPosition;
+    private string? hoveredColumnId;
+    private double dragOffsetX = 0;
+    private double dragOffsetY = 0;
+
+    private List<TodoColumn> columns = new();
+    private Dictionary<string, List<TodoItem>> itemsByColumn = new();
+    private bool isLoading = true;
+
+    private bool columnLoading = true;
+    private string newColumnColor = "#7e6fff";
+
+    // ============================================
+    // CICLO DE VIDA
+    // ============================================
+    protected override async Task OnInitializedAsync()
+    {
+        BottomNavService.OnBottomNavAction += HandleBottomNavAction;
+        await LoadBoardAsync();
+
+        columnLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        BottomNavService.OnBottomNavAction -= HandleBottomNavAction;
+    }
+
+    private async Task HandleBottomNavAction(string action)
+    {
+        switch (action)
+        {
+            case "newtask":
+                await OpenNewTaskDialogAsync();
+                break;
+            case "boards":
+                SnackbarService.Add("Tableros - proximamente", Severity.Info);
+                break;
+        }
+    }
+
+    // ============================================
+    // MÉTODOS DE CARGA
+    // ============================================
+    private async Task LoadBoardAsync()
+    {
+        try
+        {
+            isLoading = true;
+            await Task.Delay(1000);
+            columns = await TodoService.GetColumnsAsync();
+            itemsByColumn.Clear();
+            foreach (var column in columns)
+            {
+                itemsByColumn[column.Id] = await TodoService.GetItemsByColumnAsync(column.Id);
+            }
+
+        }
+        catch (Exception ex)
+        {
+            SnackbarService.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<TodoItem> GetColumnItems(string columnId) =>
+        itemsByColumn.TryGetValue(columnId, out var items) ? items : new List<TodoItem>();
+
+    private int GetColumnItemCount(string columnId) => GetColumnItems(columnId).Count;
+
+    // ============================================
+    // DRAG & DROP DE TAREAS
+    // ============================================
+    private void StartItemDrag(MouseEventArgs e, TodoItem item)
+    {
+        if (isLoading) return;
+        isDraggingItem = true;
+        draggedItem = item;
+        sourceColumnId = item.ColumnId;
+        dragOffsetX = 80;
+        dragOffsetY = 20;
+        dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
+    }
+
+    // ============================================
+    // DRAG & DROP DE COLUMNAS
+    // ============================================
+    private void StartColumnDrag(MouseEventArgs e, TodoColumn column)
+    {
+        if (isLoading) return;
+        isDraggingColumn = true;
+        draggedColumn = column;
+        draggedColumnIndex = columns.FindIndex(c => c.Id == column.Id);
+        dragOffsetX = 160;
+        dragOffsetY = 40;
+        dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
+    }
+
+    private void HandleColumnHover(string columnId)
+    {
+        hoveredColumnId = columnId;
+    }
+
+    private void HandleColumnLeave()
+    {
+        // No limpiamos hoveredColumnId aquí - se limpia en HandleMouseUp
+    }
+
+    private void HandleMouseMove(MouseEventArgs e)
+    {
+        if (isDraggingItem || isDraggingColumn)
+        {
+            dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleMouseUp(MouseEventArgs e)
+    {
+        if (isDraggingItem && draggedItem != null)
+        {
+            if (!string.IsNullOrEmpty(hoveredColumnId) && hoveredColumnId != sourceColumnId)
+            {
+                MoveItemOptimistic(draggedItem, sourceColumnId!, hoveredColumnId);
+                _ = MoveItemBackgroundAsync(draggedItem.Id, hoveredColumnId);
+                SnackbarService.Add("Tarea movida", Severity.Info);
+            }
+            isDraggingItem = false;
+            draggedItem = null;
+            sourceColumnId = null;
+        }
+        else if (isDraggingColumn && draggedColumn != null && !string.IsNullOrEmpty(hoveredColumnId))
+        {
+            if (hoveredColumnId != draggedColumn.Id)
+            {
+                var targetIndex = columns.FindIndex(c => c.Id == hoveredColumnId);
+                if (targetIndex >= 0)
+                {
+                    SwapColumnsOptimistic(draggedColumnIndex, targetIndex);
+                    _ = SwapColumnsBackgroundAsync(draggedColumnIndex, targetIndex);
+                }
+            }
+        }
+        isDraggingColumn = false;
+        draggedColumn = null;
+        hoveredColumnId = null;
+        StateHasChanged();
+    }
+
+    private async Task SwapColumnsAsync(int from, int to)
+    {
+        if (from < 0 || to < 0 || from >= columns.Count || to >= columns.Count) return;
+        try
+        {
+            await TodoService.SwapColumnsAsync(from, to);
+            await LoadBoardAsync();
+            SnackbarService.Add("Columnas intercambiadas", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            SnackbarService.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void MoveItemOptimistic(TodoItem item, string fromColumnId, string toColumnId)
+    {
+        if (itemsByColumn.TryGetValue(fromColumnId, out var sourceList))
+        {
+            sourceList.Remove(item);
+        }
+        if (!itemsByColumn.ContainsKey(toColumnId))
+        {
+            itemsByColumn[toColumnId] = new List<TodoItem>();
+        }
+        itemsByColumn[toColumnId].Add(item);
+        item.ColumnId = toColumnId;
+        StateHasChanged();
+    }
+
+    private async Task MoveItemBackgroundAsync(string itemId, string targetColumnId)
+    {
+        try
+        {
+            _pendingOperations++;
+            _syncStatus = SyncStatus.Syncing;
+            StateHasChanged();
+            
+            await Task.Delay(2000);
+            await TodoService.MoveItemToColumnAsync(itemId, targetColumnId);
+            
+            OnOperationComplete(true);
+        }
+        catch
+        {
+            await LoadBoardAsync();
+            OnOperationComplete(false);
+        }
+    }
+
+    private void SwapColumnsOptimistic(int from, int to)
+    {
+        (columns[from], columns[to]) = (columns[to], columns[from]);
+        StateHasChanged();
+    }
+
+    private async Task SwapColumnsBackgroundAsync(int from, int to)
+    {
+        try
+        {
+            _pendingOperations++;
+            _syncStatus = SyncStatus.Syncing;
+            StateHasChanged();
+            
+            await Task.Delay(600);
+            await TodoService.SwapColumnsAsync(from, to);
+            
+            OnOperationComplete(true);
+        }
+        catch
+        {
+            (columns[from], columns[to]) = (columns[to], columns[from]);
+            StateHasChanged();
+            OnOperationComplete(false);
+        }
+    }
+
+    private void OnOperationComplete(bool success)
+    {
+        _pendingOperations--;
+        if (_pendingOperations <= 0)
+        {
+            _pendingOperations = 0;
+            _syncStatus = success ? SyncStatus.Success : SyncStatus.Error;
+            StateHasChanged();
+            
+            _syncTimer?.Stop();
+            _syncTimer?.Dispose();
+            _syncTimer = new System.Timers.Timer(2000);
+            _syncTimer.Elapsed += (s, e) =>
+            {
+                _syncTimer?.Stop();
+                _syncTimer?.Dispose();
+                _syncTimer = null;
+                InvokeAsync(() => {
+                    _syncStatus = SyncStatus.Idle;
+                    StateHasChanged();
+                });
+            };
+            _syncTimer.AutoReset = false;
+            _syncTimer.Start();
+        }
+    }
+
+    // ============================================
+    // OPERACIONES DE COLUMNAS
+    // ============================================
+    private async Task AddColumnAsync()
+    {
+        var parameters = new DialogParameters<InputDialog>();
+        parameters.Add(x => x.Title, "Nueva Columna");
+        parameters.Add(x => x.ContentText, "Nombre de la columna:");
+        parameters.Add(x => x.Placeholder, "Nombre...");
+        parameters.Add(x => x.ButtonText, "Crear");
+
+        var dialog = await DialogService.ShowAsync<InputDialog>("Nueva Columna", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: string name } && !string.IsNullOrWhiteSpace(name))
+        {
+            var col = await TodoService.AddColumnAsync(name, newColumnColor);
+            if (col != null)
+            {
+                await LoadBoardAsync();
+                SnackbarService.Add($"Columna '{col.Name}' creada", Severity.Success);
+            }
+        }
+    }
+
+    private async Task OpenEditColumnDialog(TodoColumn column)
+    {
+        var editing = new TodoColumn { Id = column.Id, Name = column.Name, Color = column.Color, CreatedAt = column.CreatedAt, UpdatedAt = column.UpdatedAt };
+        var parameters = new DialogParameters<EditColumnDialog>();
+        parameters.Add(x => x.Column, editing);
+
+        var dialog = await DialogService.ShowAsync<EditColumnDialog>("Editar Columna", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await TodoService.UpdateColumnAsync(editing);
+            await LoadBoardAsync();
+            SnackbarService.Add("Columna actualizada", Severity.Success);
+        }
+    }
+
+    private async Task DeleteColumnAsync(TodoColumn column)
+    {
+        var count = GetColumnItemCount(column.Id);
+        var msg = count > 0 ? $"¿Eliminar '{column.Name}' y sus {count} tareas?" : $"¿Eliminar '{column.Name}'?";
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, msg);
+        parameters.Add(x => x.ButtonText, "Eliminar");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await TodoService.DeleteColumnAsync(column.Id);
+            await LoadBoardAsync();
+            SnackbarService.Add("Columna eliminada", Severity.Success);
+        }
+    }
+
+    // ============================================
+    // OPERACIONES DE TAREAS
+    // ============================================
+    private async Task OpenNewTaskDialogAsync()
+    {
+        if (!columns.Any())
+        {
+            SnackbarService.Add("Primero crea una columna", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters<NewTaskDialog>();
+        parameters.Add(x => x.Columns, columns);
+
+        var dialog = await DialogService.ShowAsync<NewTaskDialog>("Nueva Tarea", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: TodoItem newItem })
+        {
+            if (await TodoService.AddItemAsync(newItem))
+            {
+                await LoadBoardAsync();
+                SnackbarService.Add("Tarea agregada", Severity.Success);
+            }
+        }
+    }
+
+    private async Task OpenEditItemDialog(TodoItem item)
+    {
+        var editing = new TodoItem { Id = item.Id, Title = item.Title, Description = item.Description, Priority = item.Priority, ColumnId = item.ColumnId, IsCompleted = item.IsCompleted, Order = item.Order, CreatedAt = item.CreatedAt, UpdatedAt = item.UpdatedAt };
+        var parameters = new DialogParameters<EditItemDialog>();
+        parameters.Add(x => x.Item, editing);
+        parameters.Add(x => x.Columns, columns);
+
+        var dialog = await DialogService.ShowAsync<EditItemDialog>("Editar Tarea", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await TodoService.UpdateItemAsync(editing);
+            await LoadBoardAsync();
+            SnackbarService.Add("Tarea actualizada", Severity.Success);
+        }
+    }
+
+    private async Task DeleteItemAsync(TodoItem item)
+    {
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, $"¿Eliminar '{item.Title}'?");
+        parameters.Add(x => x.ButtonText, "Eliminar");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await TodoService.DeleteItemAsync(item.Id);
+            await LoadBoardAsync();
+            SnackbarService.Add("Tarea eliminada", Severity.Success);
+        }
+    }
+}
