@@ -1,0 +1,81 @@
+@inject AuthService AuthService
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="Email" 
+                          Label="Email" 
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          InputType="InputType.Email"
+                          Placeholder="tu@email.com" />
+            
+            <MudTextField @bind-Value="Password" 
+                          Label="Contraseña" 
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                          OnAdornmentClick="TogglePasswordVisibility" />
+            
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true">
+                    @ErrorMessage
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="Submit"
+                   Disabled="@IsLoading">
+            @if (IsLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Iniciar Sesión
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    private string Email { get; set; } = string.Empty;
+    private string Password { get; set; } = string.Empty;
+    private bool _showPassword = false;
+    private bool IsLoading = false;
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
+
+    private async Task Submit()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+        StateHasChanged();
+
+        var (success, error) = await AuthService.LoginAsync(Email, Password);
+
+        IsLoading = false;
+
+        if (success)
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            ErrorMessage = error ?? "Error desconocido";
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}

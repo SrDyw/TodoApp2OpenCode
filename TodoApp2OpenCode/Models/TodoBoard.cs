@@ -11,6 +11,27 @@ namespace TodoApp2OpenCode.Models;
 /// </remarks>
 public class TodoBoard
 {
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("userId")]
+    public string User { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("participantIds")]
+    public List<string> ParticipantIds { get; set; } = new();
+
+    [JsonPropertyName("participantNames")]
+    public Dictionary<string, string> ParticipantNames { get; set; } = new();
+
+    [JsonPropertyName("ownerName")]
+    public string OwnerName { get; set; } = string.Empty;
+
     /// <summary>
     /// Lista de columnas en el tablero.
     /// </summary>

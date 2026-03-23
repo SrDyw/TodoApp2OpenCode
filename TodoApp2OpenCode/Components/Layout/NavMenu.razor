@@ -1,21 +1,56 @@
-
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@inject AuthService AuthService
+@inject BoardService BoardService
 
 <MudNavMenu>
     <MudNavGroup Title="Tableros" Icon="@Icons.Material.Filled.Dashboard" Expanded="true">
-        @if (isLoading)
+        @if (!IsAuthenticated)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="px-4 py-2">
+                Inicia sesión para ver tus tableros
+            </MudText>
+        }
+        else if (isLoading)
         {
             <div class="skeleton-wrapper">
-                @for (int i = 0; i < 4; i++)
+                @for (int i = 0; i < 3; i++)
                 {
                     <MudSkeleton Width="100%" Height="28px" Class="mb-2" />
                 }
             </div>
         }
+        else if (!boards.Any())
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="px-4 py-2 mb-2">
+                No tienes tableros aún
+            </MudText>
+            <MudButton OnClick="OnNewBoardButtonClick" 
+                       StartIcon="@Icons.Material.Filled.Add" 
+                       Color="Color.Primary"
+                       Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       Class="mx-2 mb-2">
+                Crear primer tablero
+            </MudButton>
+        }
         else
         {
+            <div class="add-board-button">
+                <MudButton OnClick="OnNewBoardButtonClick" 
+                           StartIcon="@Icons.Material.Filled.Add" 
+                           Variant="Variant.Text"
+                           Size="Size.Small"
+                           FullWidth="true">
+                    Nuevo tablero
+                </MudButton>
+            </div>
             @foreach (var board in boards)
             {
-                <MudNavLink Href="@($"/board/{board.Id}")" Match="NavLinkMatch.All" Class="board-nav-link" Icon="@Icons.Material.Filled.ViewKanban">
+                <MudNavLink Href="@($"/board/{board.Id}")" 
+                           Match="NavLinkMatch.All" 
+                           Class="board-nav-link" 
+                           Icon="@Icons.Material.Filled.ViewKanban">
                     @board.Name
                 </MudNavLink>
             }
@@ -27,28 +62,89 @@
     .skeleton-wrapper {
         padding: 8px 16px;
     }
+
+    .board-nav-link {
+        display: block;
+        width: 100%;
+        padding: 4px 16px;
+    }
+
+    .add-board-button {
+        padding: 4px 8px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
 </style>
 
 @code {
-    private List<BoardInfo> boards = new();
+    private List<TodoBoard> boards = new();
     private bool isLoading = true;
+    private bool _authChecked = false;
+    private bool IsAuthenticated => AuthService.IsAuthenticated;
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.Delay(800);
-        boards = new List<BoardInfo>
-        {
-            new() { Id = "1", Name = "Mi Tablero" },
-            new() { Id = "2", Name = "Proyecto Alpha" },
-            new() { Id = "3", Name = "Sprint 2024" },
-            new() { Id = "4", Name = "Ideas" }
-        };
-        isLoading = false;
+        AuthService.SetAuthStateChangedCallback(OnAuthStateChanged);
+        
+        await AuthService.CheckAuthStateAsync();
+        _authChecked = true;
+        await LoadBoardsAsync();
     }
 
-    private class BoardInfo
+    private async void OnAuthStateChanged(User? user)
     {
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
+        await LoadBoardsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadBoardsAsync()
+    {
+        isLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        if (!_authChecked)
+        {
+            await AuthService.CheckAuthStateAsync();
+            _authChecked = true;
+        }
+
+        if (AuthService.IsAuthenticated && AuthService.CurrentUser != null)
+        {
+            await Task.Delay(300);
+            boards = await BoardService.GetUserBoardsAsync(AuthService.CurrentUser.Id);
+        }
+        else
+        {
+            boards = new List<TodoBoard>();
+        }
+
+        isLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnNewBoardButtonClick()
+    {
+        if (!AuthService.IsAuthenticated || AuthService.CurrentUser == null)
+        {
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.ExtraSmall
+        };
+
+        var parameters = new DialogParameters<NewBoardDialog>();
+        parameters.Add(x => x.UserId, AuthService.CurrentUser.Id);
+
+        var dialog = await DialogService.ShowAsync<NewBoardDialog>("Nuevo Tablero", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: TodoBoard board })
+        {
+            await LoadBoardsAsync();
+            Navigation.NavigateTo($"/board/{board.Id}");
+        }
     }
 }

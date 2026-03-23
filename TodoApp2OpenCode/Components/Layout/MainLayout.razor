@@ -1,4 +1,8 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject AuthService AuthService
+@inject NavigationManager Navigation;
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -9,6 +13,39 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
         <MudText Typo="Typo.h5" Class="ml-3">FlowBoard</MudText>
         <MudSpacer />
+        
+        @if (IsAuthenticated)
+        {
+            <MudChip T="string" 
+                     Icon="@Icons.Material.Filled.Person" 
+                     Color="Color.Primary" 
+                     Variant="Variant.Outlined"
+                     Size="Size.Small"
+                     Class="mr-2">
+                @CurrentUsername
+            </MudChip>
+            <MudButton Color="Color.Inherit" 
+                       Variant="Variant.Text"
+                       OnClick="Logout"
+                       Class="mr-2">
+                Cerrar Sesión
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Inherit" 
+                       Variant="Variant.Text"
+                       OnClick="OpenRegisterDialog"
+                       Class="mr-2">
+                Registrarse
+            </MudButton>
+            <MudButton Color="Color.Primary" 
+                       Variant="Variant.Filled"
+                       OnClick="OpenLoginDialog">
+                Iniciar Sesión
+            </MudButton>
+        }
+        
         <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggle" />
         <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" />
     </MudAppBar>
@@ -28,11 +65,14 @@
 </div>
 
 @code {
+
     private bool _drawerOpen = true;
     private bool _isDarkMode = true;
+    private bool IsAuthenticated => AuthService.IsAuthenticated;
+    private string CurrentUsername => AuthService.CurrentUser?.Username ?? "Usuario";
     private MudTheme? _theme = null;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         base.OnInitialized();
 
@@ -42,6 +82,14 @@
             PaletteDark = _darkPalette,
             LayoutProperties = new LayoutProperties()
         };
+
+        AuthService.SetAuthStateChangedCallback(OnAuthStateChanged);
+        await AuthService.CheckAuthStateAsync();
+    }
+
+    private void OnAuthStateChanged(Models.User? user)
+    {
+        InvokeAsync(StateHasChanged);
     }
 
     private void DrawerToggle()
@@ -52,6 +100,55 @@
     private void DarkModeToggle()
     {
         _isDarkMode = !_isDarkMode;
+    }
+
+    private async Task OpenLoginDialog()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.ExtraSmall
+        };
+
+        var dialog = await DialogService.ShowAsync<LoginDialog>("Iniciar Sesión", options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            // StateHasChanged();
+            Navigation.NavigateTo("/");
+
+            // SnackbarService.Add("Sesión iniciada", Severity.Success);
+        }
+    }
+
+    private async Task OpenRegisterDialog()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.ExtraSmall
+        };
+
+        var dialog = await DialogService.ShowAsync<RegisterDialog>("Crear Cuenta", options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            // StateHasChanged();
+            Navigation.NavigateTo("/");
+
+            // SnackbarService.Add("Cuenta creada exitosamente", Severity.Success);
+        }
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+
+        Navigation.NavigateTo("/");
+        // StateHasChanged();
+        // SnackbarService.Add("Sesión cerrada", Severity.Info);
     }
 
     private readonly PaletteLight _lightPalette = new()
@@ -99,5 +196,3 @@
         false => Icons.Material.Outlined.DarkMode,
     };
 }
-
-

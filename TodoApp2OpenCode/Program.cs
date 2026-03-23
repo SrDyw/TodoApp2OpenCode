@@ -11,8 +11,10 @@ builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
+builder.Services.AddScoped<AuthService>();
 
 var app = builder.Build();
 

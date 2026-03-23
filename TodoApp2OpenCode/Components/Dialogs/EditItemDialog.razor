@@ -125,26 +125,23 @@
     /// <summary>
     /// Guarda los cambios de la tarea.
     /// </summary>
-    private async void Submit()
+    private void Submit()
     {
         if (string.IsNullOrWhiteSpace(Item.Title))
         {
             return;
         }
 
-        // Actualizamos la columna si cambió
-        if (Item.ColumnId != selectedColumnId)
-        {
-            // Movemos la tarea a la nueva columna
-            await TodoService.MoveItemToColumnAsync(Item.Id, selectedColumnId);
-            Item.ColumnId = selectedColumnId;
-        }
-
-        // Actualizamos la tarea
         Item.UpdatedAt = DateTime.Now;
-        await TodoService.UpdateItemAsync(Item);
-
-        MudDialog?.Close(DialogResult.Ok(true));
+        var result = new EditItemResult
+        {
+            Item = Item,
+            ColumnChanged = Item.ColumnId != selectedColumnId,
+            NewColumnId = selectedColumnId
+        };
+        
+        Item.ColumnId = selectedColumnId;
+        MudDialog?.Close(DialogResult.Ok(result));
     }
 
     /// <summary>
@@ -152,7 +149,10 @@
     /// </summary>
     private void Cancel() => MudDialog?.Cancel();
 
-    // Inyectamos el servicio para las operaciones de movimiento
-    [Inject]
-    private TodoService TodoService { get; set; } = null!;
+    public class EditItemResult
+    {
+        public TodoItem Item { get; set; } = new();
+        public bool ColumnChanged { get; set; }
+        public string NewColumnId { get; set; } = string.Empty;
+    }
 }

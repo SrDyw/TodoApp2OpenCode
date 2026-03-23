@@ -1,0 +1,53 @@
+@page "/board/not-found"
+@inject NavigationManager Navigation
+
+<style>
+    .not-found-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 70vh;
+        text-align: center;
+    }
+
+    .not-found-title {
+        font-size: 4rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .not-found-subtitle {
+        font-size: 1.25rem;
+        color: var(--mud-palette-text-secondary);
+        margin-bottom: 32px;
+    }
+
+    .not-found-button {
+        padding: 12px 32px;
+        border-radius: 8px;
+        background: var(--mud-palette-primary);
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .not-found-button:hover {
+        background: var(--mud-palette-primary-hover);
+    }
+</style>
+
+<div class="not-found-container">
+    <div class="not-found-title">404</div>
+    <div class="not-found-subtitle">Tablero no encontrado</div>
+    <a href="/" class="not-found-button">Volver al inicio</a>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

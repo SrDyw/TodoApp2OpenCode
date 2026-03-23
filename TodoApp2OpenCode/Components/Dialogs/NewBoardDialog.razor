@@ -1,0 +1,130 @@
+@inject BoardService BoardService
+@inject IDialogService DialogService
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="BoardName" 
+                          Label="Nombre del tablero" 
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          Placeholder="Ej: Proyecto Personal" />
+            
+            <MudTextField @bind-Value="BoardDescription" 
+                          Label="Descripción (opcional)" 
+                          Variant="Variant.Outlined"
+                          Lines="2"
+                          Placeholder="¿De qué se trata este tablero?" />
+            
+            <div>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Participantes</MudText>
+                @if (Participants.Any())
+                {
+                    <div class="participants-list">
+                        @foreach (var participant in Participants)
+                        {
+                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" OnClose="() => RemoveParticipant(participant)">
+                                @participant.Name
+                            </MudChip>
+                        }
+                    </div>
+                }
+                <MudButton Color="Color.Default" 
+                           Variant="Variant.Outlined" 
+                           Size="Size.Small" 
+                           FullWidth="true"
+                           OnClick="OpenAddParticipantsDialog"
+                           Class="mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Class="mr-1" />
+                    Añadir participantes
+                </MudButton>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true">
+                    @ErrorMessage
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="Submit"
+                   Disabled="@(string.IsNullOrWhiteSpace(BoardName))">
+            Crear Tablero
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .participants-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string? UserId { get; set; }
+
+    private string BoardName { get; set; } = string.Empty;
+    private string BoardDescription { get; set; } = string.Empty;
+    private string ErrorMessage { get; set; } = string.Empty;
+    private List<(string Id, string Name)> Participants { get; set; } = new();
+
+    private async Task OpenAddParticipantsDialog()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+
+        var dialog = await DialogService.ShowAsync<AddParticipantsDialog>("Añadir participantes", options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: List<(string Id, string Name)> selectedParticipants })
+        {
+            foreach (var p in selectedParticipants)
+            {
+                if (!Participants.Any(x => x.Id == p.Id))
+                {
+                    Participants.Add(p);
+                }
+            }
+        }
+    }
+
+    private void RemoveParticipant((string Id, string Name) participant)
+    {
+        Participants.Remove(participant);
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(BoardName))
+        {
+            ErrorMessage = "El nombre es requerido";
+            return;
+        }
+
+        var board = await BoardService.CreateBoardAsync(UserId ?? "", BoardName, BoardDescription, Participants);
+        
+        if (board != null)
+        {
+            MudDialog?.Close(DialogResult.Ok(board));
+        }
+        else
+        {
+            ErrorMessage = "Error al crear el tablero";
+        }
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}
