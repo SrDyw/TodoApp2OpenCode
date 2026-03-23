@@ -1,11 +1,12 @@
 @namespace TodoApp2OpenCode.Components.Dialogs
+@inject IDialogService DialogService
 
 <!--
     Diálogo para editar una tarea existente.
     Permite modificar título, descripción, prioridad y columna.
 -->
 
-<MudDialog>
+<MudDialog ContentStyle="width: 500px; max-width: 500px;">
     <DialogContent>
         <MudStack Spacing="3">
             <!-- Campo de título -->
@@ -14,16 +15,14 @@
                           Variant="Variant.Outlined"
                           Required="true"
                           Immediate="true"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Edit" />
+                          Adornment="Adornment.Start"/>
             
             <!-- Campo de descripción -->
             <MudTextField @bind-Value="Item.Description"
                           Label="Descripción (opcional)"
                           Variant="Variant.Outlined"
                           Lines="3"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Description" />
+                          Adornment="Adornment.Start"/>
             
             <!-- Selector de prioridad -->
             <MudSelect @bind-Value="Item.Priority"
@@ -48,6 +47,34 @@
                     </MudStack>
                 </MudSelectItem>
             </MudSelect>
+
+            @if (Participants.Any())
+            {
+                <MudButton Variant="Variant.Outlined" 
+                          Color="Color.Default"
+                          StartIcon="@Icons.Material.Filled.People"
+                          OnClick="OpenUserSelection">
+                    Asignar usuarios (@SelectedUserIds.Count)
+                </MudButton>
+
+                @if (SelectedUserIds.Any())
+                {
+                    <div class="selected-users-display">
+                        @foreach (var userId in SelectedUserIds)
+                        {
+                            if (AllParticipants.TryGetValue(userId, out var userName))
+                            {
+                                <MudChip T="string" 
+                                         Color="Color.Primary" 
+                                         Variant="Variant.Filled"
+                                         OnClose="@(() => RemoveUser(userId))">
+                                    @userName
+                                </MudChip>
+                            }
+                        }
+                    </div>
+                }
+            }
             
             <!-- Selector de columna -->
             <MudSelect @bind-Value="selectedColumnId"
@@ -78,8 +105,7 @@
     
     <DialogActions>
         <MudButton OnClick="Cancel"
-                   Color="Color.Default"
-                   Variant="Variant.Outlined">
+                   Variant="Variant.Text">
             Cancelar
         </MudButton>
         
@@ -92,6 +118,14 @@
         </MudButton>
     </DialogActions>
 </MudDialog>
+
+<style>
+    .selected-users-display {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+</style>
 
 @code {
     /// <summary>
@@ -113,13 +147,62 @@
     public List<TodoColumn> Columns { get; set; } = new();
 
     /// <summary>
+    /// Diccionario de participantes del tablero (Id -> Username).
+    /// </summary>
+    [Parameter]
+    public Dictionary<string, string> Participants { get; set; } = new();
+
+    /// <summary>
+    /// Diccionario de todos los usuarios disponibles (para edición).
+    /// </summary>
+    private Dictionary<string, string> AllParticipants { get; set; } = new();
+
+    /// <summary>
     /// ID de la columna seleccionada (para el selector).
     /// </summary>
     private string selectedColumnId = string.Empty;
 
+    /// <summary>
+    /// IDs de usuarios seleccionados.
+    /// </summary>
+    private HashSet<string> SelectedUserIds = new();
+
     protected override void OnInitialized()
     {
         selectedColumnId = Item.ColumnId;
+        
+        AllParticipants = new Dictionary<string, string>(Participants);
+        
+        if (Item.AssignedUsers != null)
+        {
+            SelectedUserIds = new HashSet<string>(Item.AssignedUsers.Keys);
+        }
+    }
+
+    private async Task OpenUserSelection()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium
+        };
+
+        var parameters = new DialogParameters<UserSelectionDialog>();
+        parameters.Add(x => x.Source, Participants);
+        parameters.Add(x => x.PreSelectedUserIds, SelectedUserIds);
+
+        var dialog = await DialogService.ShowAsync<UserSelectionDialog>("Seleccionar usuarios", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: List<(string Id, string Name)> selectedUsers })
+        {
+            SelectedUserIds = selectedUsers.Select(u => u.Id).ToHashSet();
+        }
+    }
+
+    private void RemoveUser(string userId)
+    {
+        SelectedUserIds.Remove(userId);
     }
 
     /// <summary>
@@ -133,6 +216,17 @@
         }
 
         Item.UpdatedAt = DateTime.Now;
+
+        var assignedUsers = new Dictionary<string, string>();
+        foreach (var userId in SelectedUserIds)
+        {
+            if (AllParticipants.TryGetValue(userId, out var userName))
+            {
+                assignedUsers[userId] = userName;
+            }
+        }
+        Item.AssignedUsers = assignedUsers;
+
         var result = new EditItemResult
         {
             Item = Item,

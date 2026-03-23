@@ -1,0 +1,201 @@
+@inject AuthService AuthService
+<MudDialog ContentStyle="width: 500px; max-width: 500px;">
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">Seleccionar usuarios</MudText>
+            
+            <MudTextField @bind-Value="_searchText" 
+                         Label="Buscar usuario" 
+                         Variant="Variant.Outlined"
+                         Placeholder="Escribe para buscar..."
+                         DebounceInterval="300"
+                         OnDebounceIntervalElapsed="PerformSearch"
+                         Adornment="Adornment.Start"
+                         AdornmentIcon="@Icons.Material.Filled.Search" />
+
+            @if (_isSearching)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+            }
+
+            @if (_availableUsers.Any())
+            {
+                <div class="users-list">
+                    @foreach (var user in _availableUsers)
+                    {
+                        <div class="user-item" @onclick="() => ToggleUser(user.Key)">
+                            <MudCheckBox T="bool" 
+                                        Value="@_selectedUserIds.Contains(user.Key)"
+                                        ValueChanged="@((bool v) => OnUserChecked(user.Key, v))"
+                                        Color="Color.Primary" />
+                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                <span>@user.Value</span>
+                            </MudStack>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <MudText Color="Color.Secondary">No hay usuarios disponibles</MudText>
+            }
+
+            @if (_selectedUserIds.Any())
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @_selectedUserIds.Count usuario(s) seleccionado(s)
+                    </MudText>
+                    <MudLink Typo="Typo.caption" Underline="Underline.Always" OnClick="ClearSelection" Style="cursor: pointer;">
+                        Limpiar
+                    </MudLink>
+                </MudStack>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="Submit"
+                   Disabled="@(!_selectedUserIds.Any())">
+            Seleccionar @(_selectedUserIds.Count) usuario(s)
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .users-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 8px;
+    }
+    .user-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--mud-palette-lines-default);
+    }
+    .user-item:last-child {
+        border-bottom: none;
+    }
+    .user-item:hover {
+        background-color: var(--mud-palette-action-hover);
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public Dictionary<string, string>? Source { get; set; }
+
+    [Parameter]
+    public HashSet<string>? PreSelectedUserIds { get; set; }
+
+    private string _searchText = string.Empty;
+    private bool _isSearching = false;
+    private Dictionary<string, string> _availableUsers = new();
+    private Dictionary<string, string> _originalUsers = new();
+    private HashSet<string> _selectedUserIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Source != null && Source.Any())
+        {
+            _availableUsers = new Dictionary<string, string>(Source);
+            _originalUsers = new Dictionary<string, string>(Source);
+        }
+        else
+        {
+            await LoadAllUsersAsync();
+            _originalUsers = new Dictionary<string, string>(_availableUsers);
+        }
+
+        if (PreSelectedUserIds != null && PreSelectedUserIds.Any())
+        {
+            _selectedUserIds = new HashSet<string>(PreSelectedUserIds);
+        }
+    }
+
+    private async Task LoadAllUsersAsync()
+    {
+        _isSearching = true;
+        try
+        {
+            var users = await AuthService.SearchUsersAsync("");
+            _availableUsers = users.ToDictionary(u => u.Id, u => u.Username);
+        }
+        catch
+        {
+            _availableUsers = new Dictionary<string, string>();
+        }
+        _isSearching = false;
+    }
+
+    private async Task PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            _availableUsers = new Dictionary<string, string>(_originalUsers);
+            return;
+        }
+
+        _isSearching = true;
+        try
+        {
+            var users = await AuthService.SearchUsersAsync(_searchText);
+            _availableUsers = users.ToDictionary(u => u.Id, u => u.Username);
+        }
+        catch
+        {
+            _availableUsers = new Dictionary<string, string>();
+        }
+        _isSearching = false;
+    }
+
+    private void ToggleUser(string userId)
+    {
+        if (_selectedUserIds.Contains(userId))
+        {
+            _selectedUserIds.Remove(userId);
+        }
+        else
+        {
+            _selectedUserIds.Add(userId);
+        }
+    }
+
+    private void OnUserChecked(string userId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            _selectedUserIds.Add(userId);
+        }
+        else
+        {
+            _selectedUserIds.Remove(userId);
+        }
+    }
+
+    private void ClearSelection()
+    {
+        _selectedUserIds.Clear();
+    }
+
+    private void Submit()
+    {
+        var selectedUsers = _selectedUserIds
+            .Where(id => _availableUsers.TryGetValue(id, out var name))
+            .Select(id => (id, _availableUsers[id]))
+            .ToList();
+        
+        MudDialog?.Close(DialogResult.Ok(selectedUsers));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}

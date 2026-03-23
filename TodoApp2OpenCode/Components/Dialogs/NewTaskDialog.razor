@@ -1,4 +1,5 @@
 @using TodoApp2OpenCode.Models
+@inject IDialogService DialogService
 <MudDialog ContentStyle="width: 500px; max-width: 500px;">
     <DialogContent>
         <MudStack Spacing="3">
@@ -51,6 +52,34 @@
                     </MudStack>
                 </MudSelectItem>
             </MudSelect>
+
+            @if (Participants.Any())
+            {
+                <MudButton Variant="Variant.Outlined" 
+                          Color="Color.Default"
+                          StartIcon="@Icons.Material.Filled.People"
+                          OnClick="OpenUserSelection">
+                    Asignar usuarios (@SelectedUserIds.Count)
+                </MudButton>
+
+                @if (SelectedUserIds.Any())
+                {
+                    <div class="selected-users-display">
+                        @foreach (var userId in SelectedUserIds)
+                        {
+                            if (Participants.TryGetValue(userId, out var userName))
+                            {
+                                <MudChip T="string" 
+                                         Color="Color.Primary" 
+                                         Variant="Variant.Filled"
+                                         OnClose="@(() => RemoveUser(userId))">
+                                    @userName
+                                </MudChip>
+                            }
+                        }
+                    </div>
+                }
+            }
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -70,6 +99,11 @@
         height: 12px;
         border-radius: 50%;
     }
+    .selected-users-display {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
 </style>
 
 @code {
@@ -79,10 +113,14 @@
     [Parameter]
     public List<TodoColumn> Columns { get; set; } = new();
 
+    [Parameter]
+    public Dictionary<string, string> Participants { get; set; } = new();
+
     private string Title { get; set; } = string.Empty;
     private string? SelectedColumnId { get; set; }
     private string Description { get; set; } = string.Empty;
     private TodoPriority Priority { get; set; } = TodoPriority.Normal;
+    private HashSet<string> SelectedUserIds = new();
 
     private bool IsSubmitDisabled => string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(SelectedColumnId);
 
@@ -94,17 +132,53 @@
         }
     }
 
+    private async Task OpenUserSelection()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium
+        };
+
+        var parameters = new DialogParameters<UserSelectionDialog>();
+        parameters.Add(x => x.Source, Participants);
+        parameters.Add(x => x.PreSelectedUserIds, SelectedUserIds);
+
+        var dialog = await DialogService.ShowAsync<UserSelectionDialog>("Seleccionar usuarios", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: List<(string Id, string Name)> selectedUsers })
+        {
+            SelectedUserIds = selectedUsers.Select(u => u.Id).ToHashSet();
+        }
+    }
+
+    private void RemoveUser(string userId)
+    {
+        SelectedUserIds.Remove(userId);
+    }
+
     private void Submit()
     {
         if (string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(SelectedColumnId))
             return;
+
+        var assignedUsers = new Dictionary<string, string>();
+        foreach (var userId in SelectedUserIds)
+        {
+            if (Participants.TryGetValue(userId, out var userName))
+            {
+                assignedUsers[userId] = userName;
+            }
+        }
 
         var item = new TodoItem
         {
             Title = Title.Trim(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             ColumnId = SelectedColumnId,
-            Priority = Priority
+            Priority = Priority,
+            AssignedUsers = assignedUsers
         };
 
         MudDialog?.Close(DialogResult.Ok(item));

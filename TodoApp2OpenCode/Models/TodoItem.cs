@@ -89,6 +89,12 @@ public class TodoItem
     /// </remarks>
     [JsonPropertyName("priority")]
     public TodoPriority Priority { get; set; } = TodoPriority.Normal;
+
+    /// <summary>
+    /// Lista de usuarios asignados a la tarea.
+    /// </summary>
+    [JsonPropertyName("assignedUsers")]
+    public Dictionary<string, string> AssignedUsers { get; set; } = new();
 }
 
 /// <summary>
