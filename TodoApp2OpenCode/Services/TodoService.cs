@@ -8,19 +8,25 @@ public class TodoService
 {
     private readonly IJSRuntime _jsRuntime;
     private readonly BoardService _boardService;
+    private readonly LogService _logService;
     private const string BOARDS_KEY = "flowboard_boards";
+
+    private readonly AuthService _authService;
 
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public TodoService(IJSRuntime jsRuntime, BoardService boardService)
+    public TodoService(IJSRuntime jsRuntime, BoardService boardService, LogService logService, AuthService authService)
     {
         _jsRuntime = jsRuntime;
         _boardService = boardService;
+        _logService = logService;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = true
         };
+
+        _authService = authService;
     }
 
     public async Task<List<TodoColumn>> GetColumnsAsync(string boardId)
@@ -54,6 +60,13 @@ public class TodoService
 
             board.Columns.Add(column);
             await _boardService.UpdateBoardAsync(board);
+            await _logService.AddLogAsync(new LogItem
+            {
+                Message = $"Añade columna {name} al tablero {board.Name}",
+                Action = DatabaseAction.Crear,
+                BoardId = boardId,
+                User = _authService.CurrentUser!.Username
+            });
 
             return column;
         }
@@ -77,6 +90,13 @@ public class TodoService
             board.Columns[index] = column;
 
             await _boardService.UpdateBoardAsync(board);
+            await _logService.AddLogAsync(new LogItem
+            {
+                Message = $"Actualiza la columna {column.Name} del tablero {board.Name}",
+                Action = DatabaseAction.Actualizar,
+                BoardId = boardId,
+                User = _authService.CurrentUser!.Username
+            });
             return true;
         }
         catch
@@ -92,10 +112,20 @@ public class TodoService
             var board = await _boardService.GetBoardAsync(boardId);
             if (board == null) return false;
 
+            var column = board.Columns.FirstOrDefault(x => x.Id == columnId);
+            if (column == null) return false;
+
             board.Columns.RemoveAll(c => c.Id == columnId);
             board.Items.RemoveAll(i => i.ColumnId == columnId);
 
+
             await _boardService.UpdateBoardAsync(board);
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Remover,
+                Message = $"Remueve columna {column.Name}",
+                BoardId = boardId
+            });
             return true;
         }
         catch
@@ -120,6 +150,12 @@ public class TodoService
             (board.Columns[fromIndex], board.Columns[toIndex]) = (board.Columns[toIndex], board.Columns[fromIndex]);
 
             await _boardService.UpdateBoardAsync(board);
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                BoardId = boardId,
+                Message = $"Mueve columna {board.Columns[toIndex].Name}"
+            });
             return true;
         }
         catch
@@ -211,6 +247,9 @@ public class TodoService
             var item = board.Items.FirstOrDefault(i => i.Id == itemId);
             if (item == null) return false;
 
+            var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
+            if (column == null) return false;
+
             var maxOrder = board.Items
                 .Where(i => i.ColumnId == targetColumnId)
                 .Select(i => i.Order)
@@ -222,6 +261,12 @@ public class TodoService
             item.UpdatedAt = DateTime.Now;
 
             await _boardService.UpdateBoardAsync(board);
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = $"Mueve tarea {item.Title} para la columna {column.Name}",
+                BoardId = boardId
+            });
             return true;
         }
         catch

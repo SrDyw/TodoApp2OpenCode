@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Primitives;
 using Microsoft.JSInterop;
 using TodoApp2OpenCode.Models;
 
@@ -117,8 +118,11 @@ public class BoardService
             var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
             if (board == null) return false;
 
+            var user = board.ParticipantNames[userId];
+        
             board.ParticipantIds.Remove(userId);
             board.ParticipantNames.Remove(userId);
+
             await SaveBoardsAsync();
             return true;
         }

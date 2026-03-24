@@ -167,15 +167,18 @@
     /// </summary>
     private HashSet<string> SelectedUserIds = new();
 
+    private IEnumerable<string> InitialAssignedUsers = [];
+
     protected override void OnInitialized()
     {
         selectedColumnId = Item.ColumnId;
-        
+
         AllParticipants = new Dictionary<string, string>(Participants);
-        
+
         if (Item.AssignedUsers != null)
         {
             SelectedUserIds = new HashSet<string>(Item.AssignedUsers.Keys);
+            InitialAssignedUsers = Item.AssignedUsers.Keys;
         }
     }
 
@@ -227,14 +230,32 @@
         }
         Item.AssignedUsers = assignedUsers;
 
+        var intersect = InitialAssignedUsers
+            .Intersect(SelectedUserIds);
+
+        var removedUsers = InitialAssignedUsers
+            .Where(x => 
+                intersect.Any(intersectItem => intersectItem == x) == false
+            );
+
+        var addedUsers = SelectedUserIds
+            .Where(x => 
+                intersect.Any(intersectItem => intersectItem == x) == false
+            );
+
         var result = new EditItemResult
         {
             Item = Item,
             ColumnChanged = Item.ColumnId != selectedColumnId,
-            NewColumnId = selectedColumnId
+            NewColumnId = selectedColumnId,
+            RemovedUsers = removedUsers ?? [],
+            AddedUsers = addedUsers ?? []
         };
-        
+
         Item.ColumnId = selectedColumnId;
+
+
+
         MudDialog?.Close(DialogResult.Ok(result));
     }
 
@@ -248,5 +269,7 @@
         public TodoItem Item { get; set; } = new();
         public bool ColumnChanged { get; set; }
         public string NewColumnId { get; set; } = string.Empty;
+        public IEnumerable<string> RemovedUsers { get; set; } = [];
+        public IEnumerable<string> AddedUsers { get; set; } = [];
     }
 }

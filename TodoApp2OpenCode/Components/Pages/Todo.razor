@@ -6,6 +6,7 @@
 @inject AuthService AuthService
 @inject BottomNavService BottomNavService
 @inject NavigationManager Navigation
+@inject LogService LogService
 
 <PageTitle>FlowBoard - Organiza tu flujo</PageTitle>
 
@@ -126,6 +127,14 @@
                     </MudMenuItem>
                 }
             </MudMenu>
+
+            <MudButton Color="Color.Default" 
+                       Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.History"
+                       OnClick="ToggleLogsView"
+                       @onmousedown:stopPropagation="true">
+                @(showLogsView ? "Ver Board" : "Ver Logs")
+            </MudButton>
         }
     }
 </div>
@@ -154,7 +163,52 @@
     </div>
 }
 
-<!-- Tablero de columnas estilo Kanban -->
+
+@if (showLogsView)
+{
+    <div class="logs-container">
+        @if (logsLoading)
+        {
+            <MudSkeleton Height="40px" Width="100%" Class="mb-4" />
+            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+        }
+        else
+        {
+            <MudDataGrid T="LogItem" Items="boardLogs" Sortable="true" Hover="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.Id" Title="ID" />
+                    <PropertyColumn Property="x => x.User" />
+                    <PropertyColumn Property="x => x.Action" Title="Acción">
+                        <CellTemplate>
+                            @switch (context.Item.Action)
+                            {
+                                case DatabaseAction.Actualizar:
+                                    <MudChip Color="Color.Info">@context.Item.Action.ToString()</MudChip>
+                                    break;
+                                case DatabaseAction.Remover:
+                                    <MudChip Color="Color.Error">@context.Item.Action.ToString()</MudChip>
+                                    break;
+                                case DatabaseAction.Crear:
+                                    <MudChip Color="Color.Success">@context.Item.Action.ToString()</MudChip>
+                                    break;
+                                case DatabaseAction.Leer:
+                                    <MudChip Color="Color.Default">@context.Item.Action.ToString()</MudChip>
+                                    break;
+                            }
+                        </CellTemplate>
+                    </PropertyColumn>
+                    <PropertyColumn Property="x => x.Message" Title="Mensaje" />
+                    <PropertyColumn Property="x => x.CreatedAt" Title="Fecha" />
+                </Columns>
+            </MudDataGrid>
+        }
+    </div>
+}
+else
+{
 <div class="board-container @((isDraggingItem || isDraggingColumn) ? "no-select" : "")" @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp">
     @if (columnLoading)
     {
@@ -296,7 +350,12 @@
             </div>
         </div>
     }
+
+
 </div>
+    
+}
+<!-- Tablero de columnas estilo Kanban -->
 
 <style>
     .drag-ghost {
@@ -543,6 +602,13 @@
         transform: translateX(-50%) translateY(0);
         opacity: 1;
     }
+
+    .logs-container {
+        width: 100%;
+        height: calc(100vh - 200px);
+        overflow: auto;
+        padding: 16px;
+    }
 </style>
 
 @code {
@@ -580,6 +646,9 @@
     private bool isOwner = false;
     private bool isParticipant = false;
     private Dictionary<string, string> boardParticipants = new();
+    private bool showLogsView = false;
+    private IEnumerable<LogItem> boardLogs = [];
+    private bool logsLoading = false;
 
     private bool columnLoading = true;
 
@@ -593,6 +662,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        showLogsView = false;
         if (BoardId != _previousBoardId)
         {
             _hasLoadedBoard = false;
@@ -605,6 +675,7 @@
             await LoadBoardAsync();
             _hasLoadedBoard = true;
         }
+
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -936,6 +1007,8 @@
 
         if (result is { Canceled: false, Data: List<(string Id, string Name)> selectedParticipants })
         {
+            if (selectedParticipants.Count == 0) return;
+
             foreach (var (id, name) in selectedParticipants)
             {
                 if (!currentBoard.ParticipantIds.Contains(id))
@@ -945,6 +1018,13 @@
                 }
             }
             await BoardService.UpdateBoardAsync(currentBoard);
+            await LogService.AddLogAsync(new LogItem
+            {
+                Message = $"Añade participantes {string.Join(", ", selectedParticipants.Select(x => x.Name))} del tablero {currentBoard.Name}",
+                Action = DatabaseAction.Crear,
+                BoardId = currentBoard.Id,
+                User = AuthService.CurrentUser!.Username
+            });
             StateHasChanged();
             SnackbarService.Add("Participantes añadidos", Severity.Success);
         }
@@ -976,6 +1056,32 @@
         if (result is { Canceled: false })
         {
             await RemoveParticipant(participantId);
+        }
+    }
+
+    // ============================================
+    // VISTA DE LOGS
+    // ============================================
+    private async Task ToggleLogsView()
+    {
+        try
+        {
+            showLogsView = !showLogsView;
+            if (showLogsView)
+            {
+                logsLoading = true;
+                await InvokeAsync(StateHasChanged);
+                
+                boardLogs = await LogService.GetLogsByBoardId(BoardId);
+                
+                logsLoading = false;
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            logsLoading = false;
+            SnackbarService.Add($"Error: {ex.Message}", Severity.Error);
         }
     }
 
@@ -1089,7 +1195,7 @@
 
     private async Task OpenEditItemDialog(TodoItem item)
     {
-        if (string.IsNullOrEmpty(BoardId)) return;
+        if (string.IsNullOrEmpty(BoardId) || currentBoard == null) return;
 
         var editing = new TodoItem { 
             Id = item.Id, 
@@ -1114,7 +1220,36 @@
 
         if (result is { Canceled: false, Data: EditItemDialog.EditItemResult editResult })
         {
+            var usersAddedToTodo = editResult.AddedUsers
+                .Select(x => currentBoard.ParticipantNames.ContainsKey(x) ? currentBoard.ParticipantNames[x] : currentBoard.OwnerName);
+            var usersRemovedFromTodo = editResult.RemovedUsers
+                .Select(x => currentBoard.ParticipantNames.ContainsKey(x) ? currentBoard.ParticipantNames[x] : currentBoard.OwnerName);
+
+
+            if (usersAddedToTodo.Any())
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Crear,
+                    BoardId = BoardId,
+                    Message = $"Añade {string.Join(',', usersAddedToTodo)} a la tarea {item.Title}",
+                    User = AuthService.CurrentUser!.Username
+                });
+            }
+
+            if (usersRemovedFromTodo.Any())
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Remover,
+                    BoardId = BoardId,
+                    Message = $"Remueve {string.Join(',', usersRemovedFromTodo)} de la tarea {item.Title}",
+                    User = AuthService.CurrentUser!.Username
+                });
+            }
+
             await TodoService.UpdateItemAsync(BoardId, editResult.Item);
+
             if (editResult.ColumnChanged)
             {
                 await TodoService.MoveItemToColumnAsync(BoardId, editResult.Item.Id, editResult.NewColumnId);

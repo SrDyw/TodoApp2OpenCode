@@ -15,6 +15,7 @@ builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<LogService>();
 
 var app = builder.Build();
 
