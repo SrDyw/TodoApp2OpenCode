@@ -141,7 +141,14 @@ public class TodoService
                 return false;
             }
 
-            (board.Columns[fromIndex], board.Columns[toIndex]) = (board.Columns[toIndex], board.Columns[fromIndex]);
+            var columns = board.Columns.OrderBy(c => c.Order).ToList();
+            (columns[fromIndex], columns[toIndex]) = (columns[toIndex], columns[fromIndex]);
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                columns[i].Order = i;
+            }
+            board.Columns = columns;
 
             await _boardService.UpdateBoardAsync(board);
             await _logService.AddLogAsync(new LogItem

@@ -7,6 +7,7 @@
 @inject BottomNavService BottomNavService
 @inject NavigationManager Navigation
 @inject ILogService LogService
+@inject IRealtimeService RealtimeService
 
 <PageTitle>FlowBoard - Organiza tu flujo</PageTitle>
 
@@ -769,6 +770,7 @@ else
     // CICLO DE VIDA
     // ============================================
     private bool _hasLoadedBoard = false;
+    private bool _isRealtimeConnected = false;
     private string? _previousBoardId;
 
     protected override async Task OnParametersSetAsync()
@@ -776,7 +778,14 @@ else
         showLogsView = false;
         if (BoardId != _previousBoardId)
         {
+            if (!string.IsNullOrEmpty(_previousBoardId))
+            {
+                UnsubscribeRealtimeEvents();
+                await RealtimeService.LeaveBoardAsync(_previousBoardId);
+            }
+            
             _hasLoadedBoard = false;
+            _isRealtimeConnected = false;
             _previousBoardId = BoardId;
         }
 
@@ -795,11 +804,13 @@ else
 
         BottomNavService.OnBottomNavAction += HandleBottomNavAction;
 
-        if (!_hasLoadedBoard && !string.IsNullOrEmpty(BoardId))
+        if (!string.IsNullOrEmpty(BoardId) && !_isRealtimeConnected)
         {
-            await AuthService.CheckAuthStateAsync();
-            await LoadBoardAsync();
-            _hasLoadedBoard = true;
+            _isRealtimeConnected = true;
+            RealtimeService.SetCurrentUserId(AuthService.CurrentUser?.Id);
+            await RealtimeService.ConnectAsync();
+            await RealtimeService.JoinBoardAsync(BoardId);
+            SubscribeRealtimeEvents();
         }
 
         columnLoading = false;
@@ -809,6 +820,202 @@ else
     public void Dispose()
     {
         BottomNavService.OnBottomNavAction -= HandleBottomNavAction;
+        UnsubscribeRealtimeEvents();
+    }
+
+    // ============================================
+    // REAL-TIME SYNC
+    // ============================================
+    private void SubscribeRealtimeEvents()
+    {
+        if (RealtimeService == null) return;
+
+        RealtimeService.OnBoardUpdated += HandleBoardUpdated;
+        RealtimeService.OnBoardDeleted += HandleBoardDeleted;
+        RealtimeService.OnColumnAdded += HandleColumnAdded;
+        RealtimeService.OnColumnUpdated += HandleColumnUpdated;
+        RealtimeService.OnColumnDeleted += HandleColumnDeleted;
+        RealtimeService.OnItemAdded += HandleItemAdded;
+        RealtimeService.OnItemUpdated += HandleItemUpdated;
+        RealtimeService.OnItemDeleted += HandleItemDeleted;
+    }
+
+    private void UnsubscribeRealtimeEvents()
+    {
+        if (RealtimeService == null) return;
+
+        RealtimeService.OnBoardUpdated -= HandleBoardUpdated;
+        RealtimeService.OnBoardDeleted -= HandleBoardDeleted;
+        RealtimeService.OnColumnAdded -= HandleColumnAdded;
+        RealtimeService.OnColumnUpdated -= HandleColumnUpdated;
+        RealtimeService.OnColumnDeleted -= HandleColumnDeleted;
+        RealtimeService.OnItemAdded -= HandleItemAdded;
+        RealtimeService.OnItemUpdated -= HandleItemUpdated;
+        RealtimeService.OnItemDeleted -= HandleItemDeleted;
+    }
+
+    private async void HandleBoardUpdated(string boardId, string? excludeUserId)
+    {
+        if (boardId != BoardId) return;
+        await LoadBoardAsync();
+        SnackbarService.Add("El tablero ha sido actualizado", Severity.Info);
+    }
+
+    private async void HandleBoardDeleted(string boardId)
+    {
+        SnackbarService.Add("Este tablero ha sido eliminado", Severity.Warning);
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private async void HandleColumnAdded(string boardId, string columnJson, string? excludeUserId)
+    {
+        if (boardId != BoardId) return;
+        if (excludeUserId == AuthService.CurrentUser?.Id) return;
+        
+        try
+        {
+            var column = System.Text.Json.JsonSerializer.Deserialize<TodoColumn>(columnJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (column != null)
+            {
+                var columnExists = columns.Any(c => c.Id == column.Id);
+                if (columnExists) return;
+                
+                columns.Add(column);
+                itemsByColumn[column.Id] = new List<TodoItem>();
+                await InvokeAsync(StateHasChanged);
+                SnackbarService.Add("Nueva columna añadida", Severity.Info);
+            }
+        }
+        catch
+        {
+            _ = LoadBoardAsync();
+        }
+    }
+
+    private async void HandleColumnUpdated(string boardId, string columnJson, string? excludeUserId)
+    {
+        if (boardId != BoardId) return;
+        
+        var currentUserId = AuthService.CurrentUser?.Id;
+        Console.WriteLine($"HandleColumnUpdated: excludeUserId={excludeUserId}, currentUserId={currentUserId}");
+        if (excludeUserId == currentUserId) return;
+        
+        try
+        {
+            var column = System.Text.Json.JsonSerializer.Deserialize<TodoColumn>(columnJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (column != null)
+            {
+                Console.WriteLine($"HandleColumnUpdated: updating column {column.Name}, Order={column.Order}");
+                var existingColumn = columns.FirstOrDefault(c => c.Id == column.Id);
+                if (existingColumn != null)
+                {
+                    var index = columns.IndexOf(existingColumn);
+                    columns[index] = column;
+                    columns = columns.OrderBy(c => c.Order).ToList();
+                    Console.WriteLine($"HandleColumnUpdated: columns reordered, count={columns.Count}");
+                }
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            _ = LoadBoardAsync();
+        }
+    }
+
+    private async void HandleColumnDeleted(string boardId, string columnId)
+    {
+        if (boardId != BoardId) return;
+        columns.RemoveAll(c => c.Id == columnId);
+        itemsByColumn.Remove(columnId);
+        await InvokeAsync(StateHasChanged);
+        SnackbarService.Add("Una columna ha sido eliminada", Severity.Info);
+    }
+
+    private async void HandleItemAdded(string boardId, string columnId, string itemJson, string? excludeUserId)
+    {
+        if (boardId != BoardId) return;
+        if (excludeUserId == AuthService.CurrentUser?.Id) return;
+        
+        try
+        {
+            var item = System.Text.Json.JsonSerializer.Deserialize<TodoItem>(itemJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (item != null)
+            {
+                var itemAlreadyExists = itemsByColumn.Values.Any(list => list.Any(i => i.Id == item.Id));
+                if (itemAlreadyExists) return;
+                
+                if (!itemsByColumn.ContainsKey(columnId))
+                {
+                    itemsByColumn[columnId] = new List<TodoItem>();
+                }
+                itemsByColumn[columnId].Add(item);
+                await InvokeAsync(StateHasChanged);
+                SnackbarService.Add($"Nueva tarea añadida: {item.Title}", Severity.Info);
+            }
+        }
+        catch
+        {
+            _ = LoadBoardAsync();
+        }
+    }
+
+    private async void HandleItemUpdated(string boardId, string itemJson, string? excludeUserId)
+    {
+        if (boardId != BoardId) return;
+        if (excludeUserId == AuthService.CurrentUser?.Id) return;
+        
+        try
+        {
+            var item = System.Text.Json.JsonSerializer.Deserialize<TodoItem>(itemJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (item != null)
+            {
+                foreach (var colId in itemsByColumn.Keys.ToList())
+                {
+                    var existingItem = itemsByColumn[colId].FirstOrDefault(i => i.Id == item.Id);
+                    if (existingItem != null)
+                    {
+                        var index = itemsByColumn[colId].IndexOf(existingItem);
+                        
+                        if (existingItem.ColumnId != item.ColumnId)
+                        {
+                            itemsByColumn[colId].RemoveAt(index);
+                            if (!itemsByColumn.ContainsKey(item.ColumnId))
+                            {
+                                itemsByColumn[item.ColumnId] = new List<TodoItem>();
+                            }
+                            itemsByColumn[item.ColumnId].Add(item);
+                        }
+                        else
+                        {
+                            itemsByColumn[colId][index] = item;
+                        }
+                        break;
+                    }
+                }
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch
+        {
+            _ = LoadBoardAsync();
+        }
+    }
+
+    private async void HandleItemDeleted(string boardId, string itemId)
+    {
+        if (boardId != BoardId) return;
+        foreach (var columnId in itemsByColumn.Keys.ToList())
+        {
+            var item = itemsByColumn[columnId].FirstOrDefault(i => i.Id == itemId);
+            if (item != null)
+            {
+                itemsByColumn[columnId].Remove(item);
+                break;
+            }
+        }
+        await InvokeAsync(StateHasChanged);
+        SnackbarService.Add("Una tarea ha sido eliminada", Severity.Info);
     }
 
     private async Task HandleBottomNavAction(string action)
