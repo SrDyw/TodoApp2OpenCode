@@ -2,16 +2,23 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using TodoApp2OpenCode.Components;
 using TodoApp2OpenCode.Data;
+using TodoApp2OpenCode.Hubs;
 using TodoApp2OpenCode.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add DbContext with factory for concurrent access
 builder.Services.AddDbContextFactory<FlowBoardDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
+});
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
+
+// Add SignalR
+builder.Services.AddSignalR();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -42,23 +49,28 @@ builder.Services.AddScoped<ILogService, LogService>();
 // Testing (localStorage): ILogService → LocalStorageLogService
 // builder.Services.AddScoped<ILogService, LocalStorageLogService>();
 
+// Realtime services
+builder.Services.AddScoped<IBoardNotifier, BoardNotifier>();
+builder.Services.AddScoped<IRealtimeService, RealtimeService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// Map SignalR Hub
+app.MapHub<BoardHub>("/boardhub");
 
 app.Run();

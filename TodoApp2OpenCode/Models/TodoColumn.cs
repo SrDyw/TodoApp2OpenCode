@@ -17,6 +17,8 @@ public class TodoColumn
     [MaxLength(20)]
     public string Color { get; set; } = "#7e6fff";
 
+    public int Order { get; set; } = 0;
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     public DateTime UpdatedAt { get; set; } = DateTime.Now;

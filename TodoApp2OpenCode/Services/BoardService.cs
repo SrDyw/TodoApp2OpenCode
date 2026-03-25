@@ -7,10 +7,14 @@ namespace TodoApp2OpenCode.Services;
 public class BoardService : IBoardService
 {
     private readonly IDbContextFactory<FlowBoardDbContext> _contextFactory;
+    private readonly IBoardNotifier _notifier;
+    private readonly IAuthService _authService;
 
-    public BoardService(IDbContextFactory<FlowBoardDbContext> contextFactory)
+    public BoardService(IDbContextFactory<FlowBoardDbContext> contextFactory, IBoardNotifier notifier, IAuthService authService)
     {
         _contextFactory = contextFactory;
+        _notifier = notifier;
+        _authService = authService;
     }
 
     public async Task<List<TodoBoard>> GetUserBoardsAsync(string userId)
@@ -29,16 +33,26 @@ public class BoardService : IBoardService
         
         var board = await context.Boards
             .AsNoTracking()
-            .Include(b => b.Columns)
+            .Include(b => b.Columns.OrderBy(c => c.Order))
             .FirstOrDefaultAsync(b => b.Id == boardId);
 
         if (board != null)
         {
+            board.Columns = board.Columns.OrderBy(c => c.Order).ToList();
+
             var items = await context.Items
                 .AsNoTracking()
                 .Include(i => i.Steps)
                 .Where(i => i.TodoBoardId == boardId)
                 .ToListAsync();
+            
+            foreach (var item in items)
+            {
+                if (!string.IsNullOrEmpty(item.AssignedUsersJson))
+                {
+                    item.AssignedUsers = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(item.AssignedUsersJson) ?? new();
+                }
+            }
             
             board.Items = items;
         }
@@ -70,6 +84,9 @@ public class BoardService : IBoardService
 
             context.Boards.Add(board);
             await context.SaveChangesAsync();
+            
+            await _notifier.NotifyBoardUpdatedAsync(board.Id, _authService.CurrentUser?.Id);
+            
             return board;
         }
         catch
@@ -91,6 +108,8 @@ public class BoardService : IBoardService
                 board.ParticipantIds.Add(userId);
                 board.ParticipantNames[userId] = userName;
                 await context.SaveChangesAsync();
+                
+                await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
             }
             return true;
         }
@@ -112,6 +131,9 @@ public class BoardService : IBoardService
             board.ParticipantNames.Remove(userId);
 
             await context.SaveChangesAsync();
+            
+            await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
+            
             return true;
         }
         catch
@@ -150,12 +172,17 @@ public class BoardService : IBoardService
                 {
                     existingColumn.Name = column.Name;
                     existingColumn.Color = column.Color;
+                    existingColumn.Order = column.Order;
                     existingColumn.UpdatedAt = DateTime.Now;
+                    
+                    await _notifier.NotifyColumnUpdatedAsync(board.Id, existingColumn, _authService.CurrentUser?.Id);
                 }
                 else
                 {
                     column.BoardId = board.Id;
                     existingBoard.Columns.Add(column);
+                    
+                    await _notifier.NotifyColumnAddedAsync(board.Id, column, _authService.CurrentUser?.Id);
                 }
             }
 
@@ -163,6 +190,7 @@ public class BoardService : IBoardService
             foreach (var column in columnsToRemove)
             {
                 context.Columns.Remove(column);
+                await _notifier.NotifyColumnDeletedAsync(board.Id, column.Id);
             }
 
             foreach (var item in board.Items)
@@ -170,6 +198,8 @@ public class BoardService : IBoardService
                 var existingItem = existingItems.FirstOrDefault(i => i.Id == item.Id);
                 if (existingItem != null)
                 {
+                    var wasCompleted = existingItem.IsCompleted;
+                    
                     existingItem.Title = item.Title;
                     existingItem.Description = item.Description;
                     existingItem.IsCompleted = item.IsCompleted;
@@ -177,6 +207,7 @@ public class BoardService : IBoardService
                     existingItem.Order = item.Order;
                     existingItem.Priority = item.Priority;
                     existingItem.CurrentStepIndex = item.CurrentStepIndex;
+                    existingItem.AssignedUsers = item.AssignedUsers ?? new Dictionary<string, string>();
                     existingItem.UpdatedAt = DateTime.Now;
 
                     var existingSteps = existingItem.Steps?.ToList() ?? new List<TodoStep>();
@@ -204,11 +235,16 @@ public class BoardService : IBoardService
                             context.Steps.Remove(step);
                         }
                     }
+                    
+                    await _notifier.NotifyItemUpdatedAsync(board.Id, existingItem, _authService.CurrentUser?.Id);
                 }
                 else
                 {
                     item.ColumnId = board.Columns.FirstOrDefault()?.Id ?? "";
+                    item.TodoBoardId = board.Id;
                     existingBoard.Items.Add(item);
+                    
+                    await _notifier.NotifyItemAddedAsync(board.Id, item.ColumnId, item, _authService.CurrentUser?.Id);
                 }
             }
 
@@ -216,6 +252,7 @@ public class BoardService : IBoardService
             foreach (var item in itemsToRemove)
             {
                 context.Items.Remove(item);
+                await _notifier.NotifyItemDeletedAsync(board.Id, item.Id);
             }
 
             await context.SaveChangesAsync();
@@ -237,6 +274,9 @@ public class BoardService : IBoardService
 
             context.Boards.Remove(board);
             await context.SaveChangesAsync();
+            
+            await _notifier.NotifyBoardDeletedAsync(boardId);
+            
             return true;
         }
         catch
