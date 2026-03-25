@@ -1,0 +1,58 @@
+@page "/test-db"
+@inject TestConnectionService TestService
+
+<PageTitle>Test DB Connection</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Test DB Connection</MudText>
+
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_error != null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            Error: @_error
+        </MudAlert>
+    }
+    else
+    {
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                Conexión exitosa. Datos en la tabla TestEntities:
+            </MudText>
+            
+            <MudList T="string" Dense="true">
+                @foreach (var item in _entities)
+                {
+                    <MudListItem Icon="@Icons.Material.Filled.Folder">
+                        <MudText><strong>@item.Name</strong> - @item.Description</MudText>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private List<TestEntity> _entities = new();
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _entities = await TestService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

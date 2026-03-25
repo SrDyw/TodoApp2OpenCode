@@ -1,15 +1,9 @@
 @namespace TodoApp2OpenCode.Components.Dialogs
 @inject IDialogService DialogService
 
-<!--
-    Diálogo para editar una tarea existente.
-    Permite modificar título, descripción, prioridad y columna.
--->
-
 <MudDialog ContentStyle="width: 500px; max-width: 500px;">
     <DialogContent>
         <MudStack Spacing="3">
-            <!-- Campo de título -->
             <MudTextField @bind-Value="Item.Title"
                           Label="Título de la tarea"
                           Variant="Variant.Outlined"
@@ -17,14 +11,12 @@
                           Immediate="true"
                           Adornment="Adornment.Start"/>
             
-            <!-- Campo de descripción -->
             <MudTextField @bind-Value="Item.Description"
                           Label="Descripción (opcional)"
                           Variant="Variant.Outlined"
                           Lines="3"
                           Adornment="Adornment.Start"/>
             
-            <!-- Selector de prioridad -->
             <MudSelect @bind-Value="Item.Priority"
                        Label="Prioridad"
                        Variant="Variant.Outlined">
@@ -47,6 +39,57 @@
                     </MudStack>
                 </MudSelectItem>
             </MudSelect>
+
+            <div class="steps-section">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Pasos de la tarea</MudText>
+                
+                @foreach (var step in editingSteps)
+                {
+                    <div class="step-row">
+                        <MudCheckBox T="bool" 
+                                     Value="step.IsCompleted"
+                                     ValueChanged="(v) => OnStepCheckChanged(step, v)"
+                                     Dense="true" />
+                        <MudTextField @bind-Value="step.Name"
+                                      Placeholder="Nombre del paso"
+                                      Variant="Variant.Outlined"
+                                      Dense="true"
+                                      Class="step-name-field" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Size="Size.Small" 
+                                       Color="Color.Error"
+                                       OnClick="@(() => RemoveStep(step))" />
+                    </div>
+                }
+
+                <MudButton Variant="Variant.Text" 
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AddStep"
+                           Class="mt-2">
+                    Añadir paso
+                </MudButton>
+
+                @if (editingSteps.Any())
+                {
+                    <div class="steps-progress mt-3">
+                        <MudText Typo="Typo.caption">
+                            Progreso: @CompletedStepsCount de @TotalStepsCount pasos 
+                            (@ProgressPercentage.ToString("F0")%)
+                        </MudText>
+                        <MudProgressLinear Value="@ProgressPercentage" Color="Color.Primary" />
+                        @{
+                            var nextStep = editingSteps.FirstOrDefault(s => !s.IsCompleted);
+                        }
+                        @if (nextStep != null)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Class="mt-1">
+                                Paso actual: @nextStep.Name
+                            </MudText>
+                        }
+                    </div>
+                }
+            </div>
 
             @if (Participants.Any())
             {
@@ -76,7 +119,6 @@
                 }
             }
             
-            <!-- Selector de columna -->
             <MudSelect @bind-Value="selectedColumnId"
                        Label="Columna"
                        Variant="Variant.Outlined">
@@ -91,7 +133,6 @@
                 }
             </MudSelect>
             
-            <!-- Metadatos (solo lectura) -->
             <MudStack Row="true" Spacing="2" Justify="Justify.SpaceBetween">
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                     Creada: @Item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
@@ -125,54 +166,51 @@
         flex-wrap: wrap;
         gap: 8px;
     }
+    .steps-section {
+        padding: 12px;
+        background: var(--mud-palette-surface);
+        border-radius: 8px;
+        border: 1px solid var(--mud-palette-lines-default);
+    }
+    .step-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .step-name-field {
+        flex: 1;
+    }
+    .steps-progress {
+        padding-top: 8px;
+        border-top: 1px solid var(--mud-palette-lines-default);
+    }
 </style>
 
 @code {
-    /// <summary>
-    /// Referencia al diálogo.
-    /// </summary>
     [CascadingParameter]
     private IMudDialogInstance? MudDialog { get; set; }
 
-    /// <summary>
-    /// Tarea a editar.
-    /// </summary>
     [Parameter]
     public TodoItem Item { get; set; } = new();
 
-    /// <summary>
-    /// Lista de columnas disponibles.
-    /// </summary>
     [Parameter]
     public List<TodoColumn> Columns { get; set; } = new();
 
-    /// <summary>
-    /// Diccionario de participantes del tablero (Id -> Username).
-    /// </summary>
     [Parameter]
     public Dictionary<string, string> Participants { get; set; } = new();
 
-    /// <summary>
-    /// Diccionario de todos los usuarios disponibles (para edición).
-    /// </summary>
     private Dictionary<string, string> AllParticipants { get; set; } = new();
-
-    /// <summary>
-    /// ID de la columna seleccionada (para el selector).
-    /// </summary>
     private string selectedColumnId = string.Empty;
-
-    /// <summary>
-    /// IDs de usuarios seleccionados.
-    /// </summary>
     private HashSet<string> SelectedUserIds = new();
-
     private IEnumerable<string> InitialAssignedUsers = [];
+    private List<TodoStep> editingSteps = new();
+    private int previousStepCount = 0;
+    private int previousCurrentStepIndex = -1;
 
     protected override void OnInitialized()
     {
         selectedColumnId = Item.ColumnId;
-
         AllParticipants = new Dictionary<string, string>(Participants);
 
         if (Item.AssignedUsers != null)
@@ -180,7 +218,58 @@
             SelectedUserIds = new HashSet<string>(Item.AssignedUsers.Keys);
             InitialAssignedUsers = Item.AssignedUsers.Keys;
         }
+
+        editingSteps = Item.Steps?.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted }).ToList() ?? new List<TodoStep>();
+        previousStepCount = editingSteps.Count;
+        previousCurrentStepIndex = Item.CurrentStepIndex;
     }
+
+    private void OnStepCheckChanged(TodoStep step, bool isChecked)
+    {
+        int stepIndex = editingSteps.IndexOf(step);
+        
+        if (isChecked)
+        {
+            for (int i = 0; i <= stepIndex; i++)
+            {
+                editingSteps[i].IsCompleted = true;
+            }
+            var nextUncompleted = editingSteps.FindIndex(s => !s.IsCompleted);
+            Item.CurrentStepIndex = nextUncompleted >= 0 ? nextUncompleted : editingSteps.Count - 1;
+        }
+        else
+        {
+            for (int i = stepIndex; i < editingSteps.Count; i++)
+            {
+                editingSteps[i].IsCompleted = false;
+            }
+            Item.CurrentStepIndex = stepIndex > 0 ? stepIndex - 1 : -1;
+        }
+    }
+
+    private void AddStep()
+    {
+        editingSteps.Add(new TodoStep { Name = "" });
+    }
+
+    private void RemoveStep(TodoStep step)
+    {
+        int removedIndex = editingSteps.IndexOf(step);
+        editingSteps.Remove(step);
+        
+        if (Item.CurrentStepIndex >= removedIndex && Item.CurrentStepIndex > 0)
+        {
+            Item.CurrentStepIndex--;
+        }
+        else if (Item.CurrentStepIndex == removedIndex)
+        {
+            Item.CurrentStepIndex = -1;
+        }
+    }
+
+    private int CompletedStepsCount => editingSteps.Count(s => s.IsCompleted);
+    private int TotalStepsCount => editingSteps.Count;
+    private double ProgressPercentage => TotalStepsCount > 0 ? (double)CompletedStepsCount / TotalStepsCount * 100 : 0;
 
     private async Task OpenUserSelection()
     {
@@ -208,9 +297,6 @@
         SelectedUserIds.Remove(userId);
     }
 
-    /// <summary>
-    /// Guarda los cambios de la tarea.
-    /// </summary>
     private void Submit()
     {
         if (string.IsNullOrWhiteSpace(Item.Title))
@@ -230,18 +316,11 @@
         }
         Item.AssignedUsers = assignedUsers;
 
-        var intersect = InitialAssignedUsers
-            .Intersect(SelectedUserIds);
+        Item.Steps = editingSteps.Where(s => !string.IsNullOrWhiteSpace(s.Name)).ToList();
 
-        var removedUsers = InitialAssignedUsers
-            .Where(x => 
-                intersect.Any(intersectItem => intersectItem == x) == false
-            );
-
-        var addedUsers = SelectedUserIds
-            .Where(x => 
-                intersect.Any(intersectItem => intersectItem == x) == false
-            );
+        var intersect = InitialAssignedUsers.Intersect(SelectedUserIds);
+        var removedUsers = InitialAssignedUsers.Where(x => !intersect.Contains(x));
+        var addedUsers = SelectedUserIds.Where(x => !intersect.Contains(x));
 
         var result = new EditItemResult
         {
@@ -249,19 +328,15 @@
             ColumnChanged = Item.ColumnId != selectedColumnId,
             NewColumnId = selectedColumnId,
             RemovedUsers = removedUsers ?? [],
-            AddedUsers = addedUsers ?? []
+            AddedUsers = addedUsers ?? [],
+            StepsChanged = Item.Steps.Count != previousStepCount || Item.CurrentStepIndex != previousCurrentStepIndex
         };
 
         Item.ColumnId = selectedColumnId;
 
-
-
         MudDialog?.Close(DialogResult.Ok(result));
     }
 
-    /// <summary>
-    /// Cancela la edición.
-    /// </summary>
     private void Cancel() => MudDialog?.Cancel();
 
     public class EditItemResult
@@ -271,5 +346,6 @@
         public string NewColumnId { get; set; } = string.Empty;
         public IEnumerable<string> RemovedUsers { get; set; } = [];
         public IEnumerable<string> AddedUsers { get; set; } = [];
+        public bool StepsChanged { get; set; }
     }
 }

@@ -7,15 +7,15 @@ namespace TodoApp2OpenCode.Services;
 public class TodoService
 {
     private readonly IJSRuntime _jsRuntime;
-    private readonly BoardService _boardService;
-    private readonly LogService _logService;
+    private readonly IBoardService _boardService;
+    private readonly ILogService _logService;
     private const string BOARDS_KEY = "flowboard_boards";
 
-    private readonly AuthService _authService;
+    private readonly IAuthService _authService;
 
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public TodoService(IJSRuntime jsRuntime, BoardService boardService, LogService logService, AuthService authService)
+    public TodoService(IJSRuntime jsRuntime, IBoardService boardService, ILogService logService, IAuthService authService)
     {
         _jsRuntime = jsRuntime;
         _boardService = boardService;
