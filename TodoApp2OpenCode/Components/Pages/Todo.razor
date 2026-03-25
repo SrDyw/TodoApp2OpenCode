@@ -308,15 +308,28 @@ else
                                                 </MudText>
                                             }
 
-                                            @if (item.AssignedUsers != null && item.AssignedUsers.Any())
-                                            {
-                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
-                                                    <MudText Typo="Typo.caption" Color="Color.Primary">
-                                                        @string.Join(", ", item.AssignedUsers.Values)
-                                                    </MudText>
-                                                </MudStack>
-                                            }
+                                             @if (item.AssignedUsers != null && item.AssignedUsers.Any())
+                                             {
+                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                     <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                                     <MudText Typo="Typo.caption" Color="Color.Primary">
+                                                         @string.Join(", ", item.AssignedUsers.Values)
+                                                     </MudText>
+                                                 </MudStack>
+                                             }
+
+                                             @if (item.Steps != null && item.Steps.Any())
+                                             {
+                                                 <div class="item-steps-progress">
+                                                     <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" />
+                                                     @if (!string.IsNullOrEmpty(item.CurrentStepName))
+                                                     {
+                                                         <MudText Typo="Typo.caption" Color="Color.Primary">
+                                                             @item.CurrentStepName
+                                                         </MudText>
+                                                     }
+                                                 </div>
+                                             }
                                             
                                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                                  @if (item.Priority != TodoPriority.Normal)
@@ -333,12 +346,11 @@ else
                                                      <MudStack Row="true" Spacing="0">
                                                          <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditItemDialog(item)" @onmousedown:stopPropagation="true" aria-label="Editar" />
                                                          <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItemAsync(item)" @onmousedown:stopPropagation="true" aria-label="Eliminar" />
-                                                     </MudStack>
-                                             </MudStack>
-                                         </MudStack>
-                                         <MudProgressLinear Max="5" Value="3" Style="margin-top: 8px"/> 
-                                     </MudCardContent>
-                                 </MudCard>
+                                                      </MudStack>
+                                              </MudStack>
+                                          </MudStack>
+                                      </MudCardContent>
+                                  </MudCard>
                              </div>
                          }
                      </div>
@@ -609,6 +621,10 @@ else
         height: calc(100vh - 200px);
         overflow: auto;
         padding: 16px;
+    }
+
+    .item-steps-progress {
+        margin-top: 8px;
     }
 </style>
 
@@ -1231,7 +1247,9 @@ else
             Order = item.Order, 
             CreatedAt = item.CreatedAt, 
             UpdatedAt = item.UpdatedAt,
-            AssignedUsers = item.AssignedUsers != null ? new Dictionary<string, string>(item.AssignedUsers) : new Dictionary<string, string>()
+            AssignedUsers = item.AssignedUsers != null ? new Dictionary<string, string>(item.AssignedUsers) : new Dictionary<string, string>(),
+            Steps = item.Steps?.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted }).ToList(),
+            CurrentStepIndex = item.CurrentStepIndex
         };
         var parameters = new DialogParameters<EditItemDialog>();
         parameters.Add(x => x.Item, editing);
@@ -1268,6 +1286,21 @@ else
                     Action = DatabaseAction.Remover,
                     BoardId = BoardId,
                     Message = $"Remueve {string.Join(',', usersRemovedFromTodo)} de la tarea {item.Title}",
+                    User = AuthService.CurrentUser!.Username
+                });
+            }
+
+            if (editResult.StepsChanged)
+            {
+                var completedCount = editResult.Item.Steps?.Count(s => s.IsCompleted) ?? 0;
+                var totalCount = editResult.Item.Steps?.Count ?? 0;
+                var percentage = totalCount > 0 ? (int)((double)completedCount / totalCount * 100) : 0;
+                
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Actualizar,
+                    BoardId = BoardId,
+                    Message = $"Actualiza pasos de '{editResult.Item.Title}': {completedCount}/{totalCount} ({percentage}%)",
                     User = AuthService.CurrentUser!.Username
                 });
             }
