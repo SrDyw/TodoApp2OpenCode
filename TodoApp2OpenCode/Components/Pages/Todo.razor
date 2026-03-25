@@ -277,82 +277,149 @@ else
                     
                      <div class="column-content"
                           >
-                         @foreach (var item in GetColumnItems(column.Id))
-                         {
-                            <div class="todo-card-wrapper @(item.IsCompleted ? "completed" : "")"
-                                  draggable="false"
-                                  @onmousedown="@(e => StartItemDrag(e, item))"
-                                  style="@(item.Priority == TodoPriority.High && !item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
-                                 <MudCard Class="@($"todo-card{(item.IsCompleted ? " completed" : "")}")">
-                                     <MudCardContent Class="pa-3">
-                                         <MudStack Spacing="2">
-                                             <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween"
-                                                       >
-                                                 <MudStack Spacing="0" Style="flex: 1;" 
-                                                 >
-                                                     <MudText Typo="Typo.body1" 
-                                                              Class="@(item.IsCompleted ? "text-strikethrough" : null)"
-                                                              Style="word-break: break-word;"
-                                                              
-                                                              >
-                                                         @item.Title
-                                                     </MudText>
-                                                 </MudStack>
-                                                 <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Color="Color.Default" Class="drag-handle" />
-                                             </MudStack>
-                                             
-                                            @if (!string.IsNullOrEmpty(item.Description))
-                                            {
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="@(item.IsCompleted ? "text-strikethrough" : "")" Style="word-break: break-word;">
-                                                    @item.Description
-                                                </MudText>
-                                            }
-
-                                             @if (item.AssignedUsers != null && item.AssignedUsers.Any())
-                                             {
-                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                     <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
-                                                     <MudText Typo="Typo.caption" Color="Color.Primary">
-                                                         @string.Join(", ", item.AssignedUsers.Values)
-                                                     </MudText>
-                                                 </MudStack>
-                                             }
-
-                                             @if (item.Steps != null && item.Steps.Any())
-                                             {
-                                                 <div class="item-steps-progress">
-                                                     <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" />
-                                                     @if (!string.IsNullOrEmpty(item.CurrentStepName))
-                                                     {
-                                                         <MudText Typo="Typo.caption" Color="Color.Primary">
-                                                             @item.CurrentStepName
-                                                         </MudText>
-                                                     }
-                                                 </div>
-                                             }
-                                            
-                                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                                 @if (item.Priority != TodoPriority.Normal)
-                                                 {
-                                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(item.Priority == TodoPriority.High ? Color.Error : Color.Default)">
-                                                         @(item.Priority == TodoPriority.High ? "🔴 Alta" : "⚪ Baja")
-                                                     </MudChip>
-                                                 }
-                                                 else
-                                                 {
-                                                     <div></div>
-                                                 }
-                                                 
-                                                     <MudStack Row="true" Spacing="0">
-                                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditItemDialog(item)" @onmousedown:stopPropagation="true" aria-label="Editar" />
-                                                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItemAsync(item)" @onmousedown:stopPropagation="true" aria-label="Eliminar" />
+                          @foreach (var item in GetColumnItems(column.Id))
+                          {
+                              <MudTooltip Text="" Placement="Placement.Right" ShowOnHover="true">
+                                  <ChildContent>
+                                      <div class="todo-card-wrapper @(item.IsCompleted ? "completed" : "")"
+                                           draggable="false"
+                                           @onmousedown="@(e => StartItemDrag(e, item))"
+                                           style="@(item.Priority == TodoPriority.High && !item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
+                                          <MudCard Class="@($"todo-card{(item.IsCompleted ? " completed" : "")}")">
+                                              <MudCardContent Class="pa-3">
+                                                  <MudStack Spacing="2">
+                                                      <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+                                                          <MudStack Spacing="0" Style="flex: 1;">
+                                                              <MudText Typo="Typo.body1" 
+                                                                       Class="@(item.IsCompleted ? "text-strikethrough" : null)"
+                                                                       Style="word-break: break-word;">
+                                                                  @item.Title
+                                                              </MudText>
+                                                          </MudStack>
+                                                          <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Color="Color.Default" Class="drag-handle" />
                                                       </MudStack>
+                                                      
+                                                      @if (!string.IsNullOrEmpty(item.Description))
+                                                      {
+                                                          <MudText Typo="Typo.body2" Color="Color.Secondary" Class="@(item.IsCompleted ? "text-strikethrough" : "")" Style="word-break: break-word;">
+                                                              @item.Description
+                                                          </MudText>
+                                                      }
+
+                                                      @if (item.AssignedUsers != null && item.AssignedUsers.Any())
+                                                      {
+                                                          <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                              <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                                              <MudText Typo="Typo.caption" Color="Color.Primary">
+                                                                  @string.Join(", ", item.AssignedUsers.Values)
+                                                              </MudText>
+                                                          </MudStack>
+                                                      }
+
+                                                      @if (item.Steps != null && item.Steps.Any())
+                                                      {
+                                                          <div class="item-steps-progress">
+                                                              <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" />
+                                                              @if (!string.IsNullOrEmpty(item.CurrentStepName))
+                                                              {
+                                                                  <MudText Typo="Typo.caption" Color="Color.Primary">
+                                                                      @item.CurrentStepName
+                                                                  </MudText>
+                                                              }
+                                                          </div>
+                                                      }
+                                                      
+                                                      <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                          @if (item.Priority != TodoPriority.Normal)
+                                                          {
+                                                              <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(item.Priority == TodoPriority.High ? Color.Error : Color.Default)">
+                                                                  @(item.Priority == TodoPriority.High ? "🔴 Alta" : "⚪ Baja")
+                                                              </MudChip>
+                                                          }
+                                                          else
+                                                          {
+                                                              <div></div>
+                                                          }
+                                                          
+                                                          <MudStack Row="true" Spacing="0">
+                                                              <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditItemDialog(item)" @onmousedown:stopPropagation="true" aria-label="Editar" />
+                                                              <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItemAsync(item)" @onmousedown:stopPropagation="true" aria-label="Eliminar" />
+                                                          </MudStack>
+                                                      </MudStack>
+                                                  </MudStack>
+                                              </MudCardContent>
+                                          </MudCard>
+                                      </div>
+                                  </ChildContent>
+                                  <TooltipContent>
+                                      <MudPaper Class="pa-3" Elevation="4" Style="min-width: 280px; max-width: 350px;">
+                                          <MudText Typo="Typo.h6" Class="mb-2">@item.Title</MudText>
+                                          
+                                          @if (!string.IsNullOrEmpty(item.Description))
+                                          {
+                                              <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">@item.Description</MudText>
+                                          }
+
+                                          <MudDivider Class="my-2" />
+
+                                          <MudStack Spacing="1">
+                                              <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                  <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Small" Color="Color.Default" />
+                                                  <MudText Typo="Typo.caption">
+                                                      Prioridad: 
+                                                      <MudChip T="string" Size="Size.Small" Color="@(item.Priority == TodoPriority.High ? Color.Error : item.Priority == TodoPriority.Low ? Color.Default : Color.Info)">
+                                                          @(item.Priority == TodoPriority.High ? "Alta" : item.Priority == TodoPriority.Low ? "Baja" : "Normal")
+                                                      </MudChip>
+                                                  </MudText>
                                               </MudStack>
+
+                                              @if (item.AssignedUsers != null && item.AssignedUsers.Any())
+                                              {
+                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                      <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                                      <MudText Typo="Typo.caption">
+                                                          Asignados: @string.Join(", ", item.AssignedUsers.Values)
+                                                      </MudText>
+                                                  </MudStack>
+                                              }
+
+                                              <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                  <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                                                  <MudText Typo="Typo.caption">
+                                                      Creada: @item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                                  </MudText>
+                                              </MudStack>
+
+                                              @if (item.UpdatedAt != item.CreatedAt)
+                                              {
+                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                      <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" Color="Color.Default" />
+                                                      <MudText Typo="Typo.caption">
+                                                          Actualizada: @item.UpdatedAt.ToString("dd/MM/yyyy HH:mm")
+                                                      </MudText>
+                                                  </MudStack>
+                                              }
                                           </MudStack>
-                                      </MudCardContent>
-                                  </MudCard>
-                             </div>
-                         }
+
+                                          @if (item.Steps != null && item.Steps.Any())
+                                          {
+                                              <MudDivider Class="my-2" />
+                                              <MudText Typo="Typo.subtitle2" Class="mb-1">Pasos (@item.CompletedStepsCount/@item.TotalStepsCount)</MudText>
+                                              <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" Class="mb-2" />
+                                              <MudList T="string" Dense="true">
+                                                  @foreach (var step in item.Steps)
+                                                  {
+                                                      <MudListItem Icon="@(step.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                                                   IconColor="@(step.IsCompleted ? Color.Success : Color.Default)">
+                                                          <MudText Typo="Typo.body2" Class="@(step.IsCompleted ? "text-strikethrough" : "")">@step.Name</MudText>
+                                                      </MudListItem>
+                                                  }
+                                              </MudList>
+                                          }
+                                      </MudPaper>
+                                  </TooltipContent>
+                              </MudTooltip>
+                          }
                      </div>
                 </div>
             }
@@ -625,6 +692,33 @@ else
 
     .item-steps-progress {
         margin-top: 8px;
+    }
+
+    .mud-tooltip-root {
+        --mud-tooltip-background: transparent;
+        --mud-tooltip-border: none;
+    }
+
+    .mud-tooltip {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .mud-tooltip > .mud-tooltip-content {
+        background: transparent !important;
+        position: relative;
+    }
+
+    .mud-tooltip > .mud-tooltip-content::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 100%;
+        transform: translateY(-50%);
+        border: 8px solid transparent;
+        border-right-color: var(--mud-palette-surface);
+        filter: drop-shadow(-2px 0 4px rgba(0,0,0,0.1));
     }
 </style>
 
