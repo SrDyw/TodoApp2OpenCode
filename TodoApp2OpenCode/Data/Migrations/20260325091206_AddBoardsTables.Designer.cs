@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TodoApp2OpenCode.Data;
 
@@ -11,9 +12,11 @@ using TodoApp2OpenCode.Data;
 namespace TodoApp2OpenCode.Data.Migrations
 {
     [DbContext(typeof(FlowBoardDbContext))]
-    partial class FlowBoardDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325091206_AddBoardsTables")]
+    partial class AddBoardsTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -214,7 +217,6 @@ namespace TodoApp2OpenCode.Data.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("TodoBoardId")
-                        .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("UpdatedAt")

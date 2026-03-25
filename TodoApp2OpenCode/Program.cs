@@ -6,8 +6,8 @@ using TodoApp2OpenCode.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add DbContext
-builder.Services.AddDbContext<FlowBoardDbContext>(options =>
+// Add DbContext with factory for concurrent access
+builder.Services.AddDbContextFactory<FlowBoardDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add MudBlazor services
@@ -17,11 +17,17 @@ builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<TestConnectionService>();
+
+// Board Service - choose implementation:
+// Production (database): IBoardService → BoardService
+builder.Services.AddScoped<IBoardService, BoardService>();
+
+// Testing (localStorage): IBoardService → LocalStorageBoardService
+// builder.Services.AddScoped<IBoardService, LocalStorageBoardService>();
 
 // Log Service - choose implementation:
 // Production (database): ILogService → LogService

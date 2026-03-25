@@ -1,60 +1,80 @@
-using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TodoApp2OpenCode.Models;
 
+[Table("Steps")]
 public class TodoStep
 {
-    [JsonPropertyName("id")]
+    [Key]
+    [MaxLength(50)]
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    [JsonPropertyName("name")]
+    [Required]
+    [MaxLength(200)]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("isCompleted")]
     public bool IsCompleted { get; set; } = false;
+
+    [MaxLength(50)]
+    public string ItemId { get; set; } = string.Empty;
 }
 
+[Table("Items")]
 public class TodoItem
 {
-    [JsonPropertyName("id")]
+    [Key]
+    [MaxLength(50)]
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    [JsonPropertyName("title")]
+    [Required]
+    [MaxLength(200)]
     public string Title { get; set; } = string.Empty;
 
-    [JsonPropertyName("description")]
+    [MaxLength(1000)]
     public string? Description { get; set; }
 
-    [JsonPropertyName("isCompleted")]
     public bool IsCompleted { get; set; } = false;
 
-    [JsonPropertyName("columnId")]
+    [MaxLength(50)]
     public string ColumnId { get; set; } = string.Empty;
 
-    [JsonPropertyName("order")]
+    [MaxLength(50)]
+    public string? TodoBoardId { get; set; }
+
     public int Order { get; set; } = 0;
 
-    [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-    [JsonPropertyName("updatedAt")]
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
-    [JsonPropertyName("priority")]
     public TodoPriority Priority { get; set; } = TodoPriority.Normal;
 
-    [JsonPropertyName("assignedUsers")]
-    public Dictionary<string, string> AssignedUsers { get; set; } = new();
-
-    [JsonPropertyName("steps")]
     public List<TodoStep>? Steps { get; set; }
 
-    [JsonPropertyName("currentStepIndex")]
+    [NotMapped]
+    public Dictionary<string, string> AssignedUsers { get; set; } = new();
+
+    public string AssignedUsersJson
+    {
+        get => System.Text.Json.JsonSerializer.Serialize(AssignedUsers);
+        set => AssignedUsers = string.IsNullOrEmpty(value) 
+            ? new Dictionary<string, string>() 
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new();
+    }
+
     public int CurrentStepIndex { get; set; } = -1;
 
+    [NotMapped]
     public int CompletedStepsCount => Steps?.Count(s => s.IsCompleted) ?? 0;
+
+    [NotMapped]
     public int TotalStepsCount => Steps?.Count ?? 0;
+
+    [NotMapped]
     public double ProgressPercentage => TotalStepsCount > 0 ? (double)CompletedStepsCount / TotalStepsCount * 100 : 0;
+
+    [NotMapped]
     public string CurrentStepName 
     { 
         get 

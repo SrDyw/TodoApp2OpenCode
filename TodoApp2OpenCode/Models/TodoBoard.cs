@@ -1,46 +1,43 @@
-using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TodoApp2OpenCode.Models;
 
-/// <summary>
-/// Modelo que representa el estado completo del tablero de tareas.
-/// </summary>
-/// <remarks>
-/// Contiene todas las columnas y tareas del usuario, permitiendo
-/// guardar el estado completo del tablero en una sola operación.
-/// </remarks>
+[Table("Boards")]
 public class TodoBoard
 {
-    [JsonPropertyName("id")]
+    [Key]
+    [MaxLength(50)]
     public string Id { get; set; } = string.Empty;
 
-    [JsonPropertyName("userId")]
+    [MaxLength(50)]
     public string User { get; set; } = string.Empty;
 
-    [JsonPropertyName("name")]
+    [Required]
+    [MaxLength(100)]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("description")]
+    [MaxLength(500)]
     public string Description { get; set; } = string.Empty;
 
-    [JsonPropertyName("participantIds")]
     public List<string> ParticipantIds { get; set; } = new();
 
-    [JsonPropertyName("participantNames")]
+    [NotMapped]
     public Dictionary<string, string> ParticipantNames { get; set; } = new();
 
-    [JsonPropertyName("ownerName")]
+    [MaxLength(100)]
     public string OwnerName { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Lista de columnas en el tablero.
-    /// </summary>
-    [JsonPropertyName("columns")]
     public List<TodoColumn> Columns { get; set; } = new();
 
-    /// <summary>
-    /// Lista de tareas en el tablero.
-    /// </summary>
-    [JsonPropertyName("items")]
     public List<TodoItem> Items { get; set; } = new();
+
+    [NotMapped]
+    public string ParticipantNamesJson
+    {
+        get => System.Text.Json.JsonSerializer.Serialize(ParticipantNames);
+        set => ParticipantNames = string.IsNullOrEmpty(value) 
+            ? new Dictionary<string, string>() 
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new();
+    }
 }

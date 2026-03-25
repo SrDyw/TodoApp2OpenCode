@@ -11,6 +11,10 @@ public class FlowBoardDbContext : DbContext
 
     public DbSet<TestEntity> TestEntities { get; set; } = null!;
     public DbSet<LogItem> LogItems { get; set; } = null!;
+    public DbSet<TodoBoard> Boards { get; set; } = null!;
+    public DbSet<TodoColumn> Columns { get; set; } = null!;
+    public DbSet<TodoItem> Items { get; set; } = null!;
+    public DbSet<TodoStep> Steps { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,5 +25,16 @@ public class FlowBoardDbContext : DbContext
             new TestEntity { Id = 2, Name = "Segundo Registro", Description = "Segundo registro para verificar la conexión" },
             new TestEntity { Id = 3, Name = "Tercer Registro", Description = "Tercer registro - si ves esto, la conexión funciona" }
         );
+
+        modelBuilder.Entity<TodoBoard>(entity =>
+        {
+            entity.Property(e => e.ParticipantIds)
+                .HasConversion(
+                    v => string.Join(",", v),
+                    v => string.IsNullOrEmpty(v) ? new List<string>() : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+            
+            entity.Property(e => e.ParticipantNamesJson)
+                .HasColumnType("nvarchar(max)");
+        });
     }
 }

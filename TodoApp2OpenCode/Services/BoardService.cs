@@ -1,36 +1,23 @@
-using System.Text.Json;
-using Microsoft.Extensions.Primitives;
-using Microsoft.JSInterop;
+using Microsoft.EntityFrameworkCore;
+using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
 
 namespace TodoApp2OpenCode.Services;
 
-public class BoardService
+public class BoardService : IBoardService
 {
-    private readonly IJSRuntime _jsRuntime;
-    private const string BOARDS_KEY = "flowboard_boards";
+    private readonly IDbContextFactory<FlowBoardDbContext> _contextFactory;
 
-    private readonly JsonSerializerOptions _jsonOptions;
-    private List<TodoBoard> _cachedBoards = new();
-    private bool _isLoaded = false;
-
-    public BoardService(IJSRuntime jsRuntime)
+    public BoardService(IDbContextFactory<FlowBoardDbContext> contextFactory)
     {
-        _jsRuntime = jsRuntime;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = true
-        };
+        _contextFactory = contextFactory;
     }
 
     public async Task<List<TodoBoard>> GetUserBoardsAsync(string userId)
     {
-        if (!_isLoaded)
-        {
-            await LoadBoardsAsync();
-        }
-        return _cachedBoards
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var allBoards = await context.Boards.AsNoTracking().ToListAsync();
+        return allBoards
             .Where(b => b.User == userId || b.ParticipantIds.Contains(userId))
             .OrderBy(b => b.Name)
             .ToList();
@@ -38,22 +25,33 @@ public class BoardService
 
     public async Task<TodoBoard?> GetBoardAsync(string boardId)
     {
-        if (!_isLoaded)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var board = await context.Boards
+            .AsNoTracking()
+            .Include(b => b.Columns)
+            .FirstOrDefaultAsync(b => b.Id == boardId);
+
+        if (board != null)
         {
-            await LoadBoardsAsync();
+            var items = await context.Items
+                .AsNoTracking()
+                .Include(i => i.Steps)
+                .Where(i => i.TodoBoardId == boardId)
+                .ToListAsync();
+            
+            board.Items = items;
         }
-        return _cachedBoards.FirstOrDefault(b => b.Id == boardId);
+
+        return board;
     }
 
     public async Task<TodoBoard?> CreateBoardAsync(string userId, string name, string? description = null, List<(string Id, string Name)>? participants = null)
     {
         try
         {
-            if (!_isLoaded)
-            {
-                await LoadBoardsAsync();
-            }
-
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
             var participantIds = participants?.Select(p => p.Id).ToList() ?? new List<string>();
             var participantNames = participants?.ToDictionary(p => p.Id, p => p.Name) ?? new Dictionary<string, string>();
 
@@ -70,8 +68,8 @@ public class BoardService
                 Items = new List<TodoItem>()
             };
 
-            _cachedBoards.Add(board);
-            await SaveBoardsAsync();
+            context.Boards.Add(board);
+            await context.SaveChangesAsync();
             return board;
         }
         catch
@@ -84,19 +82,15 @@ public class BoardService
     {
         try
         {
-            if (!_isLoaded)
-            {
-                await LoadBoardsAsync();
-            }
-
-            var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards.FindAsync(boardId);
             if (board == null) return false;
 
             if (!board.ParticipantIds.Contains(userId))
             {
                 board.ParticipantIds.Add(userId);
                 board.ParticipantNames[userId] = userName;
-                await SaveBoardsAsync();
+                await context.SaveChangesAsync();
             }
             return true;
         }
@@ -110,20 +104,14 @@ public class BoardService
     {
         try
         {
-            if (!_isLoaded)
-            {
-                await LoadBoardsAsync();
-            }
-
-            var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards.FindAsync(boardId);
             if (board == null) return false;
 
-            var user = board.ParticipantNames[userId];
-        
             board.ParticipantIds.Remove(userId);
             board.ParticipantNames.Remove(userId);
 
-            await SaveBoardsAsync();
+            await context.SaveChangesAsync();
             return true;
         }
         catch
@@ -136,16 +124,101 @@ public class BoardService
     {
         try
         {
-            if (!_isLoaded)
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var existingBoard = await context.Boards
+                .Include(b => b.Columns)
+                .Include(b => b.Items)
+                    .ThenInclude(i => i.Steps)
+                .FirstOrDefaultAsync(b => b.Id == board.Id);
+
+            if (existingBoard == null) return false;
+
+            existingBoard.Name = board.Name;
+            existingBoard.Description = board.Description;
+            existingBoard.ParticipantIds = board.ParticipantIds;
+            existingBoard.ParticipantNames = board.ParticipantNames;
+            existingBoard.OwnerName = board.OwnerName;
+
+            var existingColumns = existingBoard.Columns.ToList();
+            var existingItems = existingBoard.Items.ToList();
+
+            foreach (var column in board.Columns)
             {
-                await LoadBoardsAsync();
+                var existingColumn = existingColumns.FirstOrDefault(c => c.Id == column.Id);
+                if (existingColumn != null)
+                {
+                    existingColumn.Name = column.Name;
+                    existingColumn.Color = column.Color;
+                    existingColumn.UpdatedAt = DateTime.Now;
+                }
+                else
+                {
+                    column.BoardId = board.Id;
+                    existingBoard.Columns.Add(column);
+                }
             }
 
-            var index = _cachedBoards.FindIndex(b => b.Id == board.Id);
-            if (index == -1) return false;
+            var columnsToRemove = existingColumns.Where(c => !board.Columns.Any(bc => bc.Id == c.Id)).ToList();
+            foreach (var column in columnsToRemove)
+            {
+                context.Columns.Remove(column);
+            }
 
-            _cachedBoards[index] = board;
-            await SaveBoardsAsync();
+            foreach (var item in board.Items)
+            {
+                var existingItem = existingItems.FirstOrDefault(i => i.Id == item.Id);
+                if (existingItem != null)
+                {
+                    existingItem.Title = item.Title;
+                    existingItem.Description = item.Description;
+                    existingItem.IsCompleted = item.IsCompleted;
+                    existingItem.ColumnId = item.ColumnId;
+                    existingItem.Order = item.Order;
+                    existingItem.Priority = item.Priority;
+                    existingItem.CurrentStepIndex = item.CurrentStepIndex;
+                    existingItem.UpdatedAt = DateTime.Now;
+
+                    var existingSteps = existingItem.Steps?.ToList() ?? new List<TodoStep>();
+                    if (item.Steps != null)
+                    {
+                        foreach (var step in item.Steps)
+                        {
+                            var existingStep = existingSteps.FirstOrDefault(s => s.Id == step.Id);
+                            if (existingStep != null)
+                            {
+                                existingStep.Name = step.Name;
+                                existingStep.IsCompleted = step.IsCompleted;
+                            }
+                            else
+                            {
+                                step.ItemId = item.Id;
+                                existingItem.Steps ??= new List<TodoStep>();
+                                existingItem.Steps.Add(step);
+                            }
+                        }
+
+                        var stepsToRemove = existingSteps.Where(s => !item.Steps!.Any(is2 => is2.Id == s.Id)).ToList();
+                        foreach (var step in stepsToRemove)
+                        {
+                            context.Steps.Remove(step);
+                        }
+                    }
+                }
+                else
+                {
+                    item.ColumnId = board.Columns.FirstOrDefault()?.Id ?? "";
+                    existingBoard.Items.Add(item);
+                }
+            }
+
+            var itemsToRemove = existingItems.Where(i => !board.Items.Any(bi => bi.Id == i.Id)).ToList();
+            foreach (var item in itemsToRemove)
+            {
+                context.Items.Remove(item);
+            }
+
+            await context.SaveChangesAsync();
             return true;
         }
         catch
@@ -158,13 +231,12 @@ public class BoardService
     {
         try
         {
-            if (!_isLoaded)
-            {
-                await LoadBoardsAsync();
-            }
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards.FindAsync(boardId);
+            if (board == null) return false;
 
-            _cachedBoards.RemoveAll(b => b.Id == boardId);
-            await SaveBoardsAsync();
+            context.Boards.Remove(board);
+            await context.SaveChangesAsync();
             return true;
         }
         catch
@@ -184,32 +256,7 @@ public class BoardService
         return await CreateBoardAsync(userId, "Mi Tablero");
     }
 
-    private async Task LoadBoardsAsync()
-    {
-        try
-        {
-            var json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", BOARDS_KEY);
-            if (!string.IsNullOrEmpty(json))
-            {
-                _cachedBoards = JsonSerializer.Deserialize<List<TodoBoard>>(json, _jsonOptions) ?? new List<TodoBoard>();
-            }
-        }
-        catch
-        {
-            _cachedBoards = new List<TodoBoard>();
-        }
-        _isLoaded = true;
-    }
-
-    private async Task SaveBoardsAsync()
-    {
-        var json = JsonSerializer.Serialize(_cachedBoards, _jsonOptions);
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", BOARDS_KEY, json);
-    }
-
     public void ClearCache()
     {
-        _cachedBoards = new List<TodoBoard>();
-        _isLoaded = false;
     }
 }
