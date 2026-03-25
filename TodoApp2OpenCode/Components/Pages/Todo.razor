@@ -336,6 +336,7 @@ else
                                                      </MudStack>
                                              </MudStack>
                                          </MudStack>
+                                         <MudProgressLinear Max="5" Value="3" Style="margin-top: 8px"/> 
                                      </MudCardContent>
                                  </MudCard>
                              </div>
@@ -1071,9 +1072,9 @@ else
             {
                 logsLoading = true;
                 await InvokeAsync(StateHasChanged);
-                
+
                 boardLogs = await LogService.GetLogsByBoardId(BoardId);
-                
+
                 logsLoading = false;
             }
             await InvokeAsync(StateHasChanged);
@@ -1118,6 +1119,8 @@ else
     {
         if (string.IsNullOrEmpty(BoardId)) return;
 
+        var defaultColumnName = column.Name;
+
         var editing = new TodoColumn { Id = column.Id, Name = column.Name, Color = column.Color, CreatedAt = column.CreatedAt, UpdatedAt = column.UpdatedAt };
         var parameters = new DialogParameters<EditColumnDialog>();
         parameters.Add(x => x.Column, editing);
@@ -1125,8 +1128,29 @@ else
         var dialog = await DialogService.ShowAsync<EditColumnDialog>("Editar Columna", parameters);
         var result = await dialog.Result;
 
-        if (result is { Canceled: false, Data: true })
+        if (result is { Canceled: false, Data: EditColumnDialog.EditColumnResult editResult })
         {
+            if (string.IsNullOrWhiteSpace(editResult.NewName) == false)
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Actualizar,
+                    BoardId = BoardId,
+                    Message = $"Actualiza columna {defaultColumnName} -> {editResult.NewName}",
+                    User = AuthService.CurrentUser!.Username
+                });
+            }
+            if (string.IsNullOrWhiteSpace(editResult.NewColor) == false)
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Actualizar,
+                    BoardId = BoardId,
+                    Message = $"Actualiza color de la columna a {editResult.NewColor}",
+                    User = AuthService.CurrentUser!.Username
+                });
+            }
+
             await TodoService.UpdateColumnAsync(BoardId, editing);
             var index = columns.FindIndex(c => c.Id == editing.Id);
             if (index >= 0)

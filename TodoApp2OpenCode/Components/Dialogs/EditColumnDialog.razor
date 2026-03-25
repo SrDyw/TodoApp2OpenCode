@@ -53,7 +53,7 @@
                    Color="Color.Primary"
                    Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.Save"
-                   Disabled="@string.IsNullOrWhiteSpace(Column.Name)">
+                   Disabled="IsButtonDisabled">
             Guardar
         </MudButton>
     </DialogActions>
@@ -112,10 +112,23 @@
         "#a8d8ea", "#ff9a8b", "#88d8b0", "#f9d423"
     };
 
+    private bool IsButtonDisabled => string.IsNullOrWhiteSpace(Column.Name) || DefaultName == Column.Name && DefaultColor == Column.Color;
+
     /// <summary>
     /// Alias para PredefinedColors (para compatibilidad con el caller).
     /// </summary>
     private List<string> predefinedColors => PredefinedColors;
+
+    private string DefaultName { get; set; } = string.Empty;
+    private string DefaultColor { get; set; } = string.Empty;
+
+
+    protected override void OnParametersSet()
+    {
+        DefaultColor = Column.Color;
+        DefaultName = Column.Name;
+    }
+
 
     /// <summary>
     /// Selecciona un color.
@@ -132,7 +145,11 @@
     {
         if (!string.IsNullOrWhiteSpace(Column.Name))
         {
-            MudDialog?.Close(DialogResult.Ok(true));
+            MudDialog?.Close(DialogResult.Ok(new EditColumnResult
+            {
+                NewColor = Column.Color == DefaultColor ? string.Empty : Column.Color,
+                NewName = Column.Name == DefaultName ? string.Empty : Column.Name
+            }));
         }
     }
 
@@ -140,4 +157,10 @@
     /// Cancela la edición.
     /// </summary>
     private void Cancel() => MudDialog?.Cancel();
+
+    public class EditColumnResult
+    {
+        public string NewColor { get; set; } = string.Empty;
+        public string NewName { get; set; } = string.Empty;
+    }
 }

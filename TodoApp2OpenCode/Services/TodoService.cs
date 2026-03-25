@@ -90,13 +90,6 @@ public class TodoService
             board.Columns[index] = column;
 
             await _boardService.UpdateBoardAsync(board);
-            await _logService.AddLogAsync(new LogItem
-            {
-                Message = $"Actualiza la columna {column.Name} del tablero {board.Name}",
-                Action = DatabaseAction.Actualizar,
-                BoardId = boardId,
-                User = _authService.CurrentUser!.Username
-            });
             return true;
         }
         catch
@@ -124,7 +117,8 @@ public class TodoService
             {
                 Action = DatabaseAction.Remover,
                 Message = $"Remueve columna {column.Name}",
-                BoardId = boardId
+                BoardId = boardId,
+                User = _authService.CurrentUser!.Username
             });
             return true;
         }
@@ -154,7 +148,8 @@ public class TodoService
             {
                 Action = DatabaseAction.Actualizar,
                 BoardId = boardId,
-                Message = $"Mueve columna {board.Columns[toIndex].Name}"
+                Message = $"Mueve columna {board.Columns[toIndex].Name}",
+                User = _authService.CurrentUser!.Username
             });
             return true;
         }
@@ -226,9 +221,19 @@ public class TodoService
             var board = await _boardService.GetBoardAsync(boardId);
             if (board == null) return false;
 
+            var todo = board.Items.FirstOrDefault(x => x.Id == itemId);
+            if (todo == null) return false;
+
             board.Items.RemoveAll(i => i.Id == itemId);
 
             await _boardService.UpdateBoardAsync(board);
+            await _logService.AddLogAsync(new LogItem
+            {
+                BoardId = boardId,
+                Action = DatabaseAction.Remover,
+                Message = $"Remueve tarea {todo.Title} del tablero {board.Name}",
+                User = _authService.CurrentUser!.Username
+            });
             return true;
         }
         catch
@@ -265,7 +270,8 @@ public class TodoService
             {
                 Action = DatabaseAction.Actualizar,
                 Message = $"Mueve tarea {item.Title} para la columna {column.Name}",
-                BoardId = boardId
+                BoardId = boardId,
+                User = _authService.CurrentUser!.Username
             });
             return true;
         }
