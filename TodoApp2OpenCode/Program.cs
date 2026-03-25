@@ -1,8 +1,14 @@
+using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using TodoApp2OpenCode.Components;
+using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add DbContext
+builder.Services.AddDbContext<FlowBoardDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
@@ -16,6 +22,7 @@ builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<LogService>();
+builder.Services.AddScoped<TestConnectionService>();
 
 var app = builder.Build();
 
