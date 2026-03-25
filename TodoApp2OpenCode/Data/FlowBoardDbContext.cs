@@ -10,6 +10,7 @@ public class FlowBoardDbContext : DbContext
     }
 
     public DbSet<TestEntity> TestEntities { get; set; } = null!;
+    public DbSet<LogItem> LogItems { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

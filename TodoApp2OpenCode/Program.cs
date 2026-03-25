@@ -21,8 +21,14 @@ builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<LogService>();
 builder.Services.AddScoped<TestConnectionService>();
+
+// Log Service - choose implementation:
+// Production (database): ILogService → LogService
+builder.Services.AddScoped<ILogService, LogService>();
+
+// Testing (localStorage): ILogService → LocalStorageLogService
+// builder.Services.AddScoped<ILogService, LocalStorageLogService>();
 
 var app = builder.Build();
 

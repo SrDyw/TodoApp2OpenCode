@@ -8,14 +8,14 @@ public class TodoService
 {
     private readonly IJSRuntime _jsRuntime;
     private readonly BoardService _boardService;
-    private readonly LogService _logService;
+    private readonly ILogService _logService;
     private const string BOARDS_KEY = "flowboard_boards";
 
     private readonly AuthService _authService;
 
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public TodoService(IJSRuntime jsRuntime, BoardService boardService, LogService logService, AuthService authService)
+    public TodoService(IJSRuntime jsRuntime, BoardService boardService, ILogService logService, AuthService authService)
     {
         _jsRuntime = jsRuntime;
         _boardService = boardService;
