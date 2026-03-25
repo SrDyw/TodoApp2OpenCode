@@ -1,18 +1,17 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Microsoft.JSInterop;
-using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
 
 namespace TodoApp2OpenCode.Services;
 
-public class AuthService : IAuthService
+public class LocalStorageAuthService : IAuthService
 {
-    private readonly IDbContextFactory<FlowBoardDbContext> _contextFactory;
     private readonly IJSRuntime _jsRuntime;
-    private const string LAST_BOARD_KEY = "flowboard_last_board";
+    private const string USERS_KEY = "flowboard_users";
     private const string CURRENT_USER_KEY = "flowboard_current_user";
+    private const string LAST_BOARD_KEY = "flowboard_last_board";
     private const string SALT = "FlowBoard_Secure_Salt_2024";
 
     private User? _currentUser;
@@ -20,9 +19,8 @@ public class AuthService : IAuthService
 
     private Action<User?>? _onAuthStateChangedAction;
 
-    public AuthService(IDbContextFactory<FlowBoardDbContext> contextFactory, IJSRuntime jsRuntime)
+    public LocalStorageAuthService(IJSRuntime jsRuntime)
     {
-        _contextFactory = contextFactory;
         _jsRuntime = jsRuntime;
     }
 
@@ -75,14 +73,12 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
             return (false, "La contraseña debe tener al menos 6 caracteres");
 
-        await using var context = await _contextFactory.CreateDbContextAsync();
+        var users = await GetUsersAsync();
 
-        var emailExists = await context.Users.AnyAsync(u => u.Email.ToLower() == email.Trim().ToLower());
-        if (emailExists)
+        if (users.Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
             return (false, "El email ya está registrado");
 
-        var usernameExists = await context.Users.AnyAsync(u => u.Username.ToLower() == username.Trim().ToLower());
-        if (usernameExists)
+        if (users.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
             return (false, "El nombre de usuario ya está en uso");
 
         var user = new User
@@ -94,8 +90,8 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.Now
         };
 
-        context.Users.Add(user);
-        await context.SaveChangesAsync();
+        users.Add(user);
+        await SaveUsersAsync(users);
 
         _currentUser = user;
         await SaveCurrentUserAsync(user);
@@ -112,10 +108,9 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(password))
             return (false, "La contraseña es requerida");
 
-        await using var context = await _contextFactory.CreateDbContextAsync();
-
-        var user = await context.Users
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == email.Trim().ToLower());
+        var users = await GetUsersAsync();
+        var user = users.FirstOrDefault(u => 
+            u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
         if (user == null)
             return (false, "No existe una cuenta con este email");
@@ -145,12 +140,10 @@ public class AuthService : IAuthService
 
         try
         {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            
-            var userId = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", CURRENT_USER_KEY + "_id");
-            if (!string.IsNullOrEmpty(userId))
+            var json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", CURRENT_USER_KEY);
+            if (!string.IsNullOrEmpty(json))
             {
-                _currentUser = await context.Users.FindAsync(userId);
+                _currentUser = JsonSerializer.Deserialize<User>(json);
                 _isInitialized = true;
                 return _currentUser != null;
             }
@@ -161,9 +154,32 @@ public class AuthService : IAuthService
         return false;
     }
 
+    private async Task<List<User>> GetUsersAsync()
+    {
+        try
+        {
+            var json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", USERS_KEY);
+            if (string.IsNullOrEmpty(json))
+                return new List<User>();
+
+            return JsonSerializer.Deserialize<List<User>>(json) ?? new List<User>();
+        }
+        catch
+        {
+            return new List<User>();
+        }
+    }
+
+    private async Task SaveUsersAsync(List<User> users)
+    {
+        var json = JsonSerializer.Serialize(users);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", USERS_KEY, json);
+    }
+
     private async Task SaveCurrentUserAsync(User user)
     {
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", CURRENT_USER_KEY + "_id", user.Id);
+        var json = JsonSerializer.Serialize(user);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", CURRENT_USER_KEY, json);
     }
 
     public async Task<List<UserInfo>> SearchUsersAsync(string searchTerm)
@@ -171,15 +187,14 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
             return new List<UserInfo>();
 
-        await using var context = await _contextFactory.CreateDbContextAsync();
-
+        var users = await GetUsersAsync();
         var term = searchTerm.ToLower();
 
-        return await context.Users
+        return users
             .Where(u => u.Username.ToLower().Contains(term) || u.Email.ToLower().Contains(term))
             .Where(u => _currentUser == null || u.Id != _currentUser.Id)
             .Take(10)
             .Select(u => new UserInfo { Id = u.Id, Username = u.Username, Email = u.Email })
-            .ToListAsync();
+            .ToList();
     }
 }

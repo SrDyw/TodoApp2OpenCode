@@ -11,11 +11,11 @@ public class TodoService
     private readonly ILogService _logService;
     private const string BOARDS_KEY = "flowboard_boards";
 
-    private readonly AuthService _authService;
+    private readonly IAuthService _authService;
 
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public TodoService(IJSRuntime jsRuntime, IBoardService boardService, ILogService logService, AuthService authService)
+    public TodoService(IJSRuntime jsRuntime, IBoardService boardService, ILogService logService, IAuthService authService)
     {
         _jsRuntime = jsRuntime;
         _boardService = boardService;

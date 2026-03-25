@@ -1,4 +1,4 @@
-@inject AuthService AuthService
+@inject IAuthService AuthService
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3">
@@ -105,7 +105,7 @@
 
     private string _searchText = string.Empty;
     private bool _isSearching = false;
-    private List<AuthService.UserInfo> _searchResults = new();
+    private List<UserInfo> _searchResults = new();
     private List<SelectedUser> _selectedUsers = new();
 
     private class SelectedUser
@@ -119,7 +119,7 @@
     {
         if (string.IsNullOrWhiteSpace(_searchText) || _searchText.Length < 2)
         {
-            _searchResults = new List<AuthService.UserInfo>();
+            _searchResults = new List<UserInfo>();
             return;
         }
 
@@ -132,7 +132,7 @@
         _isSearching = false;
     }
 
-    private void SelectUser(AuthService.UserInfo user)
+    private void SelectUser(UserInfo user)
     {
         if (!_selectedUsers.Any(u => u.Id == user.Id))
         {
@@ -143,7 +143,7 @@
                 Email = user.Email
             });
             _searchText = string.Empty;
-            _searchResults = new List<AuthService.UserInfo>();
+            _searchResults = new List<UserInfo>();
         }
     }
 

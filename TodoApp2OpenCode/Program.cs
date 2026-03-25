@@ -19,8 +19,14 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
-builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<TestConnectionService>();
+
+// Auth Service - choose implementation:
+// Production (database): IAuthService → AuthService
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Testing (localStorage): IAuthService → LocalStorageAuthService
+// builder.Services.AddScoped<IAuthService, LocalStorageAuthService>();
 
 // Board Service - choose implementation:
 // Production (database): IBoardService → BoardService

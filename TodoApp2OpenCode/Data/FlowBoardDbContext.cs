@@ -15,6 +15,7 @@ public class FlowBoardDbContext : DbContext
     public DbSet<TodoColumn> Columns { get; set; } = null!;
     public DbSet<TodoItem> Items { get; set; } = null!;
     public DbSet<TodoStep> Steps { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,6 +36,12 @@ public class FlowBoardDbContext : DbContext
             
             entity.Property(e => e.ParticipantNamesJson)
                 .HasColumnType("nvarchar(max)");
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.Username);
         });
     }
 }
