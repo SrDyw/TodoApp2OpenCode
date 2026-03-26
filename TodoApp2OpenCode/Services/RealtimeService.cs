@@ -71,9 +71,8 @@ public class RealtimeService : IRealtimeService, IAsyncDisposable
         {
             await _hubConnection.StartAsync();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"SignalR connection failed: {ex.Message}");
         }
     }
 
@@ -100,7 +99,6 @@ public class RealtimeService : IRealtimeService, IAsyncDisposable
 
         _hubConnection.On<string, string, string?>("ColumnUpdated", (boardId, columnJson, excludeUserId) =>
         {
-            System.Diagnostics.Debug.WriteLine($"SignalR: ColumnUpdated received boardId={boardId}, excludeUserId={excludeUserId}, _currentUserId={_currentUserId}");
             if (boardId == _currentBoardId && excludeUserId != _currentUserId)
                 OnColumnUpdated?.Invoke(boardId, columnJson, excludeUserId);
         });
@@ -131,13 +129,11 @@ public class RealtimeService : IRealtimeService, IAsyncDisposable
 
         _hubConnection.Reconnecting += (error) =>
         {
-            Console.WriteLine("SignalR reconnecting...");
             return Task.CompletedTask;
         };
 
         _hubConnection.Reconnected += (connectionId) =>
         {
-            Console.WriteLine("SignalR reconnected!");
             if (_currentBoardId != null)
             {
                 _ = JoinBoardAsync(_currentBoardId);
@@ -147,7 +143,6 @@ public class RealtimeService : IRealtimeService, IAsyncDisposable
 
         _hubConnection.Closed += (error) =>
         {
-            Console.WriteLine("SignalR connection closed.");
             return Task.CompletedTask;
         };
     }
@@ -165,9 +160,7 @@ public class RealtimeService : IRealtimeService, IAsyncDisposable
             }
 
             _currentBoardId = boardId;
-            System.Diagnostics.Debug.WriteLine($"SignalR: Joining board {boardId}, connectionId will be assigned by hub");
             await _hubConnection.InvokeAsync("JoinBoard", boardId);
-            System.Diagnostics.Debug.WriteLine($"SignalR: Joined board {boardId}");
         }
     }
 

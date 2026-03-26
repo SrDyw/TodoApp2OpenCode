@@ -110,7 +110,7 @@
         justify-content: center;
         margin-bottom: 20px;
         font-size: 24px;
-    }
+    }   
 
     .feature-title {
         font-size: 1.25rem;
@@ -207,8 +207,11 @@
             Crea tableros, arrastra tareas entre columnas y mantén tu productividad al máximo.
         </p>
         <div class="hero-buttons">
-            <button class="btn-primary" @onclick="OpenRegisterDialog">Comenzar gratis</button>
-            <button class="btn-secondary" @onclick="OpenLoginDialog">Iniciar sesión</button>
+            <button class="btn-primary" @onclick="OpenRegisterDialog">Crear cuenta</button>
+            @if (!AuthService.IsAuthenticated)
+            {
+                <button class="btn-secondary" @onclick="OpenLoginDialog">Iniciar sesión</button>
+            }
         </div>
     </section>
 
@@ -312,6 +315,11 @@
     protected override async Task OnInitializedAsync()
     {
         await AuthService.CheckAuthStateAsync();
+        
+        if (AuthService.IsAuthenticated && AuthService.CurrentUser != null)
+        {
+            Navigation.NavigateTo("/board", forceLoad: true);
+        }
     }
 
     private async Task OpenRegisterDialog()

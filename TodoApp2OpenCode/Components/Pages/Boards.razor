@@ -1,0 +1,492 @@
+@page "/board"
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+@inject IBoardService BoardService
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+
+<style>
+    .boards-page {
+        min-height: 100vh;
+        background: linear-gradient(135deg, var(--mud-palette-background) 0%, var(--mud-palette-surface) 100%);
+        padding: 40px 20px 80px;
+    }
+
+    .welcome-section {
+        max-width: 900px;
+        margin: 0 auto 60px;
+        text-align: center;
+    }
+
+    .welcome-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .welcome-subtitle {
+        font-size: 1.1rem;
+        color: var(--mud-palette-text-secondary);
+        margin-bottom: 32px;
+        line-height: 1.6;
+    }
+
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .boards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        max-width: 1200px;
+        margin: 0 auto 60px;
+    }
+
+    .board-card {
+        background: var(--mud-palette-surface);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid var(--mud-palette-lines-default);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+    }
+
+    .board-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--mud-palette-primary);
+        box-shadow: 0 8px 24px rgba(126, 111, 255, 0.15);
+    }
+
+    .board-card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 8px;
+    }
+
+    .board-card-meta {
+        font-size: 0.85rem;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .tutorials-section {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 40px;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .tutorial-card {
+        background: var(--mud-palette-surface);
+        border-radius: 16px;
+        padding: 32px;
+        margin-bottom: 24px;
+        border: 1px solid var(--mud-palette-lines-default);
+    }
+
+    .tutorial-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .tutorial-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--mud-palette-primary) 0%, #a78bfa 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+    }
+
+    .tutorial-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .tutorial-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .tutorial-step {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+    }
+
+    .step-content {
+        flex: 1;
+    }
+
+    .step-title {
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 4px;
+    }
+
+    .step-description {
+        color: var(--mud-palette-text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .feature-highlight {
+        background: rgba(126, 111, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .feature-highlight-icon {
+        font-size: 1.2rem;
+    }
+
+    .feature-highlight-text {
+        color: var(--mud-palette-primary);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .mockup-example {
+        background: var(--mud-palette-background);
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+        overflow-x: auto;
+    }
+
+    .mockup-board {
+        display: flex;
+        gap: 12px;
+        min-width: 500px;
+    }
+
+    .mockup-column {
+        flex: 1;
+        min-width: 140px;
+    }
+
+    .mockup-column-header {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        display: inline-block;
+    }
+
+    .mockup-card {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        font-size: 0.75rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+</style>
+
+<div class="boards-page">
+    <div class="welcome-section">
+        <h1 class="welcome-title">Bienvenido, @(AuthService.CurrentUser?.Username ?? "Usuario")</h1>
+        <p class="welcome-subtitle">
+            Organiza tus tareas de forma visual e intuitiva con tableros Kanban. 
+            Crea columnas, arrastra tareas entre ellas y mantén tu productividad al máximo.
+        </p>
+        <div class="action-buttons">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNewBoard">
+                Crear nuevo board
+            </MudButton>
+        </div>
+    </div>
+
+    @if (userBoards.Any())
+    {
+        <div class="boards-grid">
+            @foreach (var board in userBoards)
+            {
+                <div class="board-card" @onclick="@(() => NavigateToBoard(board.Id))">
+                    <div class="board-card-title">@board.Name</div>
+                    <div class="board-card-meta">
+                        @(board.Columns?.Count ?? 0) columnas · @(board.Items?.Count ?? 0) tareas
+                    </div>
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Person" Style="margin-top:8px">@board.OwnerName</MudChip>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="tutorials-section">
+        <h2 class="section-title">Cómo funcionan los tableros</h2>
+
+        <div class="tutorial-card">
+            <div class="tutorial-header">
+                <div class="tutorial-icon">📋</div>
+                <div class="tutorial-title">Tableros y Columnas</div>
+            </div>
+            <div class="tutorial-steps">
+                <div class="tutorial-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Crea tu tablero</div>
+                        <div class="step-description">
+                            Cada tablero representa un proyecto o área de trabajo. Usa un nombre descriptivo para identificarlo fácilmente.
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Añade columnas</div>
+                        <div class="step-description">
+                            Las columnas representan las etapas de tu flujo de trabajo. Por ejemplo: "Por hacer", "En progreso" y "Completado".
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Personaliza</div>
+                        <div class="step-description">
+                            Cambia el color de las columnas para distinguirlas visualmente. Arrastra las columnas para reordenarlas.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="feature-highlight">
+                <span class="feature-highlight-icon">💡</span>
+                <span class="feature-highlight-text">Consejo: Usa colores diferentes para cada etapa de tu proceso</span>
+            </div>
+        </div>
+
+        <div class="tutorial-card">
+            <div class="tutorial-header">
+                <div class="tutorial-icon">✅</div>
+                <div class="tutorial-title">Tareas y Pasos</div>
+            </div>
+            <div class="tutorial-steps">
+                <div class="tutorial-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Crea tareas</div>
+                        <div class="step-description">
+                            Cada tarea es una unidad de trabajo. Añade un título descriptivo y una descripción opcional con más detalles.
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Divide en pasos</div>
+                        <div class="step-description">
+                            Si una tarea es compleja, divídela en pasos más pequeños. Marca cada paso como completado conforme avanzas.
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Asigna participantes</div>
+                        <div class="step-description">
+                            Añade miembros al tablero para colaborar. Asigna tareas específicas a cada persona.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mockup-example">
+                <div class="mockup-board">
+                    <div class="mockup-column">
+                        <div class="mockup-column-header" style="background: rgba(255,107,107,0.2); color: #ff6b6b;">Por hacer</div>
+                        <div class="mockup-card">
+                            <strong>Diseñar API</strong>
+                            <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 4px;">3/5 pasos</div>
+                        </div>
+                    </div>
+                    <div class="mockup-column">
+                        <div class="mockup-column-header" style="background: rgba(255,181,69,0.2); color: #ffb545;">En progreso</div>
+                        <div class="mockup-card">
+                            <strong>Implementar UI</strong>
+                            <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 4px;">1/3 pasos</div>
+                        </div>
+                    </div>
+                    <div class="mockup-column">
+                        <div class="mockup-column-header" style="background: rgba(61,203,108,0.2); color: #3dcb6c;">Completado</div>
+                        <div class="mockup-card">
+                            <strong>Setup proyecto</strong>
+                            <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 4px;">Completado ✓</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tutorial-card">
+            <div class="tutorial-header">
+                <div class="tutorial-icon">🖱️</div>
+                <div class="tutorial-title">Arrastrar y Soltar</div>
+            </div>
+            <div class="tutorial-steps">
+                <div class="tutorial-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Mueve tareas</div>
+                        <div class="step-description">
+                            Haz clic en una tarea y arrástrala a otra columna. La tarea se moverá instantáneamente.
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Reordena columnas</div>
+                        <div class="step-description">
+                            Arrastra el encabezado de una columna para cambiar su posición en el tablero.
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Cambios en tiempo real</div>
+                        <div class="step-description">
+                            Los cambios se sincronizan automáticamente con todos los participantes del tablero.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="feature-highlight">
+                <span class="feature-highlight-icon">⚡</span>
+                <span class="feature-highlight-text">Los cambios se guardan automáticamente</span>
+            </div>
+        </div>
+
+        <div class="tutorial-card">
+            <div class="tutorial-header">
+                <div class="tutorial-icon">👥</div>
+                <div class="tutorial-title">Colaboración en Equipo</div>
+            </div>
+            <div class="tutorial-steps">
+                <div class="tutorial-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Invita participantes</div>
+                        <div class="step-description">
+                            Añade usuarios al tablero para trabajar juntos. Cada miembro puede ver y modificar las tareas.
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Asigna responsables</div>
+                        <div class="step-description">
+                            En cada tarea, puedes asignar uno o varios participantes responsables de completarla.
+                        </div>
+                    </div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Ve quién está trabajando</div>
+                        <div class="step-description">
+                            Observa los cursores de otros usuarios en tiempo real mientras trabajan en el tablero.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="feature-highlight">
+                <span class="feature-highlight-icon">🔒</span>
+                <span class="feature-highlight-text">No se puede remover un usuario con tareas sin completar</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<TodoBoard> userBoards = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.CheckAuthStateAsync();
+        
+        if (AuthService.CurrentUser != null)
+        {
+            userBoards = await BoardService.GetUserBoardsAsync(AuthService.CurrentUser.Id);
+        }
+        
+        isLoading = false;
+    }
+
+    private void NavigateToBoard(string boardId)
+    {
+        Navigation.NavigateTo($"/board/{boardId}", forceLoad: true);
+    }
+
+    private async Task CreateNewBoard()
+    {
+        var parameters = new DialogParameters<NewBoardDialog>();
+        parameters.Add(x => x.UserId, AuthService.CurrentUser?.Id);
+        parameters.Add(x => x.IsInitialBoard, false);
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+
+        var dialog = await DialogService.ShowAsync<NewBoardDialog>("Crear Tablero", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: TodoBoard board })
+        {
+            Navigation.NavigateTo($"/board/{board.Id}", forceLoad: true);
+        }
+    }
+}

@@ -31,6 +31,24 @@ public class FlowBoardDbContext : DbContext
         {
             entity.Property(e => e.ParticipantsJson)
                 .HasColumnType("nvarchar(max)");
+            
+            entity.HasMany(b => b.Columns)
+                .WithOne()
+                .HasForeignKey(c => c.BoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasMany(b => b.Items)
+                .WithOne()
+                .HasForeignKey(i => i.TodoBoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TodoItem>(entity =>
+        {
+            entity.HasMany(i => i.Steps)
+                .WithOne()
+                .HasForeignKey(s => s.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<User>(entity =>

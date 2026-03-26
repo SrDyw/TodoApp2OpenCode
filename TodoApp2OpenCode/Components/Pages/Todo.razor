@@ -138,7 +138,10 @@
                 @(showLogsView ? "Ver Board" : "Ver Logs")
             </MudButton>
             <MudSpacer/>
-            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="OnDeleteBoardButtonClick"/>
+            @if (isOwner)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="OnDeleteBoardButtonClick"/>
+            }
         }
     }
 </div>

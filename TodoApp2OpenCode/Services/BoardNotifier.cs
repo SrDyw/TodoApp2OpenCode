@@ -130,7 +130,6 @@ public class BoardNotifier : IBoardNotifier
         if (!ShouldSend(key)) return;
 
         var json = JsonSerializer.Serialize(column, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        System.Diagnostics.Debug.WriteLine($"SignalR: ColumnUpdated sent to group {boardId}, excludeUserId={excludeUserId}");
         await _hubContext.Clients.Group(boardId).ColumnUpdated(boardId, json, excludeUserId);
     }
 

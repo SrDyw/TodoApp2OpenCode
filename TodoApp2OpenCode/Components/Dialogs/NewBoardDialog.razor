@@ -15,29 +15,32 @@
                           Lines="2"
                           Placeholder="¿De qué se trata este tablero?" />
             
-            <div>
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Participantes</MudText>
-                @if (Participants.Any())
-                {
-                    <div class="participants-list">
-                        @foreach (var participant in Participants)
-                        {
-                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" OnClose="() => RemoveParticipant(participant)">
-                                @participant.Name
-                            </MudChip>
-                        }
-                    </div>
-                }
-                <MudButton Color="Color.Default" 
-                           Variant="Variant.Outlined" 
-                           Size="Size.Small" 
-                           FullWidth="true"
-                           OnClick="OpenAddParticipantsDialog"
-                           Class="mt-2">
-                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Class="mr-1" />
-                    Añadir participantes
-                </MudButton>
-            </div>
+            @if (!IsInitialBoard)
+            {
+                <div>
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Participantes</MudText>
+                    @if (Participants.Any())
+                    {
+                        <div class="participants-list">
+                            @foreach (var participant in Participants)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" OnClose="() => RemoveParticipant(participant)">
+                                    @participant.Name
+                                </MudChip>
+                            }
+                        </div>
+                    }
+                    <MudButton Color="Color.Default" 
+                               Variant="Variant.Outlined" 
+                               Size="Size.Small" 
+                               FullWidth="true"
+                               OnClick="OpenAddParticipantsDialog"
+                               Class="mt-2">
+                        <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Class="mr-1" />
+                        Añadir participantes
+                    </MudButton>
+                </div>
+            }
             
             @if (!string.IsNullOrEmpty(ErrorMessage))
             {
@@ -72,6 +75,9 @@
 
     [Parameter]
     public string? UserId { get; set; }
+
+    [Parameter]
+    public bool IsInitialBoard { get; set; } = false;
 
     private string BoardName { get; set; } = string.Empty;
     private string BoardDescription { get; set; } = string.Empty;

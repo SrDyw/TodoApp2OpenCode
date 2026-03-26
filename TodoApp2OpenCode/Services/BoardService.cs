@@ -20,11 +20,29 @@ public class BoardService : IBoardService
     public async Task<List<TodoBoard>> GetUserBoardsAsync(string userId)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        var allBoards = await context.Boards.AsNoTracking().ToListAsync();
-        return allBoards
+        var boards = await context.Boards
+            .AsNoTracking()
+            .Include(b => b.Columns)
+            .ToListAsync();
+        
+        var boardIds = boards.Where(b => b.User == userId || b.Participants.ContainsKey(userId)).Select(b => b.Id).ToList();
+        
+        var items = await context.Items
+            .AsNoTracking()
+            .Where(i => boardIds.Contains(i.TodoBoardId))
+            .ToListAsync();
+        
+        var result = boards
             .Where(b => b.User == userId || b.Participants.ContainsKey(userId))
             .OrderBy(b => b.Name)
             .ToList();
+        
+        foreach (var board in result)
+        {
+            board.Items = items.Where(i => i.TodoBoardId == board.Id).ToList();
+        }
+        
+        return result;
     }
 
     public async Task<TodoBoard?> GetBoardAsync(string boardId)
@@ -264,7 +282,12 @@ public class BoardService : IBoardService
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
-            var board = await context.Boards.FindAsync(boardId);
+            var board = await context.Boards
+                .Include(b => b.Columns)
+                .Include(b => b.Items)
+                    .ThenInclude(i => i.Steps)
+                .FirstOrDefaultAsync(b => b.Id == boardId);
+            
             if (board == null) return false;
 
             context.Boards.Remove(board);
@@ -274,9 +297,8 @@ public class BoardService : IBoardService
             
             return true;
         }
-        catch(Exception ex)
+        catch
         {
-            Console.WriteLine(ex);
             return false;
         }
     }
