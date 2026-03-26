@@ -124,11 +124,11 @@
         }
 
         _isSearching = true;
-        
+
         var users = await AuthService.SearchUsersAsync(_searchText);
-        var existingIds = _selectedUsers.Select(u => u.Id).Concat(ExistingParticipantIds).ToHashSet();
-        _searchResults = users.Where(u => !existingIds.Contains(u.Id)).ToList();
-        
+        // var existingIds = _selectedUsers.Select(u => u.Id).Concat(ExistingParticipantIds).ToHashSet();
+        _searchResults = users;
+
         _isSearching = false;
     }
 
