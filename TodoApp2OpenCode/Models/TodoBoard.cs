@@ -20,10 +20,8 @@ public class TodoBoard
     [MaxLength(500)]
     public string Description { get; set; } = string.Empty;
 
-    public List<string> ParticipantIds { get; set; } = new();
-
     [NotMapped]
-    public Dictionary<string, string> ParticipantNames { get; set; } = new();
+    public Dictionary<string, string> Participants { get; set; } = new();
 
     [MaxLength(100)]
     public string OwnerName { get; set; } = string.Empty;
@@ -32,11 +30,10 @@ public class TodoBoard
 
     public List<TodoItem> Items { get; set; } = new();
 
-    [NotMapped]
-    public string ParticipantNamesJson
+    public string ParticipantsJson
     {
-        get => System.Text.Json.JsonSerializer.Serialize(ParticipantNames);
-        set => ParticipantNames = string.IsNullOrEmpty(value) 
+        get => System.Text.Json.JsonSerializer.Serialize(Participants);
+        set => Participants = string.IsNullOrEmpty(value) 
             ? new Dictionary<string, string>() 
             : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new();
     }

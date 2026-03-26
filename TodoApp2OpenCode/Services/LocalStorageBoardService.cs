@@ -30,7 +30,7 @@ public class LocalStorageBoardService : IBoardService
             await LoadBoardsAsync();
         }
         return _cachedBoards
-            .Where(b => b.User == userId || b.ParticipantIds.Contains(userId))
+            .Where(b => b.User == userId || b.Participants.ContainsKey(userId))
             .OrderBy(b => b.Name)
             .ToList();
     }
@@ -53,8 +53,7 @@ public class LocalStorageBoardService : IBoardService
                 await LoadBoardsAsync();
             }
 
-            var participantIds = participants?.Select(p => p.Id).ToList() ?? new List<string>();
-            var participantNames = participants?.ToDictionary(p => p.Id, p => p.Name) ?? new Dictionary<string, string>();
+            var participantDict = participants?.ToDictionary(p => p.Id, p => p.Name) ?? new Dictionary<string, string>();
 
             var board = new TodoBoard
             {
@@ -62,8 +61,7 @@ public class LocalStorageBoardService : IBoardService
                 User = userId,
                 Name = name,
                 Description = description ?? string.Empty,
-                ParticipantIds = participantIds,
-                ParticipantNames = participantNames,
+                Participants = participantDict,
                 OwnerName = string.Empty,
                 Columns = new List<TodoColumn>(),
                 Items = new List<TodoItem>()
@@ -91,10 +89,9 @@ public class LocalStorageBoardService : IBoardService
             var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
             if (board == null) return false;
 
-            if (!board.ParticipantIds.Contains(userId))
+            if (!board.Participants.ContainsKey(userId))
             {
-                board.ParticipantIds.Add(userId);
-                board.ParticipantNames[userId] = userName;
+                board.Participants[userId] = userName;
                 await SaveBoardsAsync();
             }
             return true;
@@ -117,10 +114,7 @@ public class LocalStorageBoardService : IBoardService
             var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
             if (board == null) return false;
 
-            var user = board.ParticipantNames[userId];
-        
-            board.ParticipantIds.Remove(userId);
-            board.ParticipantNames.Remove(userId);
+            board.Participants.Remove(userId);
 
             await SaveBoardsAsync();
             return true;

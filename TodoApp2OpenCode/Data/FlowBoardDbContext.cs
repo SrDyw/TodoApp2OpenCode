@@ -29,12 +29,7 @@ public class FlowBoardDbContext : DbContext
 
         modelBuilder.Entity<TodoBoard>(entity =>
         {
-            entity.Property(e => e.ParticipantIds)
-                .HasConversion(
-                    v => string.Join(",", v),
-                    v => string.IsNullOrEmpty(v) ? new List<string>() : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
-            
-            entity.Property(e => e.ParticipantNamesJson)
+            entity.Property(e => e.ParticipantsJson)
                 .HasColumnType("nvarchar(max)");
         });
 

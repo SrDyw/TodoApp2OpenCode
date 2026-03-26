@@ -91,10 +91,10 @@
                         </MudText>
                     </MudStack>
                 </div>
-                @if (currentBoard.ParticipantNames.Any())
+                @if (currentBoard.Participants.Any())
                 {
                     <MudDivider />
-                    @foreach (var participant in currentBoard.ParticipantNames)
+                    @foreach (var participant in currentBoard.Participants)
                     {
                         <div class="px-3 py-2">
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -137,6 +137,8 @@
                        @onmousedown:stopPropagation="true">
                 @(showLogsView ? "Ver Board" : "Ver Logs")
             </MudButton>
+            <MudSpacer/>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="OnDeleteBoardButtonClick"/>
         }
     }
 </div>
@@ -821,7 +823,7 @@ else
                 UnsubscribeRealtimeEvents();
                 await RealtimeService.LeaveBoardAsync(_previousBoardId);
             }
-            
+
             _hasLoadedBoard = false;
             _isRealtimeConnected = false;
             _previousBoardId = BoardId;
@@ -909,7 +911,7 @@ else
     {
         if (boardId != BoardId) return;
         if (excludeUserId == AuthService.CurrentUser?.Id) return;
-        
+
         try
         {
             var column = System.Text.Json.JsonSerializer.Deserialize<TodoColumn>(columnJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -917,7 +919,7 @@ else
             {
                 var columnExists = columns.Any(c => c.Id == column.Id);
                 if (columnExists) return;
-                
+
                 columns.Add(column);
                 itemsByColumn[column.Id] = new List<TodoItem>();
                 await InvokeAsync(StateHasChanged);
@@ -933,11 +935,11 @@ else
     private async void HandleColumnUpdated(string boardId, string columnJson, string? excludeUserId)
     {
         if (boardId != BoardId) return;
-        
+
         var currentUserId = AuthService.CurrentUser?.Id;
         Console.WriteLine($"HandleColumnUpdated: excludeUserId={excludeUserId}, currentUserId={currentUserId}");
         if (excludeUserId == currentUserId) return;
-        
+
         try
         {
             var column = System.Text.Json.JsonSerializer.Deserialize<TodoColumn>(columnJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -974,7 +976,7 @@ else
     {
         if (boardId != BoardId) return;
         if (excludeUserId == AuthService.CurrentUser?.Id) return;
-        
+
         try
         {
             var item = System.Text.Json.JsonSerializer.Deserialize<TodoItem>(itemJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -982,7 +984,7 @@ else
             {
                 var itemAlreadyExists = itemsByColumn.Values.Any(list => list.Any(i => i.Id == item.Id));
                 if (itemAlreadyExists) return;
-                
+
                 if (!itemsByColumn.ContainsKey(columnId))
                 {
                     itemsByColumn[columnId] = new List<TodoItem>();
@@ -1002,7 +1004,7 @@ else
     {
         if (boardId != BoardId) return;
         if (excludeUserId == AuthService.CurrentUser?.Id) return;
-        
+
         try
         {
             var item = System.Text.Json.JsonSerializer.Deserialize<TodoItem>(itemJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -1014,7 +1016,7 @@ else
                     if (existingItem != null)
                     {
                         var index = itemsByColumn[colId].IndexOf(existingItem);
-                        
+
                         if (existingItem.ColumnId != item.ColumnId)
                         {
                             itemsByColumn[colId].RemoveAt(index);
@@ -1094,7 +1096,7 @@ else
 
             currentBoard = await BoardService.GetBoardAsync(BoardId);
             isOwner = currentBoard?.User == AuthService.CurrentUser.Id;
-            bool isParticipant = currentBoard?.ParticipantIds.Contains(AuthService.CurrentUser.Id) ?? false;
+            bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
             if (currentBoard == null || (!isOwner && !isParticipant))
             {
                 Navigation.NavigateTo("/board/not-found", forceLoad: true);
@@ -1114,7 +1116,7 @@ else
             {
                 boardParticipants[currentBoard.User] = currentBoard.OwnerName;
             }
-            foreach (var participant in currentBoard.ParticipantNames)
+            foreach (var participant in currentBoard.Participants)
             {
                 boardParticipants[participant.Key] = participant.Value;
             }
@@ -1356,7 +1358,7 @@ else
         };
 
         var parameters = new DialogParameters<AddParticipantsDialog>();
-        parameters.Add(x => x.ExistingParticipantIds, currentBoard.ParticipantIds);
+        parameters.Add(x => x.ExistingParticipantIds, currentBoard.Participants.Keys.ToList());
 
         var dialog = await DialogService.ShowAsync<AddParticipantsDialog>("Añadir participantes", parameters, options);
         var result = await dialog.Result;
@@ -1367,10 +1369,9 @@ else
 
             foreach (var (id, name) in selectedParticipants)
             {
-                if (!currentBoard.ParticipantIds.Contains(id))
+                if (!currentBoard.Participants.ContainsKey(id))
                 {
-                    currentBoard.ParticipantIds.Add(id);
-                    currentBoard.ParticipantNames[id] = name;
+                    currentBoard.Participants[id] = name;
                 }
             }
             await BoardService.UpdateBoardAsync(currentBoard);
@@ -1390,9 +1391,32 @@ else
     {
         if (!isOwner || string.IsNullOrEmpty(BoardId) || currentBoard == null) return;
 
+        var hasIncompleteSteps = itemsByColumn.Values
+            .SelectMany(items => items)
+            .Any(item => item.AssignedUsers.ContainsKey(participantId) && 
+                         item.Steps != null && 
+                         item.Steps.Any(step => !step.IsCompleted));
+
+        if (hasIncompleteSteps)
+        {
+            SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
+            return;
+        }
+
         await BoardService.RemoveParticipantAsync(BoardId, participantId);
-        currentBoard.ParticipantIds.Remove(participantId);
-        currentBoard.ParticipantNames.Remove(participantId);
+        currentBoard.Participants.Remove(participantId);
+
+        foreach (var columnItems in itemsByColumn.Values)
+        {
+            foreach (var item in columnItems)
+            {
+                if (item.AssignedUsers.ContainsKey(participantId))
+                {
+                    item.AssignedUsers.Remove(participantId);
+                }
+            }
+        }
+
         StateHasChanged();
         SnackbarService.Add("Participante removido", Severity.Info);
     }
@@ -1400,6 +1424,18 @@ else
     private async Task ConfirmRemoveParticipant(string participantId, string participantName)
     {
         if (!isOwner) return;
+
+        var hasIncompleteSteps = itemsByColumn.Values
+            .SelectMany(items => items)
+            .Any(item => item.AssignedUsers.ContainsKey(participantId) && 
+                         item.Steps != null && 
+                         item.Steps.Any(step => !step.IsCompleted));
+
+        if (hasIncompleteSteps)
+        {
+            SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
+            return;
+        }
 
         var parameters = new DialogParameters<DeletionConfirmDialog>();
         parameters.Add(x => x.ContentText, $"¿Estás seguro de que deseas remover a {participantName} del tablero?");
@@ -1561,6 +1597,14 @@ else
             var success = await TodoService.AddItemAsync(BoardId, newItem);
             if (success)
             {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Crear, 
+                    BoardId = BoardId,
+                    Message = $"Añade tarea {newItem.Title}",
+                    User = AuthService.CurrentUser!.Username
+                });
+
                 if (!itemsByColumn.ContainsKey(newItem.ColumnId))
                 {
                     itemsByColumn[newItem.ColumnId] = new List<TodoItem>();
@@ -1602,9 +1646,9 @@ else
         if (result is { Canceled: false, Data: EditItemDialog.EditItemResult editResult })
         {
             var usersAddedToTodo = editResult.AddedUsers
-                .Select(x => currentBoard.ParticipantNames.ContainsKey(x) ? currentBoard.ParticipantNames[x] : currentBoard.OwnerName);
+                .Select(x => currentBoard.Participants.ContainsKey(x) ? currentBoard.Participants[x] : currentBoard.OwnerName);
             var usersRemovedFromTodo = editResult.RemovedUsers
-                .Select(x => currentBoard.ParticipantNames.ContainsKey(x) ? currentBoard.ParticipantNames[x] : currentBoard.OwnerName);
+                .Select(x => currentBoard.Participants.ContainsKey(x) ? currentBoard.Participants[x] : currentBoard.OwnerName);
 
 
             if (usersAddedToTodo.Any())
@@ -1634,7 +1678,7 @@ else
                 var completedCount = editResult.Item.Steps?.Count(s => s.IsCompleted) ?? 0;
                 var totalCount = editResult.Item.Steps?.Count ?? 0;
                 var percentage = totalCount > 0 ? (int)((double)completedCount / totalCount * 100) : 0;
-                
+
                 await LogService.AddLogAsync(new LogItem
                 {
                     Action = DatabaseAction.Actualizar,
@@ -1688,6 +1732,35 @@ else
             itemsByColumn[item.ColumnId]?.RemoveAll(i => i.Id == item.Id);
             StateHasChanged();
             SnackbarService.Add("Tarea eliminada", Severity.Success);
+        }
+    }
+
+    private async Task OnDeleteBoardButtonClick()
+    {
+        if (currentBoard == null) return;
+
+        var dialogParams = new DialogParameters<SecureDeletionConfirmDialog>();
+        dialogParams.Add(x => x.ContentText, "¿Seguro que desea borrar el tablero con todo su contenido? La accion es irreversible.");
+        dialogParams.Add(x => x.RequestedItem, currentBoard.Name);
+        dialogParams.Add(x => x.ButtonText, "Borrar tablero");
+
+        var dialog = await DialogService.ShowAsync<SecureDeletionConfirmDialog>("Borrar el tablero", dialogParams, new DialogOptions
+        {
+            CloseOnEscapeKey = false
+        });
+        var result = await dialog.Result;
+
+        if (result is {Canceled : false, Data : true})
+        {
+            var deletionResult = await BoardService.DeleteBoardAsync(currentBoard.Id);
+
+            if (deletionResult == true)
+            {
+                Navigation.NavigateTo("/");
+                return;
+            }
+
+            SnackbarService.Add("No se pudo eliminar el tablero debido a un error inesperado, intenta luego", Severity.Error);
         }
     }
 }

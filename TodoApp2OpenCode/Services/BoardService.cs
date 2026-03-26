@@ -22,7 +22,7 @@ public class BoardService : IBoardService
         await using var context = await _contextFactory.CreateDbContextAsync();
         var allBoards = await context.Boards.AsNoTracking().ToListAsync();
         return allBoards
-            .Where(b => b.User == userId || b.ParticipantIds.Contains(userId))
+            .Where(b => b.User == userId || b.Participants.ContainsKey(userId))
             .OrderBy(b => b.Name)
             .ToList();
     }
@@ -66,8 +66,7 @@ public class BoardService : IBoardService
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             
-            var participantIds = participants?.Select(p => p.Id).ToList() ?? new List<string>();
-            var participantNames = participants?.ToDictionary(p => p.Id, p => p.Name) ?? new Dictionary<string, string>();
+            var participantDict = participants?.ToDictionary(p => p.Id, p => p.Name) ?? new Dictionary<string, string>();
 
             var board = new TodoBoard
             {
@@ -75,8 +74,7 @@ public class BoardService : IBoardService
                 User = userId,
                 Name = name,
                 Description = description ?? string.Empty,
-                ParticipantIds = participantIds,
-                ParticipantNames = participantNames,
+                Participants = participantDict,
                 OwnerName = string.Empty,
                 Columns = new List<TodoColumn>(),
                 Items = new List<TodoItem>()
@@ -103,10 +101,9 @@ public class BoardService : IBoardService
             var board = await context.Boards.FindAsync(boardId);
             if (board == null) return false;
 
-            if (!board.ParticipantIds.Contains(userId))
+            if (!board.Participants.ContainsKey(userId))
             {
-                board.ParticipantIds.Add(userId);
-                board.ParticipantNames[userId] = userName;
+                board.Participants[userId] = userName;
                 await context.SaveChangesAsync();
                 
                 await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
@@ -127,8 +124,7 @@ public class BoardService : IBoardService
             var board = await context.Boards.FindAsync(boardId);
             if (board == null) return false;
 
-            board.ParticipantIds.Remove(userId);
-            board.ParticipantNames.Remove(userId);
+            board.Participants.Remove(userId);
 
             await context.SaveChangesAsync();
             
@@ -158,8 +154,7 @@ public class BoardService : IBoardService
 
             existingBoard.Name = board.Name;
             existingBoard.Description = board.Description;
-            existingBoard.ParticipantIds = board.ParticipantIds;
-            existingBoard.ParticipantNames = board.ParticipantNames;
+            existingBoard.Participants = board.Participants;
             existingBoard.OwnerName = board.OwnerName;
 
             var existingColumns = existingBoard.Columns.ToList();
@@ -279,8 +274,9 @@ public class BoardService : IBoardService
             
             return true;
         }
-        catch
+        catch(Exception ex)
         {
+            Console.WriteLine(ex);
             return false;
         }
     }

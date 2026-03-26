@@ -1,0 +1,62 @@
+@inject IBoardService BoardService
+@inject IDialogService DialogService
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText>Escribe</MudText>
+            <MudText Color="Color.Error">@ConfirmationText</MudText>
+            <MudText>para confirmar</MudText>
+
+            <MudTextField @bind-Value="ConfirmInput"
+                          Variant="Variant.Outlined"
+                          Immediate
+                          Required="true" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="Submit"
+                   Disabled="!ConfirmationInputMatch">
+            @SubmitButtonText
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .participants-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string? UserId { get; set; }
+    [Parameter]
+    public required string ConfirmationText { get; set; }
+    [Parameter]
+    public string SubmitButtonText { get; set; } = "Aceptar";
+
+    private string ConfirmInput { get; set; } = string.Empty;
+
+    private bool ConfirmationInputMatch => ConfirmInput == ConfirmationText;
+
+
+    private void Submit()
+    {
+        if (!ConfirmationInputMatch)
+        {
+            return;
+        }
+        
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}
