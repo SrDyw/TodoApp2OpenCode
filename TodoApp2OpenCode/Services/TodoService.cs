@@ -249,7 +249,7 @@ public class TodoService
         }
     }
 
-    public async Task<bool> MoveItemToColumnAsync(string boardId, string itemId, string targetColumnId)
+    public async Task<bool> MoveItemToColumnAsync(string boardId, string itemId, string? hoverItemId, string targetColumnId)
     {
         try
         {
@@ -262,14 +262,32 @@ public class TodoService
             var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
             if (column == null) return false;
 
-            var maxOrder = board.Items
-                .Where(i => i.ColumnId == targetColumnId)
-                .Select(i => i.Order)
-                .DefaultIfEmpty(-1)
-                .Max();
+            board.Items.Remove(item);
+
+            var columnItems = board.Items
+                .Where(x => x.ColumnId == targetColumnId)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            if (string.IsNullOrWhiteSpace(hoverItemId))
+            {
+                item.Order = columnItems.Any() ? columnItems.Max(x => x.Order) + 1 : 0;
+                columnItems.Add(item);
+            }
+            else
+            {
+                var hoverIndex = columnItems.FindIndex(x => x.Id == hoverItemId);
+                if (hoverIndex < 0) hoverIndex = columnItems.Count;
+                columnItems.Insert(hoverIndex, item);
+            }
+
+            for (int i = 0; i < columnItems.Count; i++)
+            {
+                columnItems[i].Order = i;
+                columnItems[i].ColumnId = targetColumnId;
+            }
 
             item.ColumnId = targetColumnId;
-            item.Order = maxOrder + 1;
             item.UpdatedAt = DateTime.Now;
 
             await _boardService.UpdateBoardAsync(board);
@@ -301,5 +319,27 @@ public class TodoService
     public void ClearCache()
     {
         _boardService.ClearCache();
+    }
+
+    public async Task<bool> UpdateItemDueDateAsync(string boardId, string itemId, DateTime dueDate)
+    {
+        try
+        {
+            var board = await _boardService.GetBoardAsync(boardId);
+            if (board == null) return false;
+
+            var item = board.Items.FirstOrDefault(i => i.Id == itemId);
+            if (item == null) return false;
+
+            item.DueDate = dueDate;
+            item.UpdatedAt = DateTime.Now;
+
+            await _boardService.UpdateBoardAsync(board);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

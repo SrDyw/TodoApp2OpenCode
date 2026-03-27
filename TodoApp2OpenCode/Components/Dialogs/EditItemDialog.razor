@@ -40,6 +40,11 @@
                 </MudSelectItem>
             </MudSelect>
 
+            <MudDateRangePicker @bind-DateRange="dateRange"
+                                Label="Fecha de inicio y fin"
+                                Variant="Variant.Outlined"
+                                IconSize="Size.Small"/>
+
             <div class="steps-section">
                 <MudText Typo="Typo.subtitle2" Class="mb-2">Pasos de la tarea</MudText>
                 
@@ -207,11 +212,17 @@
     private List<TodoStep> editingSteps = new();
     private int previousStepCount = 0;
     private int previousCurrentStepIndex = -1;
+    private DateRange? dateRange;
 
     protected override void OnInitialized()
     {
         selectedColumnId = Item.ColumnId;
         AllParticipants = new Dictionary<string, string>(Participants);
+
+        if (Item.StartDate.HasValue || Item.EndDate.HasValue)
+        {
+            dateRange = new DateRange(Item.StartDate, Item.EndDate);
+        }
 
         if (Item.AssignedUsers != null)
         {
@@ -297,6 +308,23 @@
         SelectedUserIds.Remove(userId);
     }
 
+    private void ClearDates()
+    {
+        dateRange = null;
+        Item.StartDate = null;
+        Item.EndDate = null;
+    }
+
+    private void OnDateRangeChanged(DateRange? range)
+    {
+        dateRange = range;
+        if (range != null)
+        {
+            Item.StartDate = range.Start;
+            Item.EndDate = range.End;
+        }
+    }
+
     private void Submit()
     {
         if (string.IsNullOrWhiteSpace(Item.Title))
@@ -305,6 +333,12 @@
         }
 
         Item.UpdatedAt = DateTime.Now;
+
+        if (dateRange != null)
+        {
+            Item.StartDate = dateRange.Start;
+            Item.EndDate = dateRange.End;
+        }
 
         var assignedUsers = new Dictionary<string, string>();
         foreach (var userId in SelectedUserIds)

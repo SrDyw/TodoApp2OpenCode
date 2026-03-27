@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TodoApp2OpenCode.Data;
 
@@ -11,9 +12,11 @@ using TodoApp2OpenCode.Data;
 namespace TodoApp2OpenCode.Data.Migrations
 {
     [DbContext(typeof(FlowBoardDbContext))]
-    partial class FlowBoardDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260327080331_AddStartEndDates")]
+    partial class AddStartEndDates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,42 +24,6 @@ namespace TodoApp2OpenCode.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("TodoApp2OpenCode.Models.CalendarEvent", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("EventDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("TodoBoardId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TodoBoardId");
-
-                    b.ToTable("CalendarEvents");
-                });
 
             modelBuilder.Entity("TodoApp2OpenCode.Models.LogItem", b =>
                 {
@@ -328,15 +295,6 @@ namespace TodoApp2OpenCode.Data.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("TodoApp2OpenCode.Models.CalendarEvent", b =>
-                {
-                    b.HasOne("TodoApp2OpenCode.Models.TodoBoard", null)
-                        .WithMany("Events")
-                        .HasForeignKey("TodoBoardId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("TodoApp2OpenCode.Models.TodoColumn", b =>
                 {
                     b.HasOne("TodoApp2OpenCode.Models.TodoBoard", null)
@@ -366,8 +324,6 @@ namespace TodoApp2OpenCode.Data.Migrations
             modelBuilder.Entity("TodoApp2OpenCode.Models.TodoBoard", b =>
                 {
                     b.Navigation("Columns");
-
-                    b.Navigation("Events");
 
                     b.Navigation("Items");
                 });

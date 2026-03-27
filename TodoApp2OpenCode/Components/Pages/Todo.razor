@@ -137,6 +137,15 @@
                        @onmousedown:stopPropagation="true">
                 @(showLogsView ? "Ver Board" : "Ver Logs")
             </MudButton>
+            
+            <MudButton Color="Color.Default" 
+                       Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.CalendarMonth"
+                       OnClick="NavigateToSchedule"
+                       @onmousedown:stopPropagation="true">
+                Calendario
+            </MudButton>
+            
             <MudSpacer/>
             @if (isOwner)
             {
@@ -145,6 +154,35 @@
         }
     }
 </div>
+
+<!-- Eventos de hoy -->
+@if (todayEvents.Any())
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4" NoIcon="true">
+        <div class="today-events-alert">
+            <div class="today-events-header">
+                <MudText Typo="Typo.body2" Class="mr-2">
+                    <strong>Eventos de hoy:</strong>
+                </MudText>
+            </div>
+            <div class="today-events-list">
+                @foreach (var evt in todayEvents)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="mr-1 mb-1">
+                        @evt.Title
+                    </MudChip>
+                }
+            </div>
+            <MudButton Size="Size.Small" 
+                       Variant="Variant.Text" 
+                       Color="Color.Default"
+                       Class="ml-auto"
+                       OnClick="NavigateToSchedule">
+                Ver calendario
+            </MudButton>
+        </div>
+    </MudAlert>
+}
 
 <!-- Barra de estado de sincronización -->
 @if (_syncStatus != SyncStatus.Idle)
@@ -305,9 +343,11 @@ else
                           {
                               <MudTooltip Text="" Placement="Placement.Right" ShowOnHover="true">
                                   <ChildContent>
-                                      <div class="todo-card-wrapper @(item.IsCompleted ? "completed" : "")"
+                                        <div class="todo-card-wrapper @(item.IsCompleted ? "completed" : "") @(_hoverItem?.Id == item.Id ? "drop-target" : "")"
                                            draggable="false"
                                            @onmousedown="@(e => StartItemDrag(e, item))"
+                                           @onmouseenter="@(e => HandleHoverItem(e, item))"
+                                           @onmouseleave="@(e => HandleHoverItem(e, null))"
                                            style="@(item.Priority == TodoPriority.High && !item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
                                           <MudCard Class="@($"todo-card{(item.IsCompleted ? " completed" : "")}")">
                                               <MudCardContent Class="pa-3">
@@ -420,6 +460,37 @@ else
                                                       <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" Color="Color.Default" />
                                                       <MudText Typo="Typo.caption">
                                                           Actualizada: @item.UpdatedAt.ToString("dd/MM/yyyy HH:mm")
+                                                      </MudText>
+                                                  </MudStack>
+                                              }
+
+                                              @if (item.StartDate.HasValue || item.EndDate.HasValue)
+                                              {
+                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                      <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" Color="Color.Info" />
+                                                      <MudText Typo="Typo.caption" Color="Color.Info">
+                                                          @if (item.StartDate.HasValue && item.EndDate.HasValue)
+                                                          {
+                                                              @($"Desde {item.StartDate:dd/MM} hasta {item.EndDate:dd/MM}")
+                                                          }
+                                                          else if (item.StartDate.HasValue)
+                                                          {
+                                                              @($"Desde {item.StartDate:dd/MM/yyyy}")
+                                                          }
+                                                          else if (item.EndDate.HasValue)
+                                                          {
+                                                              @($"Hasta {item.EndDate:dd/MM/yyyy}")
+                                                          }
+                                                      </MudText>
+                                                  </MudStack>
+                                              }
+
+                                              @if (item.DueDate.HasValue)
+                                              {
+                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                      <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Color="Color.Warning" />
+                                                      <MudText Typo="Typo.caption" Color="Color.Warning">
+                                                          Vence: @item.DueDate.Value.ToString("dd/MM/yyyy HH:mm")
                                                       </MudText>
                                                   </MudStack>
                                               }
@@ -537,6 +608,11 @@ else
     }
     
     .board-column.column-drop-target {
+        outline: 3px dashed var(--mud-palette-primary);
+        outline-offset: -3px;
+    }
+
+    .drop-target {
         outline: 3px dashed var(--mud-palette-primary);
         outline-offset: -3px;
     }
@@ -687,6 +763,29 @@ else
         border-radius: 8px;
     }
 
+    .today-events-alert {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .today-events-header {
+        display: flex;
+        align-items: center;
+    }
+
+    .today-events-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    ::deep .today-events-list .mud-chip {
+        color: var(--mud-palette-text-primary);
+    }
+
     .sync-status-bar {
         position: fixed;
         bottom: 24px;
@@ -716,6 +815,14 @@ else
 
     .item-steps-progress {
         margin-top: 8px;
+    }
+
+    .item-reorder-line {
+        height: 4px;
+        background: var(--mud-palette-primary);
+        border-radius: 2px;
+        margin: 4px 0;
+        box-shadow: 0 0 8px rgba(126, 111, 255, 0.5);
     }
 
     .mud-tooltip-root {
@@ -789,6 +896,8 @@ else
 
     private string newColumnColor = "#7e6fff";
 
+    private List<CalendarEvent> todayEvents = new();
+
     // ============================================
     // CICLO DE VIDA
     // ============================================
@@ -855,9 +964,6 @@ else
             await RealtimeService.JoinBoardAsync(BoardId);
             SubscribeRealtimeEvents();
         }
-
-        columnLoading = false;
-        await InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
@@ -1132,6 +1238,10 @@ else
                 itemsByColumn[column.Id] = new List<TodoItem>(columnItems);
             }
 
+            todayEvents = currentBoard.Events
+                .Where(e => e.EventDate.Date == DateTime.Today)
+                .ToList();
+
         }
         catch (Exception ex)
         {
@@ -1206,11 +1316,18 @@ else
 
         if (isDraggingItem && draggedItem != null)
         {
-            if (!string.IsNullOrEmpty(targetColumnId) && targetColumnId != sourceColumnId)
+            var hasHoverItem = _hoverItem != null && _hoverItem.Id != draggedItem.Id;
+            var isSameItem = _hoverItem?.Id == draggedItem.Id;
+            var isDifferentColumn = targetColumnId != sourceColumnId;
+            
+            if (!string.IsNullOrEmpty(targetColumnId))
             {
-                MoveItemOptimistic(draggedItem, sourceColumnId!, targetColumnId);
-                _ = MoveItemBackgroundAsync(draggedItem.Id, targetColumnId);
-                SnackbarService.Add("Tarea movida", Severity.Info);
+                if (isDifferentColumn || (hasHoverItem && !isSameItem))
+                {
+                    MoveItemOptimistic(draggedItem, _hoverItem, sourceColumnId!, targetColumnId);
+                    _ = MoveItemBackgroundAsync(draggedItem.Id, _hoverItem?.Id, targetColumnId);
+                    SnackbarService.Add("Tarea movida", Severity.Info);
+                }
             }
             isDraggingItem = false;
             draggedItem = null;
@@ -1230,8 +1347,9 @@ else
         }
         isDraggingColumn = false;
         draggedColumn = null;
-        hoveredColumnId = null;
-        _targetColumnIdForDrop = null;
+        // hoveredColumnId = null;
+        // _targetColumnIdForDrop = null;
+        _hoverItem = null;
         StateHasChanged();
     }
 
@@ -1251,27 +1369,36 @@ else
         }
     }
 
-    private void MoveItemOptimistic(TodoItem item, string fromColumnId, string toColumnId)
+    private void MoveItemOptimistic(TodoItem item, TodoItem? hoverItem, string fromColumnId, string toColumnId)
     {
-        var itemRemoved = false;
+        if (!itemsByColumn.TryGetValue(fromColumnId, out var sourceList)) return;
 
-        if (itemsByColumn.TryGetValue(fromColumnId, out var sourceList))
-        {
-            itemRemoved = sourceList.Remove(item);
-        }
+        sourceList.Remove(item);
 
         if (!itemsByColumn.ContainsKey(toColumnId))
         {
             itemsByColumn[toColumnId] = new List<TodoItem>();
         }
 
-        itemsByColumn[toColumnId].Add(item);
-        item.ColumnId = toColumnId;
+        var targetList = itemsByColumn[toColumnId];
 
+        if (hoverItem == null)
+        {
+            targetList.Add(item);
+        }
+        else
+        {
+            var hoverIndex = targetList.IndexOf(hoverItem);
+            if (hoverIndex < 0) hoverIndex = targetList.Count;
+            targetList.Insert(hoverIndex, item);
+        }
+
+        item.ColumnId = toColumnId;
+        item.Order = targetList.IndexOf(item);
         StateHasChanged();
     }
 
-    private async Task MoveItemBackgroundAsync(string itemId, string targetColumnId)
+    private async Task MoveItemBackgroundAsync(string itemId, string? hoverItemId, string targetColumnId)
     {
         if (string.IsNullOrEmpty(BoardId)) return;
         try
@@ -1281,7 +1408,7 @@ else
             StateHasChanged();
 
             await Task.Delay(600);
-            await TodoService.MoveItemToColumnAsync(BoardId, itemId, targetColumnId);
+            await TodoService.MoveItemToColumnAsync(BoardId, itemId, hoverItemId, targetColumnId);
 
             OnOperationComplete(true);
         }
@@ -1480,6 +1607,11 @@ else
         }
     }
 
+    private void NavigateToSchedule()
+    {
+        Navigation.NavigateTo($"/board/{BoardId}/schedule");
+    }
+
     // ============================================
     // OPERACIONES DE COLUMNAS
     // ============================================
@@ -1633,6 +1765,9 @@ else
             Order = item.Order, 
             CreatedAt = item.CreatedAt, 
             UpdatedAt = item.UpdatedAt,
+            StartDate = item.StartDate,
+            EndDate = item.EndDate,
+            DueDate = item.DueDate,
             AssignedUsers = item.AssignedUsers != null ? new Dictionary<string, string>(item.AssignedUsers) : new Dictionary<string, string>(),
             Steps = item.Steps?.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted }).ToList(),
             CurrentStepIndex = item.CurrentStepIndex
@@ -1695,7 +1830,7 @@ else
 
             if (editResult.ColumnChanged)
             {
-                await TodoService.MoveItemToColumnAsync(BoardId, editResult.Item.Id, editResult.NewColumnId);
+                await TodoService.MoveItemToColumnAsync(BoardId, editResult.Item.Id, null, editResult.NewColumnId);
                 itemsByColumn[editResult.Item.ColumnId]?.RemoveAll(i => i.Id == editResult.Item.Id);
                 if (!itemsByColumn.ContainsKey(editResult.NewColumnId))
                 {
@@ -1765,6 +1900,19 @@ else
 
             SnackbarService.Add("No se pudo eliminar el tablero debido a un error inesperado, intenta luego", Severity.Error);
         }
+    }
+    
+    private TodoItem? _hoverItem;
+    private void HandleHoverItem(MouseEventArgs eventArgs, TodoItem? item)
+    {
+        if (isDraggingItem == false) return;
+        if (draggedItem?.Id == item?.Id) 
+        {
+            _hoverItem = null;
+            return;
+        }
+
+        _hoverItem = item;
     }
 }
 

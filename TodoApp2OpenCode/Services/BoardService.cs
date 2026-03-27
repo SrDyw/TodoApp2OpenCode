@@ -9,12 +9,14 @@ public class BoardService : IBoardService
     private readonly IDbContextFactory<FlowBoardDbContext> _contextFactory;
     private readonly IBoardNotifier _notifier;
     private readonly IAuthService _authService;
+    private readonly ILogService _logService;
 
-    public BoardService(IDbContextFactory<FlowBoardDbContext> contextFactory, IBoardNotifier notifier, IAuthService authService)
+    public BoardService(IDbContextFactory<FlowBoardDbContext> contextFactory, IBoardNotifier notifier, IAuthService authService, ILogService logService)
     {
         _contextFactory = contextFactory;
         _notifier = notifier;
         _authService = authService;
+        _logService = logService;
     }
 
     public async Task<List<TodoBoard>> GetUserBoardsAsync(string userId)
@@ -23,6 +25,7 @@ public class BoardService : IBoardService
         var boards = await context.Boards
             .AsNoTracking()
             .Include(b => b.Columns)
+            .Include(b => b.Events)
             .ToListAsync();
         
         var boardIds = boards.Where(b => b.User == userId || b.Participants.ContainsKey(userId)).Select(b => b.Id).ToList();
@@ -52,6 +55,7 @@ public class BoardService : IBoardService
         var board = await context.Boards
             .AsNoTracking()
             .Include(b => b.Columns.OrderBy(c => c.Order))
+            .Include(b => b.Events)
             .FirstOrDefaultAsync(b => b.Id == boardId);
 
         if (board != null)
@@ -220,6 +224,9 @@ public class BoardService : IBoardService
                     existingItem.Order = item.Order;
                     existingItem.Priority = item.Priority;
                     existingItem.CurrentStepIndex = item.CurrentStepIndex;
+                    existingItem.StartDate = item.StartDate;
+                    existingItem.EndDate = item.EndDate;
+                    existingItem.DueDate = item.DueDate;
                     existingItem.AssignedUsers = item.AssignedUsers ?? new Dictionary<string, string>();
                     existingItem.UpdatedAt = DateTime.Now;
 
@@ -316,5 +323,76 @@ public class BoardService : IBoardService
 
     public void ClearCache()
     {
+    }
+
+    public async Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var board = await context.Boards.FindAsync(boardId);
+            if (board == null) return null;
+
+            var newEvent = new CalendarEvent
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = title,
+                Description = description,
+                EventDate = eventDate,
+                TodoBoardId = boardId,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
+            };
+
+            context.CalendarEvents.Add(newEvent);
+            await context.SaveChangesAsync();
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Crear,
+                Message = $"Crea evento '{title}' para el {eventDate:dd/MM/yyyy}",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
+            return newEvent;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> DeleteEventAsync(string eventId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var evt = await context.CalendarEvents.FindAsync(eventId);
+            if (evt == null) return false;
+
+            var eventTitle = evt.Title;
+            var boardId = evt.TodoBoardId;
+            var eventDate = evt.EventDate;
+
+            context.CalendarEvents.Remove(evt);
+            await context.SaveChangesAsync();
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Remover,
+                Message = $"Elimina evento '{eventTitle}' del {eventDate:dd/MM/yyyy}",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

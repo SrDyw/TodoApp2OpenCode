@@ -64,7 +64,8 @@ public class LocalStorageBoardService : IBoardService
                 Participants = participantDict,
                 OwnerName = string.Empty,
                 Columns = new List<TodoColumn>(),
-                Items = new List<TodoItem>()
+                Items = new List<TodoItem>(),
+                Events = new List<CalendarEvent>()
             };
 
             _cachedBoards.Add(board);
@@ -204,5 +205,56 @@ public class LocalStorageBoardService : IBoardService
     {
         _cachedBoards = new List<TodoBoard>();
         _isLoaded = false;
+    }
+
+    public Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate)
+    {
+        try
+        {
+            var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
+            if (board == null) return Task.FromResult<CalendarEvent?>(null);
+
+            var newEvent = new CalendarEvent
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = title,
+                Description = description,
+                EventDate = eventDate,
+                TodoBoardId = boardId,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
+            };
+
+            board.Events ??= new List<CalendarEvent>();
+            board.Events.Add(newEvent);
+            _ = SaveBoardsAsync();
+            return Task.FromResult<CalendarEvent?>(newEvent);
+        }
+        catch
+        {
+            return Task.FromResult<CalendarEvent?>(null);
+        }
+    }
+
+    public Task<bool> DeleteEventAsync(string eventId)
+    {
+        try
+        {
+            foreach (var board in _cachedBoards)
+            {
+                var evt = board.Events?.FirstOrDefault(e => e.Id == eventId);
+                if (evt != null)
+                {
+                    board.Events?.Remove(evt);
+                    _ = SaveBoardsAsync();
+                    return Task.FromResult(true);
+                }
+            }
+            return Task.FromResult(false);
+        }
+        catch
+        {
+            return Task.FromResult(false);
+        }
     }
 }

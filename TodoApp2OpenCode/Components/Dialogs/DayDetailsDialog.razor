@@ -1,0 +1,350 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+<MudDialog ContentStyle="max-height: 80vh; overflow-y: auto;">
+    <DialogContent>
+        <div class="day-header">
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="() => OnAddEvent.InvokeAsync(SelectedDate)">
+                Añadir evento
+            </MudButton>
+        </div>
+        
+        @if (Events.Any())
+        {
+            <MudText Typo="Typo.subtitle2" Color="Color.Success" Class="mb-2">
+                Eventos
+            </MudText>
+            
+            @foreach (var evt in Events)
+            {
+                <div class="event-card">
+                    <div class="event-content">
+                        <div class="event-icon-wrapper">
+                            <MudIcon Icon="@Icons.Material.Filled.Event" 
+                                     Size="Size.Medium" 
+                                     Color="Color.Success" />
+                        </div>
+                        <div class="event-details">
+                            <MudText Typo="Typo.body1" Class="event-title">
+                                @evt.Title
+                            </MudText>
+                            @if (!string.IsNullOrEmpty(evt.Description))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="event-description">
+                                    @evt.Description
+                                </MudText>
+                            }
+                        </div>
+                    </div>
+                    <div class="event-actions">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       Class="delete-btn"
+                                       OnClick="() => HandleDeleteEvent(evt)" />
+                    </div>
+                </div>
+            }
+            
+            <MudDivider Class="my-4" />
+        }
+        
+        @if (Items.Any())
+        {
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                Tareas
+            </MudText>
+            
+            @foreach (var item in Items)
+            {
+                <div class="day-detail-item @(item.IsCompleted ? "completed" : "") @(item.Priority == TodoPriority.High ? "high-priority" : "")">
+                    <div class="item-header">
+                        <MudIcon Icon="@Icons.Material.Filled.Circle" 
+                                 Size="Size.Small" 
+                                 Class="item-indicator" />
+                        <MudText Typo="Typo.body1" Class="item-title">
+                            @item.Title
+                        </MudText>
+                        @if (item.Priority == TodoPriority.High)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Class="ml-2">
+                                Alta
+                            </MudChip>
+                        }
+                        @if (item.IsCompleted)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">
+                                Completada
+                            </MudChip>
+                        }
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(item.Description))
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="item-description mt-2">
+                            @item.Description
+                        </MudText>
+                    }
+                    
+                    <MudStack Spacing="1" Class="mt-3">
+                        @if (item.DueDate.HasValue)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Color="Color.Warning" />
+                                <MudText Typo="Typo.body2" Color="Color.Warning">
+                                    Vence: @item.DueDate.Value.ToString("dd/MM/yyyy HH:mm")
+                                </MudText>
+                            </MudStack>
+                        }
+                        
+                        @if (item.StartDate.HasValue || item.EndDate.HasValue)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" Color="Color.Info" />
+                                <MudText Typo="Typo.body2" Color="Color.Info">
+                                    @if (item.StartDate.HasValue && item.EndDate.HasValue)
+                                    {
+                                        @($"Desde {item.StartDate:dd/MM} hasta {item.EndDate:dd/MM}")
+                                    }
+                                    else if (item.StartDate.HasValue)
+                                    {
+                                        @($"Desde {item.StartDate:dd/MM/yyyy}")
+                                    }
+                                    else
+                                    {
+                                        @($"Hasta {item.EndDate:dd/MM/yyyy}")
+                                    }
+                                </MudText>
+                            </MudStack>
+                        }
+                        
+                        @if (item.AssignedUsers != null && item.AssignedUsers.Any())
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                <MudText Typo="Typo.body2">
+                                    @string.Join(", ", item.AssignedUsers.Values)
+                                </MudText>
+                            </MudStack>
+                        }
+                    </MudStack>
+                    
+                    @if (item.Steps != null && item.Steps.Any())
+                    {
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            Pasos (@item.CompletedStepsCount/@item.TotalStepsCount)
+                        </MudText>
+                        <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" Class="mb-3" />
+                        <MudList T="string" Dense="true">
+                            @foreach (var step in item.Steps)
+                            {
+                                <MudListItem Icon="@(step.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                             IconColor="@(step.IsCompleted ? Color.Success : Color.Default)">
+                                    <MudText Typo="Typo.body2" Class="@(step.IsCompleted ? "text-strikethrough" : "")">
+                                        @step.Name
+                                    </MudText>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                </div>
+            }
+        }
+        
+        @if (!Events.Any() && !Items.Any())
+        {
+            <MudText Color="Color.Default" Class="pa-4 text-center">
+                No hay eventos ni tareas para este día
+            </MudText>
+            <MudText Color="Color.Default" Class="text-center mb-4">
+                ¿Deseas añadir un evento?
+            </MudText>
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="() => OnAddEvent.InvokeAsync(SelectedDate)">
+                Añadir evento
+            </MudButton>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">
+            Cerrar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .day-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .event-item {
+        padding: 12px;
+        margin-bottom: 12px;
+        background: rgba(76, 175, 80, 0.1);
+        border-radius: 8px;
+        border-left: 4px solid var(--mud-palette-success);
+    }
+
+    .event-card {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--mud-palette-surface);
+        border-radius: 8px;
+        border: 1px solid transparent;
+        transition: all 0.15s ease;
+    }
+
+    .event-card:hover {
+        background: var(--mud-palette-action-hover);
+        border-color: var(--mud-palette-lines-default);
+    }
+
+    .event-content {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .event-icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: rgba(76, 175, 80, 0.12);
+        border-radius: 8px;
+        flex-shrink: 0;
+    }
+
+    .event-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .event-title {
+        font-weight: 500;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .event-description {
+        margin-top: 2px;
+        color: var(--mud-palette-text-secondary);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .event-actions {
+        flex-shrink: 0;
+        margin-left: 8px;
+    }
+
+    .delete-btn {
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        color: var(--mud-palette-text-secondary) !important;
+    }
+
+    .event-card:hover .delete-btn {
+        opacity: 1;
+    }
+
+    .delete-btn:hover {
+        color: var(--mud-palette-error) !important;
+    }
+
+    .day-detail-item {
+        padding: 16px;
+        margin-bottom: 16px;
+        background: var(--mud-palette-background);
+        border-radius: 12px;
+        border: 1px solid var(--mud-palette-lines-default);
+    }
+
+    .day-detail-item.completed {
+        opacity: 0.7;
+    }
+
+    .day-detail-item.high-priority {
+        border-left: 4px solid var(--mud-palette-error);
+    }
+
+    .item-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .item-indicator {
+        color: var(--mud-palette-primary);
+    }
+
+    .day-detail-item.high-priority .item-indicator {
+        color: var(--mud-palette-error);
+    }
+
+    .item-title {
+        flex: 1;
+        font-weight: 500;
+    }
+
+    .day-detail-item.completed .item-title {
+        text-decoration: line-through;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .item-description {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .text-strikethrough {
+        text-decoration: line-through;
+        color: var(--mud-palette-text-disabled);
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public DateTime SelectedDate { get; set; }
+
+    [Parameter]
+    public List<CalendarEvent> Events { get; set; } = new();
+
+    [Parameter]
+    public List<TodoItem> Items { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<DateTime> OnAddEvent { get; set; }
+
+    [Parameter]
+    public EventCallback<CalendarEvent> OnDeleteEvent { get; set; }
+
+    private async Task HandleDeleteEvent(CalendarEvent evt)
+    {
+        await OnDeleteEvent.InvokeAsync(evt);
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}

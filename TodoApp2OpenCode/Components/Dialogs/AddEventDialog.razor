@@ -1,0 +1,72 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="Title" 
+                      Label="Nombre del evento" 
+                      Variant="Variant.Outlined" 
+                      Required="true" 
+                      Class="mb-3" />
+        
+        <MudTextField @bind-Value="Description" 
+                      Label="Descripción" 
+                      Variant="Variant.Outlined" 
+                      Lines="3" 
+                      Class="mb-3" />
+        
+        <MudDatePicker @bind-Date="EventDate" 
+                       Label="Fecha del evento" 
+                       Variant="Variant.Outlined" 
+                       Required="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">
+            Cancelar
+        </MudButton>
+        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@string.IsNullOrWhiteSpace(Title)">
+            Crear evento
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public DateTime? PreSelectedDate { get; set; }
+
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DateTime? EventDate { get; set; }
+
+    protected override void OnInitialized()
+    {
+        EventDate = PreSelectedDate ?? DateTime.Today;
+    }
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(Title) || !EventDate.HasValue)
+        {
+            return;
+        }
+
+        var result = new AddEventResult
+        {
+            Title = Title,
+            Description = Description,
+            EventDate = EventDate.Value
+        };
+
+        MudDialog?.Close(DialogResult.Ok(result));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+
+    public class AddEventResult
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public DateTime EventDate { get; set; }
+    }
+}

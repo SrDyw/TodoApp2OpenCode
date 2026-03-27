@@ -1,0 +1,33 @@
+@namespace TodoApp2OpenCode.Components.Dialogs
+<MudDialog>
+    <DialogContent>
+        <MudDatePicker @bind-Date="selectedDate" 
+                       Label="Seleccionar fecha"
+                       Variant="Variant.Outlined" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">
+            Cancelar
+        </MudButton>
+        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!selectedDate.HasValue)">
+            Ir
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    public DateTime? selectedDate { get; set; } = DateTime.Today;
+
+    private void Submit()
+    {
+        if (selectedDate.HasValue)
+        {
+            MudDialog?.Close(DialogResult.Ok(selectedDate.Value));
+        }
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}

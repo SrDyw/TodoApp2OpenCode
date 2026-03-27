@@ -16,6 +16,7 @@ public class FlowBoardDbContext : DbContext
     public DbSet<TodoItem> Items { get; set; } = null!;
     public DbSet<TodoStep> Steps { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<CalendarEvent> CalendarEvents { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +41,11 @@ public class FlowBoardDbContext : DbContext
             entity.HasMany(b => b.Items)
                 .WithOne()
                 .HasForeignKey(i => i.TodoBoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasMany(b => b.Events)
+                .WithOne()
+                .HasForeignKey(e => e.TodoBoardId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

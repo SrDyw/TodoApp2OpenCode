@@ -50,6 +50,12 @@ public class TodoItem
 
     public TodoPriority Priority { get; set; } = TodoPriority.Normal;
 
+    public DateTime? DueDate { get; set; }
+
+    public DateTime? StartDate { get; set; }
+
+    public DateTime? EndDate { get; set; }
+
     public List<TodoStep>? Steps { get; set; }
 
     [NotMapped]

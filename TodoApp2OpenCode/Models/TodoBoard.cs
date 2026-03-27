@@ -30,6 +30,8 @@ public class TodoBoard
 
     public List<TodoItem> Items { get; set; } = new();
 
+    public List<CalendarEvent> Events { get; set; } = new();
+
     public string ParticipantsJson
     {
         get => System.Text.Json.JsonSerializer.Serialize(Participants);
