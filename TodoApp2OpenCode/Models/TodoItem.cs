@@ -16,6 +16,8 @@ public class TodoStep
 
     public bool IsCompleted { get; set; } = false;
 
+    public int Order { get; set; } = 0;
+
     [MaxLength(50)]
     public string ItemId { get; set; } = string.Empty;
 }

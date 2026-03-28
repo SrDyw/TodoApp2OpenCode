@@ -57,6 +57,11 @@ public class SqlServerDbContext : DbContext, IFlowBoardDbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<TodoStep>(entity =>
+        {
+            entity.HasIndex(s => new { s.ItemId, s.Order });
+        });
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(e => e.Email).IsUnique();
