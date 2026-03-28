@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using TodoApp2OpenCode.Extensions;
 using TodoApp2OpenCode.Models;
 
 namespace TodoApp2OpenCode.Data;
 
-public class FlowBoardDbContext : DbContext
+public class SqlServerDbContext : DbContext, IFlowBoardDbContext
 {
-    public FlowBoardDbContext(DbContextOptions<FlowBoardDbContext> options) : base(options)
+    public SqlServerDbContext(DbContextOptions<SqlServerDbContext> options) : base(options)
     {
     }
 
@@ -23,8 +22,6 @@ public class FlowBoardDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.AddProviderAdditionalConfigurations();
-
         modelBuilder.Entity<TestEntity>().HasData(
             new TestEntity { Id = 1, Name = "Primer Registro", Description = "Este es el primer registro de prueba" },
             new TestEntity { Id = 2, Name = "Segundo Registro", Description = "Segundo registro para verificar la conexión" },
@@ -35,17 +32,17 @@ public class FlowBoardDbContext : DbContext
         {
             entity.Property(e => e.ParticipantsJson)
                 .HasColumnType("nvarchar(max)");
-            
+
             entity.HasMany(b => b.Columns)
                 .WithOne()
                 .HasForeignKey(c => c.BoardId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasMany(b => b.Items)
                 .WithOne()
                 .HasForeignKey(i => i.TodoBoardId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasMany(b => b.Events)
                 .WithOne()
                 .HasForeignKey(e => e.TodoBoardId)

@@ -49,11 +49,14 @@ public class TodoService
             var board = await _boardService.GetBoardAsync(boardId);
             if (board == null) return null;
 
+            var maxOrder = board.Columns.Any() ? board.Columns.Max(c => c.Order) : -1;
+
             var column = new TodoColumn
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = name.Trim(),
                 Color = color,
+                Order = maxOrder + 1,
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
             };
@@ -262,10 +265,10 @@ public class TodoService
             var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
             if (column == null) return false;
 
-            board.Items.Remove(item);
+            var originalColumnId = item.ColumnId;
 
             var columnItems = board.Items
-                .Where(x => x.ColumnId == targetColumnId)
+                .Where(x => x.ColumnId == targetColumnId && x.Id != itemId)
                 .OrderBy(x => x.Order)
                 .ToList();
 

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TodoApp2OpenCode.Configurations;
 using TodoApp2OpenCode.Data;
 
@@ -16,29 +16,29 @@ namespace TodoApp2OpenCode.Extensions
                 case Models.DatabaseProviderName.Oracle:
                     services.AddOracleConfigurations(configuration);
                     break;
-
             }
         }
 
-
         public static void AddSqlSeverConfigurations(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContextFactory<FlowBoardDbContext>(options =>
+            services.AddDbContextFactory<SqlServerDbContext>(options =>
              {
                  options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"))
                         .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
              });
 
+            services.AddScoped<IFlowBoardDbContextFactory, FlowBoardDbContextFactory<SqlServerDbContext>>();
         }
 
         public static void AddOracleConfigurations(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContextFactory<FlowBoardDbContext>(options =>
+            services.AddDbContextFactory<OracleDbContext>(options =>
             {
                 options.UseOracle(configuration.GetConnectionString("OracleConnection"))
                        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
             });
 
+            services.AddScoped<IFlowBoardDbContextFactory, FlowBoardDbContextFactory<OracleDbContext>>();
         }
     }
 }

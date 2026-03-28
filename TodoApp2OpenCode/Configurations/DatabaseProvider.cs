@@ -4,6 +4,6 @@ namespace TodoApp2OpenCode.Configurations
 {
     public static class DatabaseProvider
     {
-        public static DatabaseProviderName Value = DatabaseProviderName.SqlServer;
+        public static DatabaseProviderName Value = DatabaseProviderName.Oracle;
     }
 }

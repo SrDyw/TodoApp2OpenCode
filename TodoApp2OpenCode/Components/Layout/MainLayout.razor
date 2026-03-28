@@ -2,7 +2,8 @@
 @inject IDialogService DialogService
 @inject ISnackbar SnackbarService
 @inject IAuthService AuthService
-@inject NavigationManager Navigation;
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -83,8 +84,35 @@
             LayoutProperties = new LayoutProperties()
         };
 
+        await LoadThemePreference();
         AuthService.SetAuthStateChangedCallback(OnAuthStateChanged);
         await AuthService.CheckAuthStateAsync();
+    }
+
+    private async Task LoadThemePreference()
+    {
+        try
+        {
+            var isDarkMode = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "flowboard_theme");
+            if (!string.IsNullOrEmpty(isDarkMode))
+            {
+                _isDarkMode = isDarkMode == "dark";
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task SaveThemePreference()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "flowboard_theme", _isDarkMode ? "dark" : "light");
+        }
+        catch
+        {
+        }
     }
 
     private void OnAuthStateChanged(Models.User? user)
@@ -97,9 +125,10 @@
         _drawerOpen = !_drawerOpen;
     }
 
-    private void DarkModeToggle()
+    private async Task DarkModeToggle()
     {
         _isDarkMode = !_isDarkMode;
+        await SaveThemePreference();
     }
 
     private async Task OpenLoginDialog()

@@ -1,32 +1,74 @@
 @namespace TodoApp2OpenCode.Components.Dialogs
 <MudDialog>
     <DialogContent>
-        <MudDatePicker @bind-Date="selectedDate" 
-                       Label="Seleccionar fecha"
-                       Variant="Variant.Outlined" />
+        <div class="month-year-picker">
+            <MudSelect @bind-Value="selectedYear" Label="Año" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                @foreach (var year in availableYears)
+                {
+                    <MudSelectItem T="int" Value="@year">@year</MudSelectItem>
+                }
+            </MudSelect>
+            
+            <MudSelect @bind-Value="selectedMonth" Label="Mes" Variant="Variant.Outlined" Dense="true">
+                <MudSelectItem T="int" Value="1">Enero</MudSelectItem>
+                <MudSelectItem T="int" Value="2">Febrero</MudSelectItem>
+                <MudSelectItem T="int" Value="3">Marzo</MudSelectItem>
+                <MudSelectItem T="int" Value="4">Abril</MudSelectItem>
+                <MudSelectItem T="int" Value="5">Mayo</MudSelectItem>
+                <MudSelectItem T="int" Value="6">Junio</MudSelectItem>
+                <MudSelectItem T="int" Value="7">Julio</MudSelectItem>
+                <MudSelectItem T="int" Value="8">Agosto</MudSelectItem>
+                <MudSelectItem T="int" Value="9">Septiembre</MudSelectItem>
+                <MudSelectItem T="int" Value="10">Octubre</MudSelectItem>
+                <MudSelectItem T="int" Value="11">Noviembre</MudSelectItem>
+                <MudSelectItem T="int" Value="12">Diciembre</MudSelectItem>
+            </MudSelect>
+        </div>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">
             Cancelar
         </MudButton>
-        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!selectedDate.HasValue)">
+        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary">
             Ir
         </MudButton>
     </DialogActions>
 </MudDialog>
 
+<style>
+    .month-year-picker {
+        min-width: 250px;
+    }
+</style>
+
 @code {
     [CascadingParameter]
     private IMudDialogInstance? MudDialog { get; set; }
 
-    public DateTime? selectedDate { get; set; } = DateTime.Today;
+    [Parameter]
+    public DateTime InitialDate { get; set; } = DateTime.Today;
+
+    private int selectedYear;
+    private int selectedMonth;
+
+    private List<int> availableYears = new();
+
+    protected override void OnInitialized()
+    {
+        selectedYear = InitialDate.Year;
+        selectedMonth = InitialDate.Month;
+
+        var currentYear = InitialDate.Year;
+        for (int year = currentYear - 5; year <= currentYear + 5; year++)
+        {
+            availableYears.Add(year);
+        }
+    }
 
     private void Submit()
     {
-        if (selectedDate.HasValue)
-        {
-            MudDialog?.Close(DialogResult.Ok(selectedDate.Value));
-        }
+        var selectedDate = new DateTime(selectedYear, selectedMonth, 1);
+        MudDialog?.Close(DialogResult.Ok(selectedDate));
     }
 
     private void Cancel() => MudDialog?.Cancel();
