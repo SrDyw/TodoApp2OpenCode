@@ -4,6 +4,7 @@
 @inject TodoService TodoService
 @inject IDialogService DialogService
 @inject ISnackbar SnackbarService
+@inject IAuthService AuthService
 
 <PageTitle>FlowBoard - Programación</PageTitle>
 
@@ -505,14 +506,38 @@
 
     private async Task LoadData()
     {
-        currentBoard = await BoardService.GetBoardAsync(BoardId);
-        if (currentBoard != null)
+        try
         {
+            if (!AuthService.IsAuthenticated || AuthService.CurrentUser == null)
+            {
+                await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
+                return;
+            }
+
+            currentBoard = await BoardService.GetBoardAsync(BoardId);
+            if (currentBoard == null)
+            {
+                await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
+                return;
+            }
+
+            bool isOwner = currentBoard.User == AuthService.CurrentUser.Id;
+            bool isParticipant = currentBoard.Participants.ContainsKey(AuthService.CurrentUser.Id);
+            
+            if (!isOwner && !isParticipant)
+            {
+                await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
+                return;
+            }
+
             allItems = currentBoard.Items.Where(i => i.DueDate.HasValue || i.StartDate.HasValue || i.EndDate.HasValue).ToList();
             allEvents = currentBoard.Events.ToList();
             monthEvents = allEvents.Where(e => e.EventDate.Year == currentDate.Year && e.EventDate.Month == currentDate.Month)
                                    .OrderBy(e => e.EventDate)
                                    .ToList();
+        }
+        catch (NavigationException)
+        {
         }
     }
 
@@ -606,6 +631,7 @@
     private async Task OpenDatePickerDialog()
     {
         var parameters = new DialogParameters<DatePickerDialog>();
+        parameters.Add(x => x.InitialDate, currentDate);
         
         var options = new DialogOptions
         {
