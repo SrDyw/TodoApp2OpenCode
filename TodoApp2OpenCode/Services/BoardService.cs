@@ -74,6 +74,10 @@ public class BoardService : IBoardService
                 {
                     item.AssignedUsers = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(item.AssignedUsersJson) ?? new();
                 }
+                if (item.Steps != null)
+                {
+                    item.Steps = item.Steps.OrderBy(s => s.Order).ToList();
+                }
             }
             
             board.Items = items;
@@ -233,6 +237,7 @@ public class BoardService : IBoardService
                     var existingSteps = existingItem.Steps?.ToList() ?? new List<TodoStep>();
                     if (item.Steps != null)
                     {
+                        int maxOrder = existingSteps.Any() ? existingSteps.Max(s => s.Order) : -1;
                         foreach (var step in item.Steps)
                         {
                             var existingStep = existingSteps.FirstOrDefault(s => s.Id == step.Id);
@@ -244,6 +249,7 @@ public class BoardService : IBoardService
                             else
                             {
                                 step.ItemId = item.Id;
+                                step.Order = ++maxOrder;
                                 existingItem.Steps ??= new List<TodoStep>();
                                 existingItem.Steps.Add(step);
                             }
@@ -262,6 +268,17 @@ public class BoardService : IBoardService
                 {
                     item.ColumnId = board.Columns.FirstOrDefault()?.Id ?? "";
                     item.TodoBoardId = board.Id;
+                    
+                    if (item.Steps != null)
+                    {
+                        int order = 0;
+                        foreach (var step in item.Steps)
+                        {
+                            step.ItemId = item.Id;
+                            step.Order = order++;
+                        }
+                    }
+                    
                     existingBoard.Items.Add(item);
                     
                     await _notifier.NotifyItemAddedAsync(board.Id, item.ColumnId, item, _authService.CurrentUser?.Id);

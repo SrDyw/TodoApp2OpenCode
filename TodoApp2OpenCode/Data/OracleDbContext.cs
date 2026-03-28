@@ -74,6 +74,7 @@ public class OracleDbContext : DbContext, IFlowBoardDbContext
         modelBuilder.Entity<TodoStep>(entity =>
         {
             entity.Property(e => e.IsCompleted).HasConversion(BoolToIntConverter);
+            entity.HasIndex(s => new { s.ItemId, s.Order });
         });
 
         modelBuilder.Entity<User>(entity =>

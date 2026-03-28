@@ -502,7 +502,7 @@ else
                                               <MudText Typo="Typo.subtitle2" Class="mb-1">Pasos (@item.CompletedStepsCount/@item.TotalStepsCount)</MudText>
                                               <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" Class="mb-2" />
                                               <MudList T="string" Dense="true">
-                                                  @foreach (var step in item.Steps)
+                                                  @foreach (var step in item.Steps.OrderBy(s => s.Order))
                                                   {
                                                       <MudListItem Icon="@(step.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
                                                                    IconColor="@(step.IsCompleted ? Color.Success : Color.Default)">
@@ -1769,7 +1769,7 @@ else
             EndDate = item.EndDate,
             DueDate = item.DueDate,
             AssignedUsers = item.AssignedUsers != null ? new Dictionary<string, string>(item.AssignedUsers) : new Dictionary<string, string>(),
-            Steps = item.Steps?.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted }).ToList(),
+            Steps = item.Steps?.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted, Order = s.Order }).ToList(),
             CurrentStepIndex = item.CurrentStepIndex
         };
         var parameters = new DialogParameters<EditItemDialog>();
