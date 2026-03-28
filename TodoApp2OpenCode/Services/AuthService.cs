@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
+using TodoApp2OpenCode.Configurations;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
 
@@ -11,6 +12,7 @@ public class AuthService : IAuthService
 {
     private readonly IFlowBoardDbContextFactory _contextFactory;
     private readonly IJSRuntime _jsRuntime;
+    private readonly InfogestiUsersService _infogestiUsersService;
     private const string LAST_BOARD_KEY = "flowboard_last_board";
     private const string CURRENT_USER_KEY = "flowboard_current_user";
     private const string SALT = "FlowBoard_Secure_Salt_2024";
@@ -20,10 +22,11 @@ public class AuthService : IAuthService
 
     private Action<User?>? _onAuthStateChangedAction;
 
-    public AuthService(IFlowBoardDbContextFactory contextFactory, IJSRuntime jsRuntime)
+    public AuthService(IFlowBoardDbContextFactory contextFactory, IJSRuntime jsRuntime, InfogestiUsersService infogestiUsersService)
     {
         _contextFactory = contextFactory;
         _jsRuntime = jsRuntime;
+        _infogestiUsersService = infogestiUsersService;
     }
 
     public User? CurrentUser => _currentUser;
@@ -104,10 +107,10 @@ public class AuthService : IAuthService
         return (true, null);
     }
 
-    public async Task<(bool Success, string? Error)> LoginAsync(string email, string password)
+    public async Task<(bool Success, string? Error)> LoginAsync(string username, string password)
     {
-        if (string.IsNullOrWhiteSpace(email))
-            return (false, "El email es requerido");
+        if (string.IsNullOrWhiteSpace(username))
+            return (false, "El usuario es requerido");
 
         if (string.IsNullOrWhiteSpace(password))
             return (false, "La contraseña es requerida");
@@ -115,14 +118,30 @@ public class AuthService : IAuthService
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         var user = await context.Users
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == email.Trim().ToLower());
+            .FirstOrDefaultAsync(u => u.Username == username);
 
-        if (user == null)
-            return (false, "No existe una cuenta con este email");
+        if (DatabaseProvider.Value == DatabaseProviderName.Oracle)
+        {
+            var remoteUser = await _infogestiUsersService.GetUserAccount(username, password);
+            if (remoteUser == null) return (false, "Credenciales incorrectas");
+            
+            if (user == null)
+            {
+                var (Success, Error) = await RegisterAsync(username, $"{username}@onat.gob.cu", password);
+                if (!Success) return (false, Error);
+                else user = await context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            }
+        }
+        else
+        {
+            if (user == null)
+                return (false, "No existe una cuenta con este usuario");
 
-        var passwordHash = HashPassword(password);
-        if (user.PasswordHash != passwordHash)
-            return (false, "Contraseña incorrecta");
+            var passwordHash = HashPassword(password);
+            if (user.PasswordHash != passwordHash)
+                return (false, "Contraseña incorrecta");
+        }
+
 
         _currentUser = user;
         await SaveCurrentUserAsync(user);
@@ -134,7 +153,8 @@ public class AuthService : IAuthService
     public async Task LogoutAsync()
     {
         _currentUser = null;
-        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", CURRENT_USER_KEY);
+        _isInitialized = false;
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", CURRENT_USER_KEY + "_id");
         _onAuthStateChangedAction?.Invoke(null);
     }
 

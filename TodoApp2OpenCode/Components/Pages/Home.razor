@@ -327,7 +327,8 @@
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.ExtraSmall
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
         };
 
         var dialog = await DialogService.ShowAsync<RegisterDialog>("Crear Cuenta", options);
@@ -335,7 +336,7 @@
 
         if (result is { Canceled: false, Data: true })
         {
-            await GoToDashboardAsync();
+            Navigation.NavigateTo("/board", forceLoad: true);
         }
     }
 
@@ -344,7 +345,8 @@
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.ExtraSmall
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
         };
 
         var dialog = await DialogService.ShowAsync<LoginDialog>("Iniciar Sesión", options);
@@ -352,29 +354,7 @@
 
         if (result is { Canceled: false, Data: true })
         {
-            await GoToDashboardAsync();
-        }
-    }
-
-    private async Task GoToDashboardAsync()
-    {
-        if (AuthService.IsAuthenticated && AuthService.CurrentUser != null)
-        {
-            var boards = await BoardService.GetUserBoardsAsync(AuthService.CurrentUser.Id);
-            if (boards.Any())
-            {
-                var lastBoard = AuthService.GetLastVisitedBoard();
-                var boardToNavigate = boards.FirstOrDefault(b => b.Id == lastBoard) ?? boards.First();
-                Navigation.NavigateTo($"/board/{boardToNavigate.Id}", forceLoad: true);
-            }
-            else
-            {
-                var newBoard = await BoardService.CreateBoardAsync(AuthService.CurrentUser.Id, "Mi Tablero");
-                if (newBoard != null)
-                {
-                    Navigation.NavigateTo($"/board/{newBoard.Id}", forceLoad: true);
-                }
-            }
+            Navigation.NavigateTo("/board", forceLoad: true);
         }
     }
 }

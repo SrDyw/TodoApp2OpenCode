@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using TodoApp2OpenCode.Components;
+using TodoApp2OpenCode.Configurations;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Extensions;
 using TodoApp2OpenCode.Hubs;
@@ -14,6 +15,13 @@ builder.Services.AddDatabaseProviderConfigurations(builder.Configuration);
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
+
+builder.Services.AddHttpClient("external", client =>
+{
+    client.BaseAddress = new Uri(PrivateConfig.INFOGESTI_API_BASE_URL);
+});
+
+
 // Add SignalR
 builder.Services.AddSignalR();
 
@@ -24,6 +32,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
 builder.Services.AddScoped<TestConnectionService>();
+builder.Services.AddScoped<InfogestiUsersService>();
 
 // Auth Service - choose implementation:
 // Production (database): IAuthService → AuthService

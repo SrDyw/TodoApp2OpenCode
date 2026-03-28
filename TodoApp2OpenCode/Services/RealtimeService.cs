@@ -166,9 +166,13 @@ public class RealtimeService : IRealtimeService, IAsyncDisposable
 
     public async Task LeaveBoardAsync(string boardId)
     {
-        if (_hubConnection != null)
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
         {
-            await _hubConnection.InvokeAsync("LeaveBoard", boardId);
+            try
+            {
+                await _hubConnection.InvokeAsync("LeaveBoard", boardId);
+            }
+            catch { }
             if (_currentBoardId == boardId)
                 _currentBoardId = null;
         }
@@ -176,13 +180,17 @@ public class RealtimeService : IRealtimeService, IAsyncDisposable
 
     public async Task DisconnectAsync()
     {
-        if (_hubConnection != null)
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
         {
-            if (_currentBoardId != null)
+            try
             {
-                await _hubConnection.InvokeAsync("LeaveBoard", _currentBoardId);
+                if (_currentBoardId != null)
+                {
+                    await _hubConnection.InvokeAsync("LeaveBoard", _currentBoardId);
+                }
+                await _hubConnection.StopAsync();
             }
-            await _hubConnection.StopAsync();
+            catch { }
         }
     }
 

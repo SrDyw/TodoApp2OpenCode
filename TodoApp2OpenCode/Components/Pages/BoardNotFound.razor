@@ -48,6 +48,6 @@
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo("/", forceLoad: true);
     }
 }

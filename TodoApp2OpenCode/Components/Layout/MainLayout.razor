@@ -10,6 +10,15 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 <MudLayout>
+    <style>
+        .board-page-bg {
+            min-height: 100vh;
+            background-image: 
+                linear-gradient(rgba(128, 128, 128, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(128, 128, 128, 0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
         <MudText Typo="Typo.h5" Class="ml-3">FlowBoard</MudText>
@@ -53,7 +62,7 @@
     <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />
     </MudDrawer>
-    <MudMainContent Class="pt-16 pa-4">
+    <MudMainContent Class="pt-16 pa-4 board-page-bg">
         @Body
     </MudMainContent>
 </MudLayout>
@@ -136,7 +145,8 @@
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.ExtraSmall
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
         };
 
         var dialog = await DialogService.ShowAsync<LoginDialog>("Iniciar Sesión", options);
@@ -144,10 +154,7 @@
 
         if (result is { Canceled: false, Data: true })
         {
-            // StateHasChanged();
-            Navigation.NavigateTo("/");
-
-            // SnackbarService.Add("Sesión iniciada", Severity.Success);
+            Navigation.NavigateTo("/board", forceLoad: true);
         }
     }
 
@@ -156,7 +163,8 @@
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.ExtraSmall
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
         };
 
         var dialog = await DialogService.ShowAsync<RegisterDialog>("Crear Cuenta", options);
@@ -164,10 +172,7 @@
 
         if (result is { Canceled: false, Data: true })
         {
-            // StateHasChanged();
-            Navigation.NavigateTo("/");
-
-            // SnackbarService.Add("Cuenta creada exitosamente", Severity.Success);
+            Navigation.NavigateTo("/board", forceLoad: true);
         }
     }
 
@@ -175,9 +180,7 @@
     {
         await AuthService.LogoutAsync();
 
-        Navigation.NavigateTo("/");
-        // StateHasChanged();
-        // SnackbarService.Add("Sesión cerrada", Severity.Info);
+        Navigation.NavigateTo("/", forceLoad: true);
     }
 
     private readonly PaletteLight _lightPalette = new()
