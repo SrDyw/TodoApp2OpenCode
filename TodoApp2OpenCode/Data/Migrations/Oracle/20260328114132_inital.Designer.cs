@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using TodoApp2OpenCode.Data;
 
 #nullable disable
 
-namespace TodoApp2OpenCode.Data.Migrations
+namespace TodoApp2OpenCode.Data.Migrations.Oracle
 {
     [DbContext(typeof(FlowBoardDbContext))]
-    partial class FlowBoardDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260328114132_inital")]
+    partial class inital
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

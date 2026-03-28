@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TodoApp2OpenCode.Configurations;
 using TodoApp2OpenCode.Extensions;
 using TodoApp2OpenCode.Models;
 
@@ -33,19 +34,27 @@ public class FlowBoardDbContext : DbContext
 
         modelBuilder.Entity<TodoBoard>(entity =>
         {
-            entity.Property(e => e.ParticipantsJson)
-                .HasColumnType("nvarchar(max)");
-            
+            if (DatabaseProvider.Value == DatabaseProviderName.SqlServer)
+            {
+                entity.Property(e => e.ParticipantsJson)
+                    .HasColumnType("nvarchar(max)");
+            }
+            if (DatabaseProvider.Value == DatabaseProviderName.Oracle)
+            {
+                entity.Property(e => e.ParticipantsJson)
+                    .HasColumnType("CLOB");
+            }
+
             entity.HasMany(b => b.Columns)
                 .WithOne()
                 .HasForeignKey(c => c.BoardId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasMany(b => b.Items)
                 .WithOne()
                 .HasForeignKey(i => i.TodoBoardId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasMany(b => b.Events)
                 .WithOne()
                 .HasForeignKey(e => e.TodoBoardId)
