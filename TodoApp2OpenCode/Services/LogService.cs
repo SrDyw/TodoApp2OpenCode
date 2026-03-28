@@ -6,9 +6,9 @@ namespace TodoApp2OpenCode.Services;
 
 public class LogService : ILogService
 {
-    private readonly IDbContextFactory<FlowBoardDbContext> _contextFactory;
+    private readonly IFlowBoardDbContextFactory _contextFactory;
 
-    public LogService(IDbContextFactory<FlowBoardDbContext> contextFactory)
+    public LogService(IFlowBoardDbContextFactory contextFactory)
     {
         _contextFactory = contextFactory;
     }

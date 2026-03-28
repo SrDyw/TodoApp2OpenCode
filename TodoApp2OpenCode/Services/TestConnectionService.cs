@@ -6,15 +6,16 @@ namespace TodoApp2OpenCode.Services;
 
 public class TestConnectionService
 {
-    private readonly FlowBoardDbContext _context;
+    private readonly IFlowBoardDbContextFactory _contextFactory;
 
-    public TestConnectionService(FlowBoardDbContext context)
+    public TestConnectionService(IFlowBoardDbContextFactory contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task<List<TestEntity>> GetAllAsync()
     {
-        return await _context.TestEntities.ToListAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.TestEntities.ToListAsync();
     }
 }

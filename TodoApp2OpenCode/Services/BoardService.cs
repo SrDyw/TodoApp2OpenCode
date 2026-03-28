@@ -6,12 +6,12 @@ namespace TodoApp2OpenCode.Services;
 
 public class BoardService : IBoardService
 {
-    private readonly IDbContextFactory<FlowBoardDbContext> _contextFactory;
+    private readonly IFlowBoardDbContextFactory _contextFactory;
     private readonly IBoardNotifier _notifier;
     private readonly IAuthService _authService;
     private readonly ILogService _logService;
 
-    public BoardService(IDbContextFactory<FlowBoardDbContext> contextFactory, IBoardNotifier notifier, IAuthService authService, ILogService logService)
+    public BoardService(IFlowBoardDbContextFactory contextFactory, IBoardNotifier notifier, IAuthService authService, ILogService logService)
     {
         _contextFactory = contextFactory;
         _notifier = notifier;

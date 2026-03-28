@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using TodoApp2OpenCode.Data;
 
 #nullable disable
 
-namespace TodoApp2OpenCode.Data.Migrations
+namespace TodoApp2OpenCode.Data.Migrations.OracleDB
 {
-    [DbContext(typeof(FlowBoardDbContext))]
-    partial class FlowBoardDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(OracleDbContext))]
+    [Migration("20260328131006_MakeColumnsNullable")]
+    partial class MakeColumnsNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,26 +115,6 @@ namespace TodoApp2OpenCode.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("TestEntities");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Description = "Este es el primer registro de prueba",
-                            Name = "Primer Registro"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Description = "Segundo registro para verificar la conexión",
-                            Name = "Segundo Registro"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Description = "Tercer registro - si ves esto, la conexión funciona",
-                            Name = "Tercer Registro"
-                        });
                 });
 
             modelBuilder.Entity("TodoApp2OpenCode.Models.TodoBoard", b =>
@@ -141,7 +124,6 @@ namespace TodoApp2OpenCode.Data.Migrations
                         .HasColumnType("NVARCHAR2(50)");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("NVARCHAR2(500)");
 
@@ -151,7 +133,6 @@ namespace TodoApp2OpenCode.Data.Migrations
                         .HasColumnType("NVARCHAR2(100)");
 
                     b.Property<string>("OwnerName")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("NVARCHAR2(100)");
 

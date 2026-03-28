@@ -9,11 +9,11 @@ using TodoApp2OpenCode.Data;
 
 #nullable disable
 
-namespace TodoApp2OpenCode.Data.Migrations
+namespace TodoApp2OpenCode.Data.Migrations.SqlServerDB
 {
-    [DbContext(typeof(FlowBoardDbContext))]
-    [Migration("20260325110111_AddColumnOrder")]
-    partial class AddColumnOrder
+    [DbContext(typeof(SqlServerDbContext))]
+    [Migration("20260328124706_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,42 @@ namespace TodoApp2OpenCode.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("TodoApp2OpenCode.Models.CalendarEvent", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("EventDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TodoBoardId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TodoBoardId");
+
+                    b.ToTable("CalendarEvents");
+                });
 
             modelBuilder.Entity("TodoApp2OpenCode.Models.LogItem", b =>
                 {
@@ -122,11 +158,7 @@ namespace TodoApp2OpenCode.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("ParticipantIds")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ParticipantNamesJson")
+                    b.Property<string>("ParticipantsJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -167,15 +199,12 @@ namespace TodoApp2OpenCode.Data.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("int");
 
-                    b.Property<string>("TodoBoardId")
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TodoBoardId");
+                    b.HasIndex("BoardId");
 
                     b.ToTable("Columns");
                 });
@@ -205,6 +234,12 @@ namespace TodoApp2OpenCode.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("bit");
 
@@ -213,6 +248,9 @@ namespace TodoApp2OpenCode.Data.Migrations
 
                     b.Property<int>("Priority")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -252,12 +290,9 @@ namespace TodoApp2OpenCode.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("TodoItemId")
-                        .HasColumnType("nvarchar(50)");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("TodoItemId");
+                    b.HasIndex("ItemId");
 
                     b.ToTable("Steps");
                 });
@@ -296,30 +331,46 @@ namespace TodoApp2OpenCode.Data.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("TodoApp2OpenCode.Models.CalendarEvent", b =>
+                {
+                    b.HasOne("TodoApp2OpenCode.Models.TodoBoard", null)
+                        .WithMany("Events")
+                        .HasForeignKey("TodoBoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TodoApp2OpenCode.Models.TodoColumn", b =>
                 {
                     b.HasOne("TodoApp2OpenCode.Models.TodoBoard", null)
                         .WithMany("Columns")
-                        .HasForeignKey("TodoBoardId");
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TodoApp2OpenCode.Models.TodoItem", b =>
                 {
                     b.HasOne("TodoApp2OpenCode.Models.TodoBoard", null)
                         .WithMany("Items")
-                        .HasForeignKey("TodoBoardId");
+                        .HasForeignKey("TodoBoardId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("TodoApp2OpenCode.Models.TodoStep", b =>
                 {
                     b.HasOne("TodoApp2OpenCode.Models.TodoItem", null)
                         .WithMany("Steps")
-                        .HasForeignKey("TodoItemId");
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TodoApp2OpenCode.Models.TodoBoard", b =>
                 {
                     b.Navigation("Columns");
+
+                    b.Navigation("Events");
 
                     b.Navigation("Items");
                 });

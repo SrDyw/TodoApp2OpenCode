@@ -9,7 +9,7 @@ namespace TodoApp2OpenCode.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly IDbContextFactory<FlowBoardDbContext> _contextFactory;
+    private readonly IFlowBoardDbContextFactory _contextFactory;
     private readonly IJSRuntime _jsRuntime;
     private const string LAST_BOARD_KEY = "flowboard_last_board";
     private const string CURRENT_USER_KEY = "flowboard_current_user";
@@ -20,7 +20,7 @@ public class AuthService : IAuthService
 
     private Action<User?>? _onAuthStateChangedAction;
 
-    public AuthService(IDbContextFactory<FlowBoardDbContext> contextFactory, IJSRuntime jsRuntime)
+    public AuthService(IFlowBoardDbContextFactory contextFactory, IJSRuntime jsRuntime)
     {
         _contextFactory = contextFactory;
         _jsRuntime = jsRuntime;
@@ -76,12 +76,12 @@ public class AuthService : IAuthService
             return (false, "La contraseña debe tener al menos 6 caracteres");
 
         await using var context = await _contextFactory.CreateDbContextAsync();
-
-        var emailExists = await context.Users.AnyAsync(u => u.Email.ToLower() == email.Trim().ToLower());
+        var users = await context.Users.ToListAsync();
+        var emailExists = users.Any(u => u.Email.ToLower() == email.Trim().ToLower());
         if (emailExists)
             return (false, "El email ya está registrado");
 
-        var usernameExists = await context.Users.AnyAsync(u => u.Username.ToLower() == username.Trim().ToLower());
+        var usernameExists = users.Any(u => u.Username.ToLower() == username.Trim().ToLower());
         if (usernameExists)
             return (false, "El nombre de usuario ya está en uso");
 
