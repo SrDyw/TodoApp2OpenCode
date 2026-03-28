@@ -365,3 +365,5 @@ FodyWeavers.xsd
 # Database-specific migrations
 Data/Migrations/SqlServerDB/
 Data/Migrations/OracleDB/
+
+Configurations/DatabaseProvider.cs
