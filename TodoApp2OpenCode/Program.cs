@@ -2,17 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using TodoApp2OpenCode.Components;
 using TodoApp2OpenCode.Data;
+using TodoApp2OpenCode.Extensions;
 using TodoApp2OpenCode.Hubs;
 using TodoApp2OpenCode.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add DbContext with factory for concurrent access
-builder.Services.AddDbContextFactory<FlowBoardDbContext>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
-});
+builder.Services.AddDatabaseProviderConfigurations(builder.Configuration);
 
 // Add MudBlazor services
 builder.Services.AddMudServices();

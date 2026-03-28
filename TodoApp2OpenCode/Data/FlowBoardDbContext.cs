@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TodoApp2OpenCode.Extensions;
 using TodoApp2OpenCode.Models;
 
 namespace TodoApp2OpenCode.Data;
@@ -21,6 +22,8 @@ public class FlowBoardDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.AddProviderAdditionalConfigurations();
 
         modelBuilder.Entity<TestEntity>().HasData(
             new TestEntity { Id = 1, Name = "Primer Registro", Description = "Este es el primer registro de prueba" },

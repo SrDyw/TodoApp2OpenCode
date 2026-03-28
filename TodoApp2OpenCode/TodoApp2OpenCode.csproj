@@ -17,5 +17,6 @@
     </PackageReference>
     <PackageReference Include="MudBlazor" Version="8.*" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.1" />
+    <PackageReference Include="Oracle.EntityFrameworkCore" Version="9.23.60" />
   </ItemGroup>
 </Project>
