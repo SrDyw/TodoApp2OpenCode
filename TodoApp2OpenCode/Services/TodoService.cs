@@ -262,10 +262,10 @@ public class TodoService
             var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
             if (column == null) return false;
 
-            board.Items.Remove(item);
+            var originalColumnId = item.ColumnId;
 
             var columnItems = board.Items
-                .Where(x => x.ColumnId == targetColumnId)
+                .Where(x => x.ColumnId == targetColumnId && x.Id != itemId)
                 .OrderBy(x => x.Order)
                 .ToList();
 
