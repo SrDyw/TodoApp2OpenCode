@@ -1,13 +1,15 @@
 @inject IAuthService AuthService
-<MudDialog>
-    <DialogContent>
+<MudCard>
+    <MudCardMedia Image="https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=500&h=200&fit=crop" Height="160" />
+    <MudCardContent>
+        <MudText Typo="Typo.h5" Class="mb-3" Style="font-weight: 600;">Bienvenido</MudText>
         <MudStack Spacing="3">
-            <MudTextField @bind-Value="Email" 
-                          Label="Email" 
+            <MudTextField @bind-Value="Username" 
+                          Label="Usuario" 
                           Variant="Variant.Outlined"
                           Required="true"
-                          InputType="InputType.Email"
-                          Placeholder="tu@email.com" />
+                          Placeholder="Tu usuario..."
+                          Margin="Margin.Dense" />
             
             <MudTextField @bind-Value="Password" 
                           Label="Contraseña" 
@@ -16,36 +18,43 @@
                           InputType="@(_showPassword ? InputType.Text : InputType.Password)"
                           Adornment="Adornment.End"
                           AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                          OnAdornmentClick="TogglePasswordVisibility" />
+                          OnAdornmentClick="TogglePasswordVisibility"
+                          Margin="Margin.Dense" />
             
             @if (!string.IsNullOrEmpty(ErrorMessage))
             {
-                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true">
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="my-2">
                     @ErrorMessage
                 </MudAlert>
             }
         </MudStack>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="Cancel">Cancelar</MudButton>
+    </MudCardContent>
+    <MudCardActions Class="justify-end pa-4">
+        <MudButton Variant="Variant.Text" 
+                   Color="Color.Default"
+                   OnClick="Cancel"
+                   Class="mr-2">
+            Cancelar
+        </MudButton>
         <MudButton Color="Color.Primary" 
                    Variant="Variant.Filled" 
                    OnClick="Submit"
-                   Disabled="@IsLoading">
+                   Disabled="@IsLoading"
+                   Class="px-4">
             @if (IsLoading)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
             }
             Iniciar Sesión
         </MudButton>
-    </DialogActions>
-</MudDialog>
+    </MudCardActions>
+</MudCard>
 
 @code {
     [CascadingParameter]
     private IMudDialogInstance? MudDialog { get; set; }
 
-    private string Email { get; set; } = string.Empty;
+    private string Username { get; set; } = string.Empty;
     private string Password { get; set; } = string.Empty;
     private bool _showPassword = false;
     private bool IsLoading = false;
@@ -62,7 +71,7 @@
         ErrorMessage = string.Empty;
         StateHasChanged();
 
-        var (success, error) = await AuthService.LoginAsync(Email, Password);
+        var (success, error) = await AuthService.LoginAsync(Username, Password);
 
         IsLoading = false;
 

@@ -364,3 +364,4 @@ FodyWeavers.xsd
 
 
 TodoApp2OpenCode/Configurations/DatabaseProvider.cs
+TodoApp2OpenCode/Configurations/PrivateConfig.cs
