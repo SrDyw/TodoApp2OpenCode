@@ -12,8 +12,8 @@ using TodoApp2OpenCode.Data;
 namespace TodoApp2OpenCode.Data.Migrations.SqlServerDB
 {
     [DbContext(typeof(SqlServerDbContext))]
-    [Migration("20260328124706_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260328134527_inital")]
+    partial class inital
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

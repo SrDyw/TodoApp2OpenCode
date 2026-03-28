@@ -362,8 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# Database-specific migrations
-Data/Migrations/SqlServerDB/
-Data/Migrations/OracleDB/
 
-Configurations/DatabaseProvider.cs
+TodoApp2OpenCode/Configurations/DatabaseProvider.cs

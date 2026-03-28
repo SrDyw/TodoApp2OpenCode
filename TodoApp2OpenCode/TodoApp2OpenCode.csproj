@@ -19,4 +19,9 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.1" />
     <PackageReference Include="Oracle.EntityFrameworkCore" Version="9.23.60" />
   </ItemGroup>
+
+
+  <ItemGroup>
+    <Folder Include="Data\Migrations\SqlServerDB\" />
+  </ItemGroup>
 </Project>
