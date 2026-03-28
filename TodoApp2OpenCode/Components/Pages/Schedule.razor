@@ -231,17 +231,21 @@
     .calendar-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        grid-auto-rows: minmax(100px, auto);
+        grid-auto-rows: 100px;
     }
 
     .calendar-day {
         border-right: 1px solid var(--mud-palette-lines-default);
         border-bottom: 1px solid var(--mud-palette-lines-default);
         padding: 8px;
-        min-height: 100px;
+        height: 100px;
+        max-height: 100px;
+        overflow: hidden;
         cursor: pointer;
         transition: background-color 0.15s;
         position: relative;
+        display: flex;
+        flex-direction: column;
     }
 
     .calendar-day:hover {
@@ -285,6 +289,8 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+        overflow: hidden;
+        flex: 1;
     }
 
     .day-events {
