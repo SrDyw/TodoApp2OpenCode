@@ -7,4 +7,10 @@
         Actualizar,
         Remover,
     }
+
+    public enum DatabaseProviderName
+    {
+        SqlServer,
+        Oracle
+    }
 }
