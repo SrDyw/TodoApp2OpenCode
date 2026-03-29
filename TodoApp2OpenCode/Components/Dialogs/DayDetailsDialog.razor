@@ -6,7 +6,14 @@
                        Color="Color.Primary"
                        Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="() => OnAddEvent.InvokeAsync(SelectedDate)">
+                       OnClick="HandleAddTask">
+                Añadir tarea
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Success"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Event"
+                       OnClick="HandleAddEvent">
                 Añadir evento
             </MudButton>
         </div>
@@ -159,16 +166,6 @@
             <MudText Color="Color.Default" Class="pa-4 text-center">
                 No hay eventos ni tareas para este día
             </MudText>
-            <MudText Color="Color.Default" Class="text-center mb-4">
-                ¿Deseas añadir un evento?
-            </MudText>
-            <MudButton Variant="Variant.Filled" 
-                       Color="Color.Primary"
-                       FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="() => OnAddEvent.InvokeAsync(SelectedDate)">
-                Añadir evento
-            </MudButton>
         }
     </DialogContent>
     <DialogActions>
@@ -182,8 +179,13 @@
     .day-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        margin-bottom: 8px;
+        gap: 12px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
     .event-item {
@@ -338,12 +340,30 @@
     public EventCallback<DateTime> OnAddEvent { get; set; }
 
     [Parameter]
+    public EventCallback<DateTime> OnAddTask { get; set; }
+
+    [Parameter]
     public EventCallback<CalendarEvent> OnDeleteEvent { get; set; }
+
+    [Parameter]
+    public EventCallback OnDataChanged { get; set; }
 
     private async Task HandleDeleteEvent(CalendarEvent evt)
     {
         await OnDeleteEvent.InvokeAsync(evt);
-        MudDialog?.Close(DialogResult.Ok(true));
+        MudDialog?.Close(DialogResult.Ok("refresh"));
+    }
+
+    private async Task HandleAddTask()
+    {
+        await OnAddTask.InvokeAsync(SelectedDate);
+        MudDialog?.Close(DialogResult.Ok("refresh"));
+    }
+
+    private async Task HandleAddEvent()
+    {
+        await OnAddEvent.InvokeAsync(SelectedDate);
+        MudDialog?.Close(DialogResult.Ok("refresh"));
     }
 
     private void Cancel() => MudDialog?.Cancel();

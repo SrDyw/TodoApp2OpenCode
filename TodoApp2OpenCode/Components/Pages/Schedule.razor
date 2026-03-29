@@ -658,36 +658,39 @@
 
     private async Task OpenDayDetails(CalendarDay day)
     {
-        var dayItems = GetItemsForDay(day.Date);
-        var dayEvents = GetEventsForDay(day.Date);
-        if (!dayItems.Any() && !dayEvents.Any())
+        while (true)
         {
-            await OpenAddEventDialog(day.Date);
-            return;
+            var dayItems = GetItemsForDay(day.Date);
+            var dayEvents = GetEventsForDay(day.Date);
+
+            var parameters = new DialogParameters<DayDetailsDialog>();
+            parameters.Add(x => x.SelectedDate, day.Date);
+            parameters.Add(x => x.Events, dayEvents);
+            parameters.Add(x => x.Items, dayItems);
+            parameters.Add(x => x.OnAddEvent, EventCallback.Factory.Create<DateTime>(this, OpenAddEventDialogWithDate));
+            parameters.Add(x => x.OnAddTask, EventCallback.Factory.Create<DateTime>(this, OpenNewTaskDialogForDate));
+            parameters.Add(x => x.OnDeleteEvent, EventCallback.Factory.Create<CalendarEvent>(this, ConfirmDeleteEvent));
+            
+            var options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true
+            };
+
+            var dialog = await DialogService.ShowAsync<DayDetailsDialog>(
+                day.Date.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("es-ES")), 
+                parameters, 
+                options);
+            
+            var result = await dialog.Result;
+
+            if (result is { Canceled: true, Data: "refresh" })
+            {
+                continue;
+            }
+            break;
         }
-
-        var parameters = new DialogParameters<DayDetailsDialog>();
-        parameters.Add(x => x.SelectedDate, day.Date);
-        parameters.Add(x => x.Events, dayEvents);
-        parameters.Add(x => x.Items, dayItems);
-        parameters.Add(x => x.OnAddEvent, EventCallback.Factory.Create<DateTime>(this, OpenAddEventDialogWithDate));
-        parameters.Add(x => x.OnDeleteEvent, EventCallback.Factory.Create<CalendarEvent>(this, ConfirmDeleteEvent));
-        
-        var options = new DialogOptions
-        {
-            CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true
-        };
-
-        await DialogService.ShowAsync<DayDetailsDialog>(
-            day.Date.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("es-ES")), 
-            parameters, 
-            options);
-        
-        await LoadData();
-        GenerateCalendarDays();
-        UpdateMonthEvents();
     }
 
     private async Task OpenAddEventDialog(DateTime? preselectedDate = null)
@@ -748,6 +751,39 @@
     private async Task OpenAddEventDialogWithDate(DateTime date)
     {
         await OpenAddEventDialog(date);
+    }
+
+    private async Task OpenNewTaskDialogForDate(DateTime date)
+    {
+        if (currentBoard == null || !currentBoard.Columns.Any())
+        {
+            SnackbarService.Add("Primero crea una columna", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters<NewTaskDialog>();
+        parameters.Add(x => x.PreselectedDueDate, date);
+        parameters.Add(x => x.Columns, currentBoard.Columns);
+        parameters.Add(x => x.Participants, currentBoard.Participants);
+        
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium
+        };
+
+        var dialog = await DialogService.ShowAsync<NewTaskDialog>("Nueva tarea", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false, Data: TodoItem newItem })
+        {
+            var success = await TodoService.AddItemAsync(BoardId, newItem);
+            if (success)
+            {
+                await LoadData();
+                SnackbarService.Add("Tarea creada", Severity.Success);
+            }
+        }
     }
 
     private async Task OpenItemDetails(TodoItem item)

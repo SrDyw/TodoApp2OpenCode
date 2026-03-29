@@ -53,6 +53,12 @@
                 </MudSelectItem>
             </MudSelect>
 
+            <MudDateRangePicker @bind-DateRange="dateRange"
+                                Label="Fecha de inicio y fin"
+                                Variant="Variant.Outlined"
+                                IconSize="Size.Small"
+                                Clearable="true" />
+
             @if (Participants.Any())
             {
                 <MudButton Variant="Variant.Outlined" 
@@ -116,10 +122,14 @@
     [Parameter]
     public Dictionary<string, string> Participants { get; set; } = new();
 
+    [Parameter]
+    public DateTime? PreselectedDueDate { get; set; }
+
     private string Title { get; set; } = string.Empty;
     private string? SelectedColumnId { get; set; }
     private string Description { get; set; } = string.Empty;
     private TodoPriority Priority { get; set; } = TodoPriority.Normal;
+    private DateRange? dateRange;
     private HashSet<string> SelectedUserIds = new();
 
     private bool IsSubmitDisabled => string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(SelectedColumnId);
@@ -129,6 +139,11 @@
         if (Columns.Any())
         {
             SelectedColumnId = Columns.First().Id;
+        }
+        
+        if (PreselectedDueDate.HasValue)
+        {
+            dateRange = new DateRange(PreselectedDueDate.Value, PreselectedDueDate.Value);
         }
     }
 
@@ -178,7 +193,9 @@
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             ColumnId = SelectedColumnId,
             Priority = Priority,
-            AssignedUsers = assignedUsers
+            AssignedUsers = assignedUsers,
+            StartDate = dateRange?.Start,
+            EndDate = dateRange?.End
         };
 
         MudDialog?.Close(DialogResult.Ok(item));
