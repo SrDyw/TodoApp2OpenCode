@@ -18,7 +18,7 @@
         </MudButton>
         
         <MudText Typo="Typo.h4" Class="schedule-title">
-            Programación
+            Programación del tablero <MudText Class="cursor-pointer" Color="Color.Primary" @onclick="@((e) => Navigation.NavigateTo($"/board/{BoardId}"))">@currentBoard?.Name</MudText>
         </MudText>
         
 
