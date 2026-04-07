@@ -46,6 +46,12 @@
                         <span>Calendario</span>
                     </MudStack>
                 </MudMenuItem>
+                <MudMenuItem OnClick="NavigateToMySchedule">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.EventNote" Size="Size.Small" />
+                        <span>Mi Calendario</span>
+                    </MudStack>
+                </MudMenuItem>
                 <MudDivider />
                 <MudMenuItem OnClick="Logout">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -316,6 +322,11 @@
         {
             Navigation.NavigateTo("/board", forceLoad: true);
         }
+    }
+
+    private void NavigateToMySchedule()
+    {
+        Navigation.NavigateTo("/my-schedule", forceLoad: true);
     }
 
     private async Task OnNotificationClick(Notification notification)

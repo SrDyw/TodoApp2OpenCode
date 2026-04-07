@@ -284,4 +284,44 @@ public class LocalStorageBoardService : IBoardService
             return Task.FromResult(false);
         }
     }
+
+    public Task<List<CalendarEvent>> GetUserEventsAsync(string userId)
+    {
+        try
+        {
+            var allEvents = _cachedBoards
+                .SelectMany(b => b.Events ?? new List<CalendarEvent>())
+                .OrderBy(e => e.EventDate)
+                .ToList();
+
+            var userEvents = allEvents
+                .Where(e => e.Participants?.ContainsKey(userId) ?? false)
+                .ToList();
+            return Task.FromResult(userEvents);
+        }
+        catch
+        {
+            return Task.FromResult(new List<CalendarEvent>());
+        }
+    }
+
+    public Task<List<TodoItem>> GetUserItemsAsync(string userId)
+    {
+        try
+        {
+            var allItems = _cachedBoards
+                .SelectMany(b => b.Items ?? new List<TodoItem>())
+                .OrderBy(i => i.DueDate)
+                .ToList();
+
+            var userItems = allItems
+                .Where(i => i.AssignedUsers?.ContainsKey(userId) ?? false)
+                .ToList();
+            return Task.FromResult(userItems);
+        }
+        catch
+        {
+            return Task.FromResult(new List<TodoItem>());
+        }
+    }
 }

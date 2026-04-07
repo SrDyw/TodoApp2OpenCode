@@ -16,4 +16,6 @@ public interface IBoardService
     Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null);
     Task<bool> UpdateEventAsync(string eventId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null);
     Task<bool> DeleteEventAsync(string eventId);
+    Task<List<CalendarEvent>> GetUserEventsAsync(string userId);
+    Task<List<TodoItem>> GetUserItemsAsync(string userId);
 }

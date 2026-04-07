@@ -522,4 +522,68 @@ public class BoardService : IBoardService
             return false;
         }
     }
+
+    public async Task<List<CalendarEvent>> GetUserEventsAsync(string userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var allEvents = await context.CalendarEvents
+                .OrderBy(e => e.EventDate)
+                .ToListAsync();
+
+            var userEvents = new List<CalendarEvent>();
+            foreach (var evt in allEvents)
+            {
+                if (!string.IsNullOrEmpty(evt.ParticipantsJson))
+                {
+                    evt.Participants = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(evt.ParticipantsJson) ?? new();
+                }
+                
+                if (evt.Participants.ContainsKey(userId))
+                {
+                    userEvents.Add(evt);
+                }
+            }
+
+            return userEvents;
+        }
+        catch
+        {
+            return new List<CalendarEvent>();
+        }
+    }
+
+    public async Task<List<TodoItem>> GetUserItemsAsync(string userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var allItems = await context.Items
+                .OrderBy(i => i.DueDate)
+                .ToListAsync();
+
+            var userItems = new List<TodoItem>();
+            foreach (var item in allItems)
+            {
+                if (!string.IsNullOrEmpty(item.AssignedUsersJson))
+                {
+                    item.AssignedUsers = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(item.AssignedUsersJson) ?? new();
+                }
+                
+                if (item.AssignedUsers.ContainsKey(userId))
+                {
+                    userItems.Add(item);
+                }
+            }
+
+            return userItems;
+        }
+        catch
+        {
+            return new List<TodoItem>();
+        }
+    }
 }
