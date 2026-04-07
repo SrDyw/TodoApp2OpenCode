@@ -16,7 +16,31 @@
         <MudDatePicker @bind-Date="EventDate" 
                        Label="Fecha del evento" 
                        Variant="Variant.Outlined" 
-                       Required="true" />
+                       Required="true" 
+                       Class="mb-3" />
+        
+        <MudButton Variant="Variant.Outlined" 
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.People"
+                   OnClick="OpenUserSelection"
+                   Class="mb-3">
+            @(SelectedParticipants.Any() ? $"{SelectedParticipants.Count} participante(s)" : "Seleccionar participantes")
+        </MudButton>
+
+        @if (SelectedParticipants.Any())
+        {
+            <div class="selected-participants">
+                @foreach (var participant in SelectedParticipants)
+                {
+                    <MudChip T="string" 
+                             Color="Color.Primary" 
+                             Variant="Variant.Outlined"
+                             OnClose="@(() => RemoveParticipant(participant.Key))">
+                        @participant.Value
+                    </MudChip>
+                }
+            </div>
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">
@@ -28,6 +52,14 @@
     </DialogActions>
 </MudDialog>
 
+<style>
+    .selected-participants {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+</style>
+
 @code {
     [CascadingParameter]
     private IMudDialogInstance? MudDialog { get; set; }
@@ -35,13 +67,46 @@
     [Parameter]
     public DateTime? PreSelectedDate { get; set; }
 
+    [Parameter]
+    public Dictionary<string, string> AvailableParticipants { get; set; } = new();
+
+    [Inject]
+    private IDialogService DialogService { get; set; } = null!;
+
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime? EventDate { get; set; }
+    public Dictionary<string, string> SelectedParticipants { get; set; } = new();
 
     protected override void OnInitialized()
     {
         EventDate = PreSelectedDate ?? DateTime.Today;
+    }
+
+    private async Task OpenUserSelection()
+    {
+        var parameters = new DialogParameters<UserSelectionDialog>();
+        parameters.Add(x => x.Source, AvailableParticipants);
+        parameters.Add(x => x.PreSelectedUserIds, new HashSet<string>(SelectedParticipants.Keys));
+        
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+
+        var dialog = await DialogService.ShowAsync<UserSelectionDialog>("Seleccionar participantes", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false, Data: List<(string Id, string Username)> selectedUsers })
+        {
+            SelectedParticipants = selectedUsers.ToDictionary(u => u.Id, u => u.Username);
+        }
+    }
+
+    private void RemoveParticipant(string userId)
+    {
+        SelectedParticipants.Remove(userId);
     }
 
     private void Submit()
@@ -55,7 +120,8 @@
         {
             Title = Title,
             Description = Description,
-            EventDate = EventDate.Value
+            EventDate = EventDate.Value,
+            Participants = new Dictionary<string, string>(SelectedParticipants)
         };
 
         MudDialog?.Close(DialogResult.Ok(result));
@@ -68,5 +134,6 @@
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public DateTime EventDate { get; set; }
+        public Dictionary<string, string> Participants { get; set; } = new();
     }
 }

@@ -13,6 +13,6 @@ public interface IBoardService
     Task<bool> DeleteBoardAsync(string boardId);
     Task<TodoBoard?> GetOrCreateDefaultBoardAsync(string userId);
     void ClearCache();
-    Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate);
+    Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null);
     Task<bool> DeleteEventAsync(string eventId);
 }

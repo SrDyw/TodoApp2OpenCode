@@ -13,6 +13,7 @@ public interface IFlowBoardDbContext : IAsyncDisposable
     DbSet<TodoStep> Steps { get; set; }
     DbSet<User> Users { get; set; }
     DbSet<CalendarEvent> CalendarEvents { get; set; }
+    DbSet<Notification> Notifications { get; set; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

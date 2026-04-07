@@ -17,6 +17,7 @@ public class SqlServerDbContext : DbContext, IFlowBoardDbContext
     public DbSet<TodoStep> Steps { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<CalendarEvent> CalendarEvents { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

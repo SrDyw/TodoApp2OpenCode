@@ -10,13 +10,15 @@ public class BoardService : IBoardService
     private readonly IBoardNotifier _notifier;
     private readonly IAuthService _authService;
     private readonly ILogService _logService;
+    private readonly INotificationService _notificationService;
 
-    public BoardService(IFlowBoardDbContextFactory contextFactory, IBoardNotifier notifier, IAuthService authService, ILogService logService)
+    public BoardService(IFlowBoardDbContextFactory contextFactory, IBoardNotifier notifier, IAuthService authService, ILogService logService, INotificationService notificationService)
     {
         _contextFactory = contextFactory;
         _notifier = notifier;
         _authService = authService;
         _logService = logService;
+        _notificationService = notificationService;
     }
 
     public async Task<List<TodoBoard>> GetUserBoardsAsync(string userId)
@@ -132,6 +134,13 @@ public class BoardService : IBoardService
                 board.Participants[userId] = userName;
                 await context.SaveChangesAsync();
                 
+                await _notificationService.CreateAsync(
+                    userId,
+                    "Nuevo board",
+                    $"Has sido añadido al board '{board.Name}'",
+                    $"/board/{boardId}"
+                );
+
                 await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
             }
             return true;
@@ -342,7 +351,7 @@ public class BoardService : IBoardService
     {
     }
 
-    public async Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate)
+    public async Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
     {
         try
         {
@@ -358,6 +367,7 @@ public class BoardService : IBoardService
                 Description = description,
                 EventDate = eventDate,
                 TodoBoardId = boardId,
+                Participants = participants ?? new Dictionary<string, string>(),
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
             };
@@ -372,6 +382,19 @@ public class BoardService : IBoardService
                 BoardId = boardId,
                 User = _authService.CurrentUser?.Username ?? "Sistema"
             });
+
+            if (participants != null)
+            {
+                foreach (var participant in participants)
+                {
+                    await _notificationService.CreateAsync(
+                        participant.Key,
+                        "Nuevo evento",
+                        $"Has sido añadido al evento '{title}' el {eventDate:dd/MM/yyyy}",
+                        $"/board/{boardId}/schedule"
+                    );
+                }
+            }
             
             return newEvent;
         }

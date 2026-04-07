@@ -36,6 +36,16 @@
                                     @evt.Description
                                 </MudText>
                             }
+                            
+                            @if (evt.Participants != null && evt.Participants.Any())
+                            {
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                    <MudText Typo="Typo.caption">
+                                        @string.Join(", ", evt.Participants.Values)
+                                    </MudText>
+                                </MudStack>
+                            }
                         </div>
                     </div>
                     <div class="event-actions">

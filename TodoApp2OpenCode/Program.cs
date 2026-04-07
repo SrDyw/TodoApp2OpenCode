@@ -33,6 +33,7 @@ builder.Services.AddScoped<TodoService>();
 builder.Services.AddSingleton<BottomNavService>();
 builder.Services.AddScoped<TestConnectionService>();
 builder.Services.AddScoped<InfogestiUsersService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // Auth Service - choose implementation:
 // Production (database): IAuthService → AuthService

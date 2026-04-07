@@ -112,8 +112,7 @@
         }
         else
         {
-            await LoadAllUsersAsync();
-            _originalUsers = new Dictionary<string, string>(_availableUsers);
+            _availableUsers = new Dictionary<string, string>(_originalUsers);
         }
 
         if (PreSelectedUserIds != null && PreSelectedUserIds.Any())
@@ -122,40 +121,39 @@
         }
     }
 
-    private async Task LoadAllUsersAsync()
-    {
-        _isSearching = true;
-        try
-        {
-            var users = await AuthService.SearchUsersAsync("");
-            _availableUsers = users.ToDictionary(u => u.Id, u => u.Username);
-        }
-        catch
-        {
-            _availableUsers = new Dictionary<string, string>();
-        }
-        _isSearching = false;
-    }
-
     private async Task PerformSearch()
     {
         if (string.IsNullOrWhiteSpace(_searchText))
         {
             _availableUsers = new Dictionary<string, string>(_originalUsers);
+            StateHasChanged();
             return;
         }
 
         _isSearching = true;
         try
         {
+            var searchResults = new Dictionary<string, string>(_originalUsers);
+            
             var users = await AuthService.SearchUsersAsync(_searchText);
-            _availableUsers = users.ToDictionary(u => u.Id, u => u.Username);
+            var searchDict = users.ToDictionary(u => u.Id, u => u.Username);
+            
+            foreach (var user in searchDict)
+            {
+                if (!searchResults.ContainsKey(user.Key))
+                {
+                    searchResults[user.Key] = user.Value;
+                }
+            }
+            
+            _availableUsers = searchResults;
         }
         catch
         {
-            _availableUsers = new Dictionary<string, string>();
+            _availableUsers = new Dictionary<string, string>(_originalUsers);
         }
         _isSearching = false;
+        StateHasChanged();
     }
 
     private void ToggleUser(string userId)

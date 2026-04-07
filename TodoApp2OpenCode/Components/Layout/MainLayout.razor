@@ -2,6 +2,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar SnackbarService
 @inject IAuthService AuthService
+@inject INotificationService NotificationService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -26,6 +27,61 @@
         
         @if (IsAuthenticated)
         {
+            <MudBadge Content="@UnreadNotificationCount" 
+                      Color="Color.Error" 
+                      Visible="@(UnreadNotificationCount > 0)"
+                      Class="mr-3">
+                <MudMenu Icon="@Icons.Material.Filled.Notifications" 
+                         Color="Color.Inherit"
+                         AnchorOrigin="Origin.BottomRight"
+                         TransformOrigin="Origin.TopRight">
+                    <MudMenuItem Disabled="true">
+                        <MudText Typo="Typo.subtitle2">Notificaciones</MudText>
+                    </MudMenuItem>
+                    <MudDivider />
+                    @if (Notifications.Any())
+                    {
+                        @foreach (var notification in Notifications.Take(10))
+                        {
+                            <MudMenuItem OnClick="@(() => OnNotificationClick(notification))">
+                                <MudStack Spacing="1">
+                                    <MudText Typo="Typo.body2" Style="@(notification.IsRead ? "" : "font-weight: bold;")">
+                                        @notification.Title
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @notification.Message
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                        @notification.CreatedAt.ToString("dd/MM HH:mm")
+                                    </MudText>
+                                </MudStack>
+                            </MudMenuItem>
+                        }
+                        @if (Notifications.Count > 10)
+                        {
+                            <MudMenuItem Disabled="true">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    +@(Notifications.Count - 10) más...
+                                </MudText>
+                            </MudMenuItem>
+                        }
+                    }
+                    else
+                    {
+                        <MudMenuItem Disabled="true">
+                            <MudText Color="Color.Secondary">Sin notificaciones</MudText>
+                        </MudMenuItem>
+                    }
+                    @if (Notifications.Any())
+                    {
+                        <MudDivider />
+                        <MudMenuItem OnClick="MarkAllAsRead">
+                            <MudText Color="Color.Primary">Marcar todas como leídas</MudText>
+                        </MudMenuItem>
+                    }
+                </MudMenu>
+            </MudBadge>
+            
             <MudMenu Label="@CurrentUsername" 
                      Color="Color.Primary" 
                      Variant="Variant.Text"
@@ -88,6 +144,8 @@
     private bool IsAuthenticated => AuthService.IsAuthenticated;
     private string CurrentUsername => AuthService.CurrentUser?.Username ?? "Usuario";
     private MudTheme? _theme = null;
+    private List<Notification> Notifications = new();
+    private int UnreadNotificationCount = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,6 +161,17 @@
         await LoadThemePreference();
         AuthService.SetAuthStateChangedCallback(OnAuthStateChanged);
         await AuthService.CheckAuthStateAsync();
+        
+        await LoadNotifications();
+    }
+
+    private async Task LoadNotifications()
+    {
+        if (AuthService.CurrentUser != null)
+        {
+            Notifications = await NotificationService.GetAllAsync(AuthService.CurrentUser.Id);
+            UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser.Id);
+        }
     }
 
     private async Task LoadThemePreference()
@@ -133,7 +202,19 @@
 
     private void OnAuthStateChanged(Models.User? user)
     {
-        InvokeAsync(StateHasChanged);
+        InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            if (user != null)
+            {
+                await LoadNotifications();
+            }
+            else
+            {
+                Notifications.Clear();
+                UnreadNotificationCount = 0;
+            }
+        });
     }
 
     private void DrawerToggle()
@@ -200,6 +281,36 @@
         else
         {
             Navigation.NavigateTo("/board", forceLoad: true);
+        }
+    }
+
+    private async Task OnNotificationClick(Notification notification)
+    {
+        if (!notification.IsRead)
+        {
+            await NotificationService.MarkAsReadAsync(notification.Id);
+            notification.IsRead = true;
+            UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+            StateHasChanged();
+        }
+
+        if (!string.IsNullOrEmpty(notification.NavigateTo))
+        {
+            Navigation.NavigateTo(notification.NavigateTo, forceLoad: true);
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        if (AuthService.CurrentUser != null)
+        {
+            await NotificationService.MarkAllAsReadAsync(AuthService.CurrentUser.Id);
+            foreach (var n in Notifications)
+            {
+                n.IsRead = true;
+            }
+            UnreadNotificationCount = 0;
+            StateHasChanged();
         }
     }
 
