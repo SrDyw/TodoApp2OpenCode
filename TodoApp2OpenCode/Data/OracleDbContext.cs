@@ -27,6 +27,7 @@ public class OracleDbContext : DbContext, IFlowBoardDbContext
     public DbSet<TodoStep> Steps { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<CalendarEvent> CalendarEvents { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,6 +70,12 @@ public class OracleDbContext : DbContext, IFlowBoardDbContext
                 .WithOne()
                 .HasForeignKey(s => s.ItemId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.Property(e => e.IsRead).HasConversion(BoolToIntConverter);
         });
 
         modelBuilder.Entity<TodoStep>(entity =>

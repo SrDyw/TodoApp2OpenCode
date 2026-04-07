@@ -38,6 +38,10 @@ namespace TodoApp2OpenCode.Migrations.OracleDB
                     b.Property<DateTime>("EventDate")
                         .HasColumnType("TIMESTAMP(7)");
 
+                    b.Property<string>("ParticipantsJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("NVARCHAR2(2000)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -90,6 +94,37 @@ namespace TodoApp2OpenCode.Migrations.OracleDB
                     b.HasKey("Id");
 
                     b.ToTable("LogItems");
+                });
+
+            modelBuilder.Entity("TodoApp2OpenCode.Models.Notification", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("NVARCHAR2(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TIMESTAMP(7)");
+
+                    b.Property<int>("IsRead")
+                        .HasColumnType("NUMBER(10)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR2(2000)");
+
+                    b.Property<string>("NavigateTo")
+                        .HasColumnType("NVARCHAR2(2000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR2(2000)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR2(2000)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("TodoApp2OpenCode.Models.TestEntity", b =>

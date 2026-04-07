@@ -8,516 +8,81 @@
 
 <PageTitle>FlowBoard - Programación</PageTitle>
 
-<div class="schedule-page">
-    <div class="schedule-header">
-        <MudButton Variant="Variant.Text" 
-                   Color="Color.Default" 
-                   StartIcon="@Icons.Material.Filled.ArrowBack"
-                   OnClick="@( () => Navigation.NavigateTo($"/board/{BoardId}"))">
-            Volver al tablero
-        </MudButton>
-        
-        <MudText Typo="Typo.h4" Class="schedule-title">
-            Programación
-        </MudText>
-        
-
-    </div>
-
-    <div class="calendar-nav">
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" 
-                       OnClick="PreviousPeriod"
-                       Color="Color.Default" />
-        
-        <MudButton Variant="Variant.Text" 
-                   OnClick="GoToToday"
-                   Class="today-button">
-            Hoy
-        </MudButton>
-        
-        <MudButton Variant="Variant.Text" 
-                   OnClick="OpenDatePickerDialog"
-                   Class="calendar-period">
-            @GetPeriodTitle()
-        </MudButton>
-        
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" 
-                       OnClick="NextPeriod"
-                       Color="Color.Default" />
-    </div>
-
-    <div class="calendar-container">
-        <div class="calendar-weekdays">
-            @foreach (var day in weekdays)
-            {
-                <div class="weekday-header">@day</div>
-            }
-        </div>
-        
-        <div class="calendar-grid">
-            @foreach (var day in calendarDays)
-            {
-                var isToday = day.Date == DateTime.Today;
-                var isCurrentMonth = day.Date.Month == currentDate.Month;
-                var dayItems = GetItemsForDay(day.Date);
-                var dayEvents = GetEventsForDay(day.Date);
-                var hasContent = dayItems.Any() || dayEvents.Any();
-                
-                <div class="calendar-day @(isToday ? "today" : "") @(isCurrentMonth ? "" : "other-month")"
-                     @onclick="() => OpenDayDetails(day)">
-                    <div class="day-number @(isToday ? "today" : "")">@day.Day</div>
-                    
-                    @if (dayEvents.Any())
-                    {
-                        <div class="day-events">
-                            @foreach (var evt in dayEvents.Take(2))
-                            {
-                                <div class="day-event">
-                                    <MudIcon Icon="@Icons.Material.Filled.Event" 
-                                             Size="Size.Small" 
-                                             Class="event-indicator" />
-                                    <span class="event-title">@evt.Title</span>
-                                </div>
-                            }
-                            @if (dayEvents.Count > 2)
-                            {
-                                <div class="more-items">+@(dayEvents.Count - 2) más</div>
-                            }
-                        </div>
-                    }
-                    
-                    @if (dayItems.Any())
-                    {
-                        <div class="day-items">
-                            @foreach (var item in dayItems.Take(2))
-                            {
-                                <div class="day-item @(item.IsCompleted ? "completed" : "") @(item.Priority == TodoPriority.High ? "high-priority" : "")">
-                                    <MudIcon Icon="@Icons.Material.Filled.Circle" 
-                                             Size="Size.Small" 
-                                             Class="item-indicator" />
-                                    <span class="item-title">@item.Title</span>
-                                </div>
-                            }
-                            @if (dayItems.Count > 2)
-                            {
-                                <div class="more-items">+@(dayItems.Count - 2) más</div>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    </div>
-
-    <div class="schedule-sidebar">
-        <div class="sidebar-header">
-            <MudText Typo="Typo.h6">Eventos de @GetMonthName()</MudText>
-            <MudIconButton Icon="@Icons.Material.Filled.Add" 
-                           Size="Size.Small" 
-                           Color="Color.Primary"
-                           OnClick="() => _ = OpenAddEventDialog()" />
-        </div>
-        
-        @if (monthEvents.Any())
-        {
-            <div class="event-list">
-                @foreach (var evt in monthEvents)
-                {
-                    <div class="event-item @(IsEventToday(evt) ? "today" : "")"
-                         @onclick="() => NavigateToDay(evt.EventDate)">
-                        <div class="event-date-badge">
-                            <span class="event-day">@evt.EventDate.Day</span>
-                            <span class="event-weekday">@GetWeekdayShort(evt.EventDate)</span>
-                        </div>
-                        <div class="event-info">
-                            <MudText Typo="Typo.body2" Class="event-title" GutterBottom="true">
-                                @evt.Title
-                            </MudText>
-                            @if (!string.IsNullOrEmpty(evt.Description))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="event-desc" Lines="2">
-                                    @evt.Description
-                                </MudText>
-                            }
-                        </div>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                       Size="Size.Small"
-                                       Color="Color.Error"
-                                       Class="delete-event-btn"
-                                       OnClick="() => ConfirmDeleteEvent(evt)" />
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <MudText Color="Color.Default" Class="no-items">No hay eventos este mes</MudText>
-        }
-    </div>
-</div>
-
-<style>
-    .schedule-page {
-        min-height: 100vh;
-        padding: 24px;
-        padding-right: 340px;
-        background: var(--mud-palette-background);
-    }
-
-    .schedule-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 16px;
-    }
-
-    .schedule-title {
-        font-weight: 600;
-    }
-
-    .calendar-nav {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-
-    .calendar-period {
-        font-weight: 500;
-        min-width: 200px;
-        text-align: center;
-        text-transform: capitalize;
-    }
-
-    .today-button {
-        text-transform: none;
-        font-weight: 500;
-    }
-
-    .calendar-period {
-        font-weight: 500;
-        min-width: 200px;
-        text-align: center;
-        text-transform: capitalize;
-        text-transform: capitalize;
-    }
-
-    .calendar-container {
-        background: var(--mud-palette-surface);
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid var(--mud-palette-lines-default);
-        margin-bottom: 24px;
-    }
-
-    .calendar-weekdays {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        background: var(--mud-palette-background);
-        border-bottom: 1px solid var(--mud-palette-lines-default);
-    }
-
-    .weekday-header {
-        padding: 12px;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: var(--mud-palette-text-secondary);
-    }
-
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        grid-auto-rows: 100px;
-    }
-
-    .calendar-day {
-        border-right: 1px solid var(--mud-palette-lines-default);
-        border-bottom: 1px solid var(--mud-palette-lines-default);
-        padding: 8px;
-        height: 100px;
-        max-height: 100px;
-        overflow: hidden;
-        cursor: pointer;
-        transition: background-color 0.15s;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .calendar-day:hover {
-        background: var(--mud-palette-action-hover);
-    }
-
-    .calendar-day:nth-child(7n) {
-        border-right: none;
-    }
-
-    .calendar-day.other-month {
-        background: var(--mud-palette-background);
-    }
-
-    .calendar-day.other-month .day-number {
-        color: var(--mud-palette-text-disabled);
-    }
-
-    .calendar-day.today {
-        background: rgba(126, 111, 255, 0.08);
-    }
-
-    .day-number {
-        font-weight: 500;
-        font-size: 0.9rem;
-        margin-bottom: 4px;
-    }
-
-    .day-number.today {
-        background: var(--mud-palette-primary);
-        color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .day-events, .day-items {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        overflow: hidden;
-        flex: 1;
-    }
-
-    .day-events {
-        margin-bottom: 4px;
-    }
-
-    .day-event {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 4px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        background: rgba(76, 175, 80, 0.2);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .day-event:hover {
-        background: rgba(76, 175, 80, 0.3);
-    }
-
-    .day-event .event-indicator {
-        font-size: 8px;
-        color: var(--mud-palette-success);
-    }
-
-    .day-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 4px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        background: rgba(126, 111, 255, 0.15);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .day-item:hover {
-        background: rgba(126, 111, 255, 0.25);
-    }
-
-    .day-item.completed {
-        opacity: 0.6;
-        text-decoration: line-through;
-    }
-
-    .day-item.high-priority {
-        background: rgba(244, 67, 54, 0.15);
-    }
-
-    .day-item.high-priority:hover {
-        background: rgba(244, 67, 54, 0.25);
-    }
-
-    .day-item .item-indicator {
-        font-size: 8px;
-        color: var(--mud-palette-primary);
-    }
-
-    .day-item.high-priority .item-indicator {
-        color: var(--mud-palette-error);
-    }
-
-    .more-items {
-        font-size: 0.7rem;
-        color: var(--mud-palette-text-secondary);
-        padding: 2px 4px;
-    }
-
-    .schedule-sidebar {
-        position: fixed;
-        right: 24px;
-        top: 140px;
-        width: 280px;
-        background: var(--mud-palette-surface);
-        border-radius: 12px;
-        border: 1px solid var(--mud-palette-lines-default);
-        padding: 16px;
-        max-height: calc(100vh - 200px);
-        overflow-y: auto;
-    }
-
-    .sidebar-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 16px;
-    }
-
-    .event-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .event-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 10px;
-        border-radius: 8px;
-        background: var(--mud-palette-background);
-        cursor: pointer;
-        transition: background-color 0.15s;
-    }
-
-    .event-item:hover {
-        background: var(--mud-palette-action-hover);
-    }
-
-    .event-item.today {
-        background: rgba(76, 175, 80, 0.1);
-        border-left: 3px solid var(--mud-palette-success);
-    }
-
-    .event-date-badge {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        height: 40px;
-        background: rgba(76, 175, 80, 0.15);
-        border-radius: 8px;
-    }
-
-    .event-item.today .event-date-badge {
-        background: var(--mud-palette-success);
-        color: white;
-    }
-
-    .event-day {
-        font-size: 1rem;
-        font-weight: 700;
-        line-height: 1;
-    }
-
-    .event-weekday {
-        font-size: 0.6rem;
-        text-transform: uppercase;
-    }
-
-    .event-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .event-title {
-        font-weight: 500;
-    }
-
-    .event-desc {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    .delete-event-btn {
-        opacity: 0;
-        transition: opacity 0.15s;
-    }
-
-    .event-item:hover .delete-event-btn {
-        opacity: 1;
-    }
-
-    .no-items {
-        font-size: 0.85rem;
-        text-align: center;
-        padding: 24px;
-    }
-
-    @@media (max-width: 1200px) {
-        .schedule-page {
-            padding-right: 24px;
-        }
-        .schedule-sidebar {
-            position: relative;
-            right: auto;
-            top: auto;
-            width: 100%;
-            margin-top: 24px;
-        }
-    }
-</style>
+<CalendarView Title="Programación"
+              BackUrl="@($"/board/{BoardId}")"
+              ShowSidebar="true"
+              Items="allItems"
+              Events="allEvents"
+              InitialDate="initialDate"
+              OnBackClicked="GoBack"
+              OnDayClicked="OpenDayDetails"
+              OnAddEventClicked="OpenAddEventDialog"
+              OnDeleteEventClicked="ConfirmDeleteEvent"
+              OnDateChanged="OnCalendarDateChanged"
+              OnOpenDatePickerClicked="OpenDatePickerDialog"
+              @ref="calendarView" />
 
 @code {
     [Parameter]
     public string BoardId { get; set; } = string.Empty;
 
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? DateParam { get; set; }
+
+    private CalendarView? calendarView;
     private TodoBoard? currentBoard;
     private List<TodoItem> allItems = new();
     private List<CalendarEvent> allEvents = new();
-    private List<CalendarEvent> monthEvents = new();
+    private DateTime? initialDate;
     
-    private DateTime currentDate = DateTime.Today;
-    
-    private readonly string[] weekdays = { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
-    private readonly string[] weekDayNames = { "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado" };
-    
-    private List<CalendarDay> calendarDays = new();
-
-    private struct CalendarDay
-    {
-        public DateTime Date { get; set; }
-        public int Day { get; set; }
-    }
-
     protected override async Task OnInitializedAsync()
     {
+        initialDate = ParseDateFromString(DateParam);
+        await AuthService.CheckAuthStateAsync();
         await LoadData();
-        GenerateCalendarDays();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var validDate = ParseDateFromString(DateParam);
+        if (validDate.HasValue && calendarView != null)
+        {
+            initialDate = validDate;
+            calendarView.SetCurrentDate(validDate.Value);
+        }
+    }
+
+    private DateTime? ParseDateFromString(string? dateStr)
+    {
+        if (string.IsNullOrWhiteSpace(dateStr))
+            return DateTime.Today;
+
+        if (DateTime.TryParseExact(dateStr, "dd-MM-yyyy", 
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, 
+            out var parsedDate))
+        {
+            if (parsedDate.Year < 1900 || parsedDate.Year > 2100)
+                return DateTime.Today;
+                
+            return parsedDate;
+        }
+
+        return DateTime.Today;
     }
 
     private async Task LoadData()
     {
         try
         {
-            if (!AuthService.IsAuthenticated || AuthService.CurrentUser == null)
+            if (AuthService.CurrentUser == null)
             {
-                await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
-                return;
+                await Task.Delay(500);
+                if (AuthService.CurrentUser == null)
+                {
+                    await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
+                    return;
+                }
             }
 
             currentBoard = await BoardService.GetBoardAsync(BoardId);
@@ -538,106 +103,34 @@
 
             allItems = currentBoard.Items.Where(i => i.DueDate.HasValue || i.StartDate.HasValue || i.EndDate.HasValue).ToList();
             allEvents = currentBoard.Events.ToList();
-            monthEvents = allEvents.Where(e => e.EventDate.Year == currentDate.Year && e.EventDate.Month == currentDate.Month)
-                                   .OrderBy(e => e.EventDate)
-                                   .ToList();
         }
         catch (NavigationException)
         {
         }
     }
 
-    private void GenerateCalendarDays()
+    private void GoBack()
     {
-        calendarDays.Clear();
+        Navigation.NavigateTo($"/board/{BoardId}");
+    }
+
+    private async Task OnCalendarDateChanged(DateTime date)
+    {
+        var uri = new Uri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
         
-        var firstDayOfMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
-        var lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+        var newUri = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            Navigation.BaseUri.TrimEnd('/') + $"/board/{BoardId}/schedule",
+            "date",
+            date.ToString("dd-MM-yyyy"));
         
-        int startDayOfWeek = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
-        
-        var startDate = firstDayOfMonth.AddDays(-startDayOfWeek);
-        
-        for (int i = 0; i < 42; i++)
-        {
-            var date = startDate.AddDays(i);
-            calendarDays.Add(new CalendarDay { Date = date, Day = date.Day });
-        }
-    }
-
-    private string GetPeriodTitle()
-    {
-        return currentDate.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES"));
-    }
-
-    private string GetMonthName()
-    {
-        return currentDate.ToString("MMMM", new System.Globalization.CultureInfo("es-ES"));
-    }
-
-    private string GetWeekdayShort(DateTime date)
-    {
-        return weekDayNames[(int)date.DayOfWeek].Substring(0, 3);
-    }
-
-    private bool IsEventToday(CalendarEvent evt)
-    {
-        return evt.EventDate.Date == DateTime.Today;
-    }
-
-    private void NavigateToDay(DateTime date)
-    {
-        currentDate = date;
-        GenerateCalendarDays();
-    }
-
-    private List<TodoItem> GetItemsForDay(DateTime date)
-    {
-        return allItems.Where(i => 
-            i.DueDate?.Date == date.Date ||
-            (i.StartDate.HasValue && i.EndDate.HasValue && date.Date >= i.StartDate.Value.Date && date.Date <= i.EndDate.Value.Date) ||
-            (i.StartDate.HasValue && !i.EndDate.HasValue && date.Date >= i.StartDate.Value.Date) ||
-            (!i.StartDate.HasValue && i.EndDate.HasValue && date.Date <= i.EndDate.Value.Date)
-        ).ToList();
-    }
-
-    private List<CalendarEvent> GetEventsForDay(DateTime date)
-    {
-        return allEvents.Where(e => e.EventDate.Date == date.Date).ToList();
-    }
-
-    private void PreviousPeriod()
-    {
-        currentDate = currentDate.AddMonths(-1);
-        GenerateCalendarDays();
-        UpdateMonthEvents();
-    }
-
-    private void NextPeriod()
-    {
-        currentDate = currentDate.AddMonths(1);
-        GenerateCalendarDays();
-        UpdateMonthEvents();
-    }
-
-    private void GoToToday()
-    {
-        currentDate = DateTime.Today;
-        GenerateCalendarDays();
-        UpdateMonthEvents();
-    }
-
-    private void UpdateMonthEvents()
-    {
-        monthEvents = allEvents.Where(e => e.EventDate.Year == currentDate.Year && e.EventDate.Month == currentDate.Month)
-                               .OrderBy(e => e.EventDate)
-                               .ToList();
+        Navigation.NavigateTo(newUri, replace: true);
     }
 
     private async Task OpenDatePickerDialog()
     {
         var parameters = new DialogParameters<DatePickerDialog>();
-        parameters.Add(x => x.InitialDate, currentDate);
+        parameters.Add(x => x.InitialDate, calendarView?.GetCurrentDate() ?? DateTime.Today);
         
         var options = new DialogOptions
         {
@@ -650,24 +143,29 @@
         
         if (result is { Canceled: false, Data: DateTime selectedDate })
         {
-            currentDate = selectedDate;
-            GenerateCalendarDays();
-            UpdateMonthEvents();
+            calendarView?.SetCurrentDate(selectedDate);
         }
     }
 
-    private async Task OpenDayDetails(CalendarDay day)
+    private async Task OpenDayDetails(DateTime date)
     {
-        var dayItems = GetItemsForDay(day.Date);
-        var dayEvents = GetEventsForDay(day.Date);
+        var dayItems = allItems.Where(i => 
+            i.DueDate?.Date == date.Date ||
+            (i.StartDate.HasValue && i.EndDate.HasValue && date >= i.StartDate.Value.Date && date <= i.EndDate.Value.Date) ||
+            (i.StartDate.HasValue && !i.EndDate.HasValue && date >= i.StartDate.Value.Date) ||
+            (!i.StartDate.HasValue && i.EndDate.HasValue && date <= i.EndDate.Value.Date)
+        ).ToList();
+
+        var dayEvents = allEvents.Where(e => e.EventDate.Date == date.Date).ToList();
+
         if (!dayItems.Any() && !dayEvents.Any())
         {
-            await OpenAddEventDialog(day.Date);
+            await OpenAddEventDialogWithDate(date);
             return;
         }
 
         var parameters = new DialogParameters<DayDetailsDialog>();
-        parameters.Add(x => x.SelectedDate, day.Date);
+        parameters.Add(x => x.SelectedDate, date);
         parameters.Add(x => x.Events, dayEvents);
         parameters.Add(x => x.Items, dayItems);
         parameters.Add(x => x.OnAddEvent, EventCallback.Factory.Create<DateTime>(this, OpenAddEventDialogWithDate));
@@ -681,19 +179,28 @@
         };
 
         await DialogService.ShowAsync<DayDetailsDialog>(
-            day.Date.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("es-ES")), 
+            date.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("es-ES")), 
             parameters, 
             options);
         
         await LoadData();
-        GenerateCalendarDays();
-        UpdateMonthEvents();
     }
 
-    private async Task OpenAddEventDialog(DateTime? preselectedDate = null)
+    private async Task OpenAddEventDialog(DateTime preselectedDate)
     {
+        var participants = new Dictionary<string, string>();
+        if (currentBoard != null)
+        {
+            participants[currentBoard.User] = currentBoard.OwnerName ?? "Propietario";
+            foreach (var p in currentBoard.Participants)
+            {
+                participants[p.Key] = p.Value;
+            }
+        }
+
         var parameters = new DialogParameters<AddEventDialog>();
         parameters.Add(x => x.PreSelectedDate, preselectedDate);
+        parameters.Add(x => x.AvailableParticipants, participants);
         
         var options = new DialogOptions
         {
@@ -706,12 +213,10 @@
         
         if (result is { Canceled: false, Data: AddEventDialog.AddEventResult addResult })
         {
-            var newEvent = await BoardService.AddEventAsync(BoardId, addResult.Title, addResult.Description, addResult.EventDate);
+            var newEvent = await BoardService.AddEventAsync(BoardId, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
             if (newEvent != null)
             {
                 await LoadData();
-                GenerateCalendarDays();
-                UpdateMonthEvents();
                 SnackbarService.Add("Evento creado", Severity.Success);
             }
         }
@@ -723,8 +228,6 @@
         if (success)
         {
             await LoadData();
-            GenerateCalendarDays();
-            UpdateMonthEvents();
             SnackbarService.Add("Evento eliminado", Severity.Success);
         }
     }
@@ -747,10 +250,37 @@
 
     private async Task OpenAddEventDialogWithDate(DateTime date)
     {
-        await OpenAddEventDialog(date);
-    }
+        var participants = new Dictionary<string, string>();
+        if (currentBoard != null)
+        {
+            participants[currentBoard.User] = currentBoard.OwnerName ?? "Propietario";
+            foreach (var p in currentBoard.Participants)
+            {
+                participants[p.Key] = p.Value;
+            }
+        }
 
-    private async Task OpenItemDetails(TodoItem item)
-    {
+        var parameters = new DialogParameters<AddEventDialog>();
+        parameters.Add(x => x.PreSelectedDate, date);
+        parameters.Add(x => x.AvailableParticipants, participants);
+        
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+
+        var dialog = await DialogService.ShowAsync<AddEventDialog>("Añadir evento", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false, Data: AddEventDialog.AddEventResult addResult })
+        {
+            var newEvent = await BoardService.AddEventAsync(BoardId, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
+            if (newEvent != null)
+            {
+                await LoadData();
+                SnackbarService.Add("Evento creado", Severity.Success);
+            }
+        }
     }
 }

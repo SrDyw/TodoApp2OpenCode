@@ -25,4 +25,16 @@ public class CalendarEvent
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    [NotMapped]
+    public Dictionary<string, string> Participants { get; set; } = new();
+
+    [MaxLength(2000)]
+    public string? ParticipantsJson
+    {
+        get => System.Text.Json.JsonSerializer.Serialize(Participants);
+        set => Participants = string.IsNullOrEmpty(value) 
+            ? new Dictionary<string, string>() 
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new();
+    }
 }

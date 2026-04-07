@@ -207,7 +207,7 @@ public class LocalStorageBoardService : IBoardService
         _isLoaded = false;
     }
 
-    public Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate)
+    public Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
     {
         try
         {
@@ -221,6 +221,7 @@ public class LocalStorageBoardService : IBoardService
                 Description = description,
                 EventDate = eventDate,
                 TodoBoardId = boardId,
+                Participants = participants ?? new Dictionary<string, string>(),
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
             };
