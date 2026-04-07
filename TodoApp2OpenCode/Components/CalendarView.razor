@@ -107,10 +107,13 @@
         <div class="schedule-sidebar">
             <div class="sidebar-header">
                 <MudText Typo="Typo.h6">Eventos de @GetMonthName()</MudText>
-                <MudIconButton Icon="@Icons.Material.Filled.Add" 
-                               Size="Size.Small" 
-                               Color="Color.Primary"
-                               OnClick="@(() => OnAddEventClicked.InvokeAsync(currentDate))" />
+                @if (CanAddEvent)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Add" 
+                                   Size="Size.Small" 
+                                   Color="Color.Primary"
+                                   OnClick="@(() => OnAddEventClicked.InvokeAsync(currentDate))" />
+                }
             </div>
             
             @if (MonthEvents.Any())
@@ -136,16 +139,22 @@
                                 }
                             </div>
                             <div class="event-actions">
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                               Size="Size.Small"
-                                               Color="Color.Primary"
-                                               Class="edit-event-btn"
-                                               OnClick="@(() => OnEditEventClicked.InvokeAsync(evt))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                               Size="Size.Small"
-                                               Color="Color.Error"
-                                               Class="delete-event-btn"
-                                               OnClick="@(() => OnDeleteEventClicked.InvokeAsync(evt))" />
+                                @if (CanEditEvent)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   Size="Size.Small"
+                                                   Color="Color.Primary"
+                                                   Class="edit-event-btn"
+                                                   OnClick="@(() => OnEditEventClicked.InvokeAsync(evt))" />
+                                }
+                                @if (CanDeleteEvent)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   Class="delete-event-btn"
+                                                   OnClick="@(() => OnDeleteEventClicked.InvokeAsync(evt))" />
+                                }
                             </div>
                         </div>
                     }
@@ -514,10 +523,19 @@
     public EventCallback<DateTime> OnAddEventClicked { get; set; }
 
     [Parameter]
+    public bool CanAddEvent { get; set; } = true;
+
+    [Parameter]
     public EventCallback<CalendarEvent> OnEditEventClicked { get; set; }
 
     [Parameter]
+    public bool CanEditEvent { get; set; } = true;
+
+    [Parameter]
     public EventCallback<CalendarEvent> OnDeleteEventClicked { get; set; }
+
+    [Parameter]
+    public bool CanDeleteEvent { get; set; } = true;
 
     [Parameter]
     public EventCallback<DateTime> OnDateChanged { get; set; }

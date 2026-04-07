@@ -84,14 +84,13 @@ public class BoardService : IBoardService
             
             board.Items = items;
 
-            var jsonColumn = await context.Boards
-                .Where(b => b.Id == boardId)
-                .Select(b => b.ParticipantPermissionsJson)
-                .FirstOrDefaultAsync();
-            
-            if (!string.IsNullOrEmpty(jsonColumn))
+            if (!string.IsNullOrEmpty(board.ParticipantPermissionsJson))
             {
-                board.ParticipantPermissions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, BoardPermissions>>(jsonColumn) ?? new();
+                board.ParticipantPermissions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, BoardPermissions>>(board.ParticipantPermissionsJson) ?? new();
+            }
+            else
+            {
+                board.ParticipantPermissions = new Dictionary<string, BoardPermissions>();
             }
         }
 
@@ -143,8 +142,20 @@ public class BoardService : IBoardService
             {
                 board.Participants[userId] = userName;
                 
-                var perms = permissions ?? new BoardPermissions();
-                board.ParticipantPermissions[userId] = perms;
+                var perms = permissions ?? new BoardPermissions
+                {
+                    CanViewCalendar = true,
+                    CanAddTasks = true,
+                    CanModifyTasks = true,
+                    CanDeleteTasks = true,
+                    CanAddEvents = false,
+                    CanModifyEvents = false,
+                    CanDeleteEvents = false
+                };
+                
+                var existingPerms = board.ParticipantPermissions;
+                existingPerms[userId] = perms;
+                board.ParticipantPermissions = existingPerms;
                 
                 await context.SaveChangesAsync();
                 

@@ -2,6 +2,7 @@ namespace TodoApp2OpenCode.Models;
 
 public class BoardPermissions
 {
+    public bool CanViewCalendar { get; set; } = true;
     public bool CanAddTasks { get; set; } = true;
     public bool CanModifyTasks { get; set; } = true;
     public bool CanDeleteTasks { get; set; } = true;

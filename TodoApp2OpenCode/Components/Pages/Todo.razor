@@ -139,15 +139,18 @@
                 @(showLogsView ? "Ver Board" : "Ver Logs")
             </MudButton>
             
-            <MudButton Color="Color.Default" 
-                       Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.CalendarMonth"
-                       OnClick="NavigateToSchedule"
-                       @onmousedown:stopPropagation="true">
-                Calendario
-            </MudButton>
+            @if (canViewCalendar || isOwner)
+            {
+                <MudButton Color="Color.Default" 
+                           Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.CalendarMonth"
+                           OnClick="NavigateToSchedule"
+                           @onmousedown:stopPropagation="true">
+                    Calendario
+                </MudButton>
+            }
 
-            if (isOwner)
+            @if (isOwner)
             {
                 <MudButton Color="Color.Default" 
                            Variant="Variant.Outlined"
@@ -901,6 +904,7 @@ else
     private TodoBoard? currentBoard;
     private bool isOwner = false;
     private bool canAddTask = true;
+    private bool canViewCalendar = true;
     private bool canModifyTask = true;
     private bool canDeleteTask = true;
     private bool isParticipant = false;
@@ -921,6 +925,7 @@ else
     private bool _hasLoadedBoard = false;
     private bool _isRealtimeConnected = false;
     private string? _previousBoardId;
+    private System.Threading.Timer? _permissionCheckTimer;
 
     private bool Filterable { get; set; }
     private string _searchString = string.Empty;
@@ -981,12 +986,55 @@ else
             await RealtimeService.JoinBoardAsync(BoardId);
             SubscribeRealtimeEvents();
         }
+
+        _permissionCheckTimer = new System.Threading.Timer(async _ =>
+        {
+            await CheckParticipantStatus();
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task CheckParticipantStatus()
+    {
+        if (string.IsNullOrEmpty(BoardId)) return;
+        
+        try
+        {
+            var board = await BoardService.GetBoardAsync(BoardId);
+            if (board == null)
+            {
+                try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
+                return;
+            }
+            
+            var currentUserId = AuthService.CurrentUser?.Id ?? "";
+            var isOwner = board.User == currentUserId;
+            
+            if (isOwner) return;
+            
+            bool isParticipant = board.Participants.ContainsKey(currentUserId);
+            if (!isParticipant)
+            {
+                try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
+                return;
+            }
+            
+            if (board.ParticipantPermissions != null && 
+                board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
+            {
+                if (!perms.CanAddTasks && !perms.CanModifyTasks && !perms.CanDeleteTasks)
+                {
+                    try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
+                }
+            }
+        }
+        catch { }
     }
 
     public void Dispose()
     {
         BottomNavService.OnBottomNavAction -= HandleBottomNavAction;
         UnsubscribeRealtimeEvents();
+        _permissionCheckTimer?.Dispose();
     }
 
     // ============================================
@@ -1228,6 +1276,7 @@ else
                 canAddTask = true;
                 canModifyTask = true;
                 canDeleteTask = true;
+                canViewCalendar = true;
             }
             else if (currentBoard?.ParticipantPermissions != null && 
                      currentBoard.ParticipantPermissions.TryGetValue(AuthService.CurrentUser.Id, out var perms))
@@ -1235,12 +1284,14 @@ else
                 canAddTask = perms.CanAddTasks;
                 canModifyTask = perms.CanModifyTasks;
                 canDeleteTask = perms.CanDeleteTasks;
+                canViewCalendar = perms.CanViewCalendar;
             }
             else
             {
                 canAddTask = false;
                 canModifyTask = false;
                 canDeleteTask = false;
+                canViewCalendar = false;
             }
             
             bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
@@ -1298,13 +1349,79 @@ else
 
     private int GetColumnItemCount(string columnId) => GetColumnItems(columnId).Count;
 
+    private async Task<bool> CheckCanAddTask()
+    {
+        if (isOwner) return true;
+        
+        var board = await BoardService.GetBoardAsync(BoardId);
+        if (board?.User == AuthService.CurrentUser?.Id) return true;
+        
+        if (board?.ParticipantPermissions != null && 
+            board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
+        {
+            if (!perms.CanAddTasks)
+            {
+                SnackbarService.Add("No tienes permiso para añadir tareas", Severity.Warning);
+                return false;
+            }
+            return true;
+        }
+        
+        SnackbarService.Add("No tienes permiso para añadir tareas", Severity.Warning);
+        return false;
+    }
+
+    private async Task<bool> CheckCanModifyTask()
+    {
+        if (isOwner) return true;
+        
+        var board = await BoardService.GetBoardAsync(BoardId);
+        if (board?.User == AuthService.CurrentUser?.Id) return true;
+        
+        if (board?.ParticipantPermissions != null && 
+            board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
+        {
+            if (!perms.CanModifyTasks)
+            {
+                SnackbarService.Add("No tienes permiso para modificar tareas", Severity.Warning);
+                return false;
+            }
+            return true;
+        }
+        
+        SnackbarService.Add("No tienes permiso para modificar tareas", Severity.Warning);
+        return false;
+    }
+
+    private async Task<bool> CheckCanDeleteTask()
+    {
+        if (isOwner) return true;
+        
+        var board = await BoardService.GetBoardAsync(BoardId);
+        if (board?.User == AuthService.CurrentUser?.Id) return true;
+        
+        if (board?.ParticipantPermissions != null && 
+            board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
+        {
+            if (!perms.CanDeleteTasks)
+            {
+                SnackbarService.Add("No tienes permiso para eliminar tareas", Severity.Warning);
+                return false;
+            }
+            return true;
+        }
+        
+        SnackbarService.Add("No tienes permiso para eliminar tareas", Severity.Warning);
+        return false;
+    }
+
     // ============================================
     // DRAG & DROP DE TAREAS (mouse events - works cross-browser)
     // ============================================
-    private void StartItemDrag(MouseEventArgs e, TodoItem item)
+    private async Task StartItemDrag(MouseEventArgs e, TodoItem item)
     {
         if (isLoading) return;
-        if (!canModifyTask && !isOwner) return;
+        if (!await CheckCanModifyTask()) return;
         
         isDraggingItem = true;
         draggedItem = item;
@@ -1648,7 +1765,40 @@ else
 
     private void NavigateToSchedule()
     {
-        Navigation.NavigateTo($"/board/{BoardId}/schedule");
+        _ = CheckCanViewCalendar();
+    }
+
+    private async Task CheckCanViewCalendar()
+    {
+        if (isOwner) 
+        {
+            Navigation.NavigateTo($"/board/{BoardId}/schedule");
+            return;
+        }
+        
+        var board = await BoardService.GetBoardAsync(BoardId);
+        if (board == null) return;
+        
+        var currentUserId = AuthService.CurrentUser?.Id ?? "";
+        if (board.User == currentUserId) 
+        {
+            Navigation.NavigateTo($"/board/{BoardId}/schedule");
+            return;
+        }
+        
+        if (board.ParticipantPermissions != null && 
+            board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
+        {
+            if (!perms.CanViewCalendar)
+            {
+                SnackbarService.Add("No tienes permiso para ver el calendario", Severity.Warning);
+                return;
+            }
+            Navigation.NavigateTo($"/board/{BoardId}/schedule");
+            return;
+        }
+        
+        SnackbarService.Add("No tienes permiso para ver el calendario", Severity.Warning);
     }
 
     private void NavigateToSettings()
@@ -1758,6 +1908,8 @@ else
 
     private async Task OpenNewTaskDialogAsync()
     {
+        if (!await CheckCanAddTask()) return;
+        
         if (string.IsNullOrEmpty(BoardId) || !columns.Any())
         {
             SnackbarService.Add("Primero crea una columna", Severity.Warning);
@@ -1797,6 +1949,8 @@ else
 
     private async Task OpenEditItemDialog(TodoItem item)
     {
+        if (!await CheckCanModifyTask()) return;
+        
         if (string.IsNullOrEmpty(BoardId) || currentBoard == null) return;
 
         var editing = new TodoItem { 
@@ -1898,6 +2052,8 @@ else
 
     private async Task DeleteItemAsync(TodoItem item)
     {
+        if (!await CheckCanDeleteTask()) return;
+        
         if (string.IsNullOrEmpty(BoardId)) return;
 
         var parameters = new DialogParameters<DeletionConfirmDialog>();

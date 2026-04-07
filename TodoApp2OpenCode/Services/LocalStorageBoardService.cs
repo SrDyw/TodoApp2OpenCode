@@ -94,8 +94,20 @@ public class LocalStorageBoardService : IBoardService
             {
                 board.Participants[userId] = userName;
                 
-                var perms = permissions ?? new BoardPermissions();
-                board.ParticipantPermissions[userId] = perms;
+                var perms = permissions ?? new BoardPermissions
+                {
+                    CanViewCalendar = true,
+                    CanAddTasks = true,
+                    CanModifyTasks = true,
+                    CanDeleteTasks = true,
+                    CanAddEvents = false,
+                    CanModifyEvents = false,
+                    CanDeleteEvents = false
+                };
+                
+                var existingPerms = board.ParticipantPermissions;
+                existingPerms[userId] = perms;
+                board.ParticipantPermissions = existingPerms;
                 
                 await SaveBoardsAsync();
             }

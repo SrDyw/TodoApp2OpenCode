@@ -10,6 +10,12 @@
             
             <MudDivider />
             
+            <MudText Typo="Typo.subtitle2">General</MudText>
+            
+            <MudCheckBox T="bool" @bind-Value="_canViewCalendar" Label="Ver calendario" Color="Color.Primary" />
+            
+            <MudDivider />
+            
             <MudText Typo="Typo.subtitle2">Tareas</MudText>
             
             <MudCheckBox T="bool" @bind-Value="_canAddTasks" Label="Añadir tareas" Color="Color.Primary" />
@@ -48,6 +54,7 @@
     [Parameter]
     public BoardPermissions? CurrentPermissions { get; set; }
 
+    private bool _canViewCalendar = true;
     private bool _canAddTasks = true;
     private bool _canModifyTasks = true;
     private bool _canDeleteTasks = true;
@@ -59,6 +66,7 @@
     {
         if (CurrentPermissions != null)
         {
+            _canViewCalendar = CurrentPermissions.CanViewCalendar;
             _canAddTasks = CurrentPermissions.CanAddTasks;
             _canModifyTasks = CurrentPermissions.CanModifyTasks;
             _canDeleteTasks = CurrentPermissions.CanDeleteTasks;
@@ -72,6 +80,7 @@
     {
         var permissions = new BoardPermissions
         {
+            CanViewCalendar = _canViewCalendar,
             CanAddTasks = _canAddTasks,
             CanModifyTasks = _canModifyTasks,
             CanDeleteTasks = _canDeleteTasks,
