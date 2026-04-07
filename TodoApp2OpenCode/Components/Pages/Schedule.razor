@@ -8,7 +8,7 @@
 
 <PageTitle>FlowBoard - Programación</PageTitle>
 
-<CalendarView Title="Programación"
+<CalendarView Title="@($"Programación del tablero {currentBoard?.Name}")"
               BackUrl="@($"/board/{BoardId}")"
               ShowSidebar="true"
               Items="allItems"
@@ -17,6 +17,7 @@
               OnBackClicked="GoBack"
               OnDayClicked="OpenDayDetails"
               OnAddEventClicked="OpenAddEventDialog"
+              OnEditEventClicked="OpenEditEventDialog"
               OnDeleteEventClicked="ConfirmDeleteEvent"
               OnDateChanged="OnCalendarDateChanged"
               OnOpenDatePickerClicked="OpenDatePickerDialog"
@@ -169,6 +170,7 @@
         parameters.Add(x => x.Events, dayEvents);
         parameters.Add(x => x.Items, dayItems);
         parameters.Add(x => x.OnAddEvent, EventCallback.Factory.Create<DateTime>(this, OpenAddEventDialogWithDate));
+        parameters.Add(x => x.OnEditEvent, EventCallback.Factory.Create<CalendarEvent>(this, OpenEditEventDialog));
         parameters.Add(x => x.OnDeleteEvent, EventCallback.Factory.Create<CalendarEvent>(this, ConfirmDeleteEvent));
         
         var options = new DialogOptions
@@ -218,6 +220,69 @@
             {
                 await LoadData();
                 SnackbarService.Add("Evento creado", Severity.Success);
+            }
+        }
+    }
+
+    private async Task OpenEditEventDialog(CalendarEvent evt)
+    {
+        var participants = new Dictionary<string, string>();
+        if (currentBoard != null)
+        {
+            participants[currentBoard.User] = currentBoard.OwnerName ?? "Propietario";
+            foreach (var p in currentBoard.Participants)
+            {
+                participants[p.Key] = p.Value;
+            }
+        }
+
+        var parameters = new DialogParameters<AddEventDialog>();
+        parameters.Add(x => x.EditEvent, evt);
+        parameters.Add(x => x.AvailableParticipants, participants);
+        
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+
+        var dialog = await DialogService.ShowAsync<AddEventDialog>("Editar evento", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false, Data: AddEventDialog.AddEventResult addResult })
+        {
+            var success = await BoardService.UpdateEventAsync(evt.Id, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
+            if (success)
+            {
+                await LoadData();
+                
+                if (addResult.OriginalEventDate.HasValue && addResult.OriginalEventDate.Value.Date != addResult.EventDate.Date)
+                {
+                    SnackbarService.Add($"Evento actualizado. Fecha cambiada a {addResult.EventDate:dd/MM/yyyy}", Severity.Success);
+                }
+                else if (addResult.AddedParticipants.Any() || addResult.RemovedParticipants.Any())
+                {
+                    var messages = new List<string>();
+                    if (addResult.AddedParticipants.Any())
+                    {
+                        var names = addResult.AddedParticipants
+                            .Where(id => addResult.Participants.ContainsKey(id))
+                            .Select(id => addResult.Participants[id]);
+                        messages.Add($"Participantes añadidos: {string.Join(", ", names)}");
+                    }
+                    if (addResult.RemovedParticipants.Any())
+                    {
+                        var removedNames = addResult.RemovedParticipants
+                            .Where(id => evt.Participants.ContainsKey(id))
+                            .Select(id => evt.Participants[id]);
+                        messages.Add($"Participantes eliminados: {string.Join(", ", removedNames)}");
+                    }
+                    SnackbarService.Add(string.Join(". ", messages), Severity.Success);
+                }
+                else
+                {
+                    SnackbarService.Add("Evento actualizado", Severity.Success);
+                }
             }
         }
     }

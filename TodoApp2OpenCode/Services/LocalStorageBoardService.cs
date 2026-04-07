@@ -258,4 +258,30 @@ public class LocalStorageBoardService : IBoardService
             return Task.FromResult(false);
         }
     }
+
+    public Task<bool> UpdateEventAsync(string eventId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
+    {
+        try
+        {
+            foreach (var board in _cachedBoards)
+            {
+                var evt = board.Events?.FirstOrDefault(e => e.Id == eventId);
+                if (evt != null)
+                {
+                    evt.Title = title;
+                    evt.Description = description;
+                    evt.EventDate = eventDate;
+                    evt.Participants = participants ?? new Dictionary<string, string>();
+                    evt.UpdatedAt = DateTime.Now;
+                    _ = SaveBoardsAsync();
+                    return Task.FromResult(true);
+                }
+            }
+            return Task.FromResult(false);
+        }
+        catch
+        {
+            return Task.FromResult(false);
+        }
+    }
 }

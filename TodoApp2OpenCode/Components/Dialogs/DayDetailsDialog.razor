@@ -49,6 +49,11 @@
                         </div>
                     </div>
                     <div class="event-actions">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       Class="edit-btn"
+                                       OnClick="() => HandleEditEvent(evt)" />
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" 
                                        Size="Size.Small"
                                        Color="Color.Default"
@@ -270,8 +275,19 @@
         color: var(--mud-palette-text-secondary) !important;
     }
 
-    .event-card:hover .delete-btn {
+    .edit-btn {
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        color: var(--mud-palette-text-secondary) !important;
+    }
+
+    .event-card:hover .delete-btn,
+    .event-card:hover .edit-btn {
         opacity: 1;
+    }
+
+    .edit-btn:hover {
+        color: var(--mud-palette-primary) !important;
     }
 
     .delete-btn:hover {
@@ -348,7 +364,15 @@
     public EventCallback<DateTime> OnAddEvent { get; set; }
 
     [Parameter]
+    public EventCallback<CalendarEvent> OnEditEvent { get; set; }
+
+    [Parameter]
     public EventCallback<CalendarEvent> OnDeleteEvent { get; set; }
+
+    private async Task HandleEditEvent(CalendarEvent evt)
+    {
+        await OnEditEvent.InvokeAsync(evt);
+    }
 
     private async Task HandleDeleteEvent(CalendarEvent evt)
     {
