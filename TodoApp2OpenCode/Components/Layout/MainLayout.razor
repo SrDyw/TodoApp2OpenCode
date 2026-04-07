@@ -20,6 +20,12 @@
             background-size: 40px 40px;
         }
     </style>
+    <style>
+        .notifications-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
         <MudText Typo="Typo.h5" Class="ml-3">FlowBoard</MudText>
@@ -42,13 +48,20 @@
                     <MudDivider />
                     @if (Notifications.Any())
                     {
+                        <div class="notifications-list">
                         @foreach (var notification in Notifications.Take(10))
                         {
                             <MudMenuItem OnClick="@(() => OnNotificationClick(notification))">
                                 <MudStack Spacing="1">
-                                    <MudText Typo="Typo.body2" Style="@(notification.IsRead ? "" : "font-weight: bold;")">
-                                        @notification.Title
-                                    </MudText>
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width: 100%;">
+                                        <MudText Typo="Typo.body2" Style="@(notification.IsRead ? "" : "font-weight: bold;")">
+                                            @notification.Title
+                                        </MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                       Size="Size.Small" 
+                                                       Color="Color.Error"
+                                                       OnClick="@(() => DeleteNotification(notification))" />
+                                    </MudStack>
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                         @notification.Message
                                     </MudText>
@@ -66,6 +79,7 @@
                                 </MudText>
                             </MudMenuItem>
                         }
+                        </div>
                     }
                     else
                     {
@@ -76,6 +90,9 @@
                     @if (Notifications.Any())
                     {
                         <MudDivider />
+                        <MudMenuItem OnClick="DeleteAllNotifications">
+                            <MudText Color="Color.Error">Borrar todas</MudText>
+                        </MudMenuItem>
                         <MudMenuItem OnClick="MarkAllAsRead">
                             <MudText Color="Color.Primary">Marcar todas como leídas</MudText>
                         </MudMenuItem>
@@ -310,6 +327,47 @@
             {
                 n.IsRead = true;
             }
+            UnreadNotificationCount = 0;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteNotification(Notification notification)
+    {
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, $"¿Eliminar la notificación '{notification.Title}'?");
+        parameters.Add(x => x.ButtonText, "Eliminar");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await NotificationService.DeleteAsync(notification.Id);
+            Notifications.Remove(notification);
+            if (!notification.IsRead)
+            {
+                UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteAllNotifications()
+    {
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, "¿Eliminar todas las notificaciones?");
+        parameters.Add(x => x.ButtonText, "Eliminar todas");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true } && AuthService.CurrentUser != null)
+        {
+            await NotificationService.DeleteAllAsync(AuthService.CurrentUser.Id);
+            Notifications.Clear();
             UnreadNotificationCount = 0;
             StateHasChanged();
         }

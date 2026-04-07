@@ -78,4 +78,28 @@ public class NotificationService : INotificationService
 
         await context.SaveChangesAsync();
     }
+
+    public async Task DeleteAsync(string notificationId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var notification = await context.Notifications.FindAsync(notificationId);
+        if (notification != null)
+        {
+            context.Notifications.Remove(notification);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task DeleteAllAsync(string userId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var notifications = await context.Notifications
+            .Where(n => n.UserId == userId)
+            .ToListAsync();
+
+        context.Notifications.RemoveRange(notifications);
+        await context.SaveChangesAsync();
+    }
 }
