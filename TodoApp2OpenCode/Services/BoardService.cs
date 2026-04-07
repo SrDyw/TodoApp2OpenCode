@@ -391,7 +391,7 @@ public class BoardService : IBoardService
                         participant.Key,
                         "Nuevo evento",
                         $"Has sido añadido al evento '{title}' el {eventDate:dd/MM/yyyy}",
-                        $"/board/{boardId}/schedule"
+                        $"/board/{boardId}/schedule?date={eventDate:dd-MM-yyyy}"
                     );
                 }
             }

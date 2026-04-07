@@ -504,6 +504,9 @@
     [Parameter]
     public EventCallback OnOpenDatePickerClicked { get; set; }
 
+    [Parameter]
+    public DateTime? InitialDate { get; set; }
+
     private DateTime currentDate = DateTime.Today;
     
     private readonly string[] weekdays = { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
@@ -519,6 +522,10 @@
 
     protected override void OnInitialized()
     {
+        if (InitialDate.HasValue)
+        {
+            currentDate = InitialDate.Value;
+        }
         GenerateCalendarDays();
     }
 
@@ -616,6 +623,7 @@
     {
         currentDate = date;
         GenerateCalendarDays();
+        StateHasChanged();
     }
 
     public DateTime GetCurrentDate() => currentDate;

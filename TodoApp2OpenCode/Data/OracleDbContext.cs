@@ -72,6 +72,12 @@ public class OracleDbContext : DbContext, IFlowBoardDbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.Property(e => e.IsRead).HasConversion(BoolToIntConverter);
+        });
+
         modelBuilder.Entity<TodoStep>(entity =>
         {
             entity.Property(e => e.IsCompleted).HasConversion(BoolToIntConverter);

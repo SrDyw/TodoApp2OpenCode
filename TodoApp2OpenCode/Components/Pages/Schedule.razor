@@ -13,6 +13,7 @@
               ShowSidebar="true"
               Items="allItems"
               Events="allEvents"
+              InitialDate="initialDate"
               OnBackClicked="GoBack"
               OnDayClicked="OpenDayDetails"
               OnAddEventClicked="OpenAddEventDialog"
@@ -25,24 +26,63 @@
     [Parameter]
     public string BoardId { get; set; } = string.Empty;
 
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? DateParam { get; set; }
+
     private CalendarView? calendarView;
     private TodoBoard? currentBoard;
     private List<TodoItem> allItems = new();
     private List<CalendarEvent> allEvents = new();
+    private DateTime? initialDate;
     
     protected override async Task OnInitializedAsync()
     {
+        initialDate = ParseDateFromString(DateParam);
+        await AuthService.CheckAuthStateAsync();
         await LoadData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var validDate = ParseDateFromString(DateParam);
+        if (validDate.HasValue && calendarView != null)
+        {
+            initialDate = validDate;
+            calendarView.SetCurrentDate(validDate.Value);
+        }
+    }
+
+    private DateTime? ParseDateFromString(string? dateStr)
+    {
+        if (string.IsNullOrWhiteSpace(dateStr))
+            return DateTime.Today;
+
+        if (DateTime.TryParseExact(dateStr, "dd-MM-yyyy", 
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, 
+            out var parsedDate))
+        {
+            if (parsedDate.Year < 1900 || parsedDate.Year > 2100)
+                return DateTime.Today;
+                
+            return parsedDate;
+        }
+
+        return DateTime.Today;
     }
 
     private async Task LoadData()
     {
         try
         {
-            if (!AuthService.IsAuthenticated || AuthService.CurrentUser == null)
+            if (AuthService.CurrentUser == null)
             {
-                await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
-                return;
+                await Task.Delay(500);
+                if (AuthService.CurrentUser == null)
+                {
+                    await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
+                    return;
+                }
             }
 
             currentBoard = await BoardService.GetBoardAsync(BoardId);
@@ -76,6 +116,15 @@
 
     private async Task OnCalendarDateChanged(DateTime date)
     {
+        var uri = new Uri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        
+        var newUri = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            Navigation.BaseUri.TrimEnd('/') + $"/board/{BoardId}/schedule",
+            "date",
+            date.ToString("dd-MM-yyyy"));
+        
+        Navigation.NavigateTo(newUri, replace: true);
     }
 
     private async Task OpenDatePickerDialog()

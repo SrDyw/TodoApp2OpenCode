@@ -30,7 +30,7 @@ public class CalendarEvent
     public Dictionary<string, string> Participants { get; set; } = new();
 
     [MaxLength(2000)]
-    public string ParticipantsJson
+    public string? ParticipantsJson
     {
         get => System.Text.Json.JsonSerializer.Serialize(Participants);
         set => Participants = string.IsNullOrEmpty(value) 

@@ -30,7 +30,8 @@
             <MudBadge Content="@UnreadNotificationCount" 
                       Color="Color.Error" 
                       Visible="@(UnreadNotificationCount > 0)"
-                      Class="mr-3">
+                      Class="mr-3"
+                        Overlap>
                 <MudMenu Icon="@Icons.Material.Filled.Notifications" 
                          Color="Color.Inherit"
                          AnchorOrigin="Origin.BottomRight"
@@ -296,7 +297,7 @@
 
         if (!string.IsNullOrEmpty(notification.NavigateTo))
         {
-            Navigation.NavigateTo(notification.NavigateTo, forceLoad: true);
+            Navigation.NavigateTo(notification.NavigateTo, forceLoad: false);
         }
     }
 
