@@ -148,41 +148,54 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await Auth.CheckAuthStateAsync();
-        
-        if (string.IsNullOrEmpty(BoardId))
+        try
         {
-            Navigation.NavigateTo("/board");
-            return;
-        }
+            await Auth.CheckAuthStateAsync();
+            
+            if (Auth.CurrentUser == null)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
+            
+            if (string.IsNullOrEmpty(BoardId))
+            {
+                Navigation.NavigateTo("/board");
+                return;
+            }
 
-        var board = await BoardService.GetBoardAsync(BoardId);
-        
-        if (board == null)
-        {
-            Navigation.NavigateTo("/board");
-            return;
-        }
+            var board = await BoardService.GetBoardAsync(BoardId);
+            
+            if (board == null)
+            {
+                Navigation.NavigateTo("/board");
+                return;
+            }
 
-        var currentUserId = Auth.CurrentUser?.Id ?? "";
-        if (board.User != currentUserId)
-        {
-            Navigation.NavigateTo($"/board/{BoardId}");
-            return;
-        }
+            var currentUserId = Auth.CurrentUser?.Id ?? "";
+            if (board.User != currentUserId)
+            {
+                Navigation.NavigateTo($"/board/{BoardId}");
+                return;
+            }
 
-        _currentBoard = board;
-        _canEdit = true;
-        
-        BoardName = board.Name;
-        BoardDescription = board.Description ?? "";
-        
-        if (board.Participants != null)
-        {
-            _participants = board.Participants;
+            _currentBoard = board;
+            _canEdit = true;
+            
+            BoardName = board.Name;
+            BoardDescription = board.Description ?? "";
+            
+            if (board.Participants != null)
+            {
+                _participants = board.Participants;
+            }
+            
+            _isReady = true;
         }
-        
-        _isReady = true;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading board settings: {ex.Message}");
+        }
     }
 
     private void GoBack()
@@ -230,6 +243,18 @@
             { x => x.CurrentPermissions, permissions }
         };
 
-        await DialogService.ShowAsync<UserDetailsDialog>("Usuario", parameters);
+        var dialog = await DialogService.ShowAsync<UserDetailsDialog>("Usuario", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            var board = await BoardService.GetBoardAsync(BoardId);
+            if (board != null)
+            {
+                _currentBoard = board;
+                _participants = board.Participants;
+                StateHasChanged();
+            }
+        }
     }
 }

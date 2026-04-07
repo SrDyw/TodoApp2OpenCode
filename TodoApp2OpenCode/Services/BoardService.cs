@@ -83,6 +83,16 @@ public class BoardService : IBoardService
             }
             
             board.Items = items;
+
+            var jsonColumn = await context.Boards
+                .Where(b => b.Id == boardId)
+                .Select(b => b.ParticipantPermissionsJson)
+                .FirstOrDefaultAsync();
+            
+            if (!string.IsNullOrEmpty(jsonColumn))
+            {
+                board.ParticipantPermissions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, BoardPermissions>>(jsonColumn) ?? new();
+            }
         }
 
         return board;
@@ -186,7 +196,10 @@ public class BoardService : IBoardService
             var board = await context.Boards.FindAsync(boardId);
             if (board == null) return false;
 
-            board.ParticipantPermissions[userId] = permissions;
+            var permsDict = board.ParticipantPermissions;
+            permsDict[userId] = permissions;
+            board.ParticipantPermissions = permsDict;
+            
             await context.SaveChangesAsync();
             
             return true;
