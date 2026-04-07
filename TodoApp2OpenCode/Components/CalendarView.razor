@@ -135,11 +135,18 @@
                                     </MudText>
                                 }
                             </div>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                       Size="Size.Small"
-                                       Color="Color.Error"
-                                       Class="delete-event-btn"
-                                       OnClick="@(() => OnDeleteEventClicked.InvokeAsync(evt))" />
+                            <div class="event-actions">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               Class="edit-event-btn"
+                                               OnClick="@(() => OnEditEventClicked.InvokeAsync(evt))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               Class="delete-event-btn"
+                                               OnClick="@(() => OnDeleteEventClicked.InvokeAsync(evt))" />
+                            </div>
                         </div>
                     }
                 </div>
@@ -446,7 +453,18 @@
         transition: opacity 0.15s;
     }
 
-    .event-item:hover .delete-event-btn {
+    .edit-event-btn {
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    .event-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .event-item:hover .delete-event-btn,
+    .event-item:hover .edit-event-btn {
         opacity: 1;
     }
 
@@ -494,6 +512,9 @@
 
     [Parameter]
     public EventCallback<DateTime> OnAddEventClicked { get; set; }
+
+    [Parameter]
+    public EventCallback<CalendarEvent> OnEditEventClicked { get; set; }
 
     [Parameter]
     public EventCallback<CalendarEvent> OnDeleteEventClicked { get; set; }

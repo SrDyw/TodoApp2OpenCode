@@ -404,6 +404,93 @@ public class BoardService : IBoardService
         }
     }
 
+    public async Task<bool> UpdateEventAsync(string eventId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var evt = await context.CalendarEvents.FindAsync(eventId);
+            if (evt == null) return false;
+
+            var oldTitle = evt.Title;
+            var oldDate = evt.EventDate;
+            var oldParticipants = new Dictionary<string, string>(evt.Participants);
+
+            evt.Title = title;
+            evt.Description = description;
+            evt.EventDate = eventDate;
+            evt.Participants = participants ?? new Dictionary<string, string>();
+            evt.UpdatedAt = DateTime.Now;
+
+            await context.SaveChangesAsync();
+            
+            var boardId = evt.TodoBoardId;
+            var logMessage = $"Actualiza evento '{title}'";
+            if (oldDate.Date != eventDate.Date)
+            {
+                logMessage += $" (fecha cambiada de {oldDate:dd/MM/yyyy} a {eventDate:dd/MM/yyyy})";
+            }
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = logMessage,
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+
+            var participantKeys = participants?.Keys ?? new Dictionary<string, string>().Keys;
+            var addedParticipants = participantKeys.Except(oldParticipants.Keys).ToList();
+            var removedParticipants = oldParticipants.Keys.Except(participantKeys).ToList();
+
+            if (oldTitle != title)
+            {
+                foreach (var oldParticipantId in oldParticipants.Keys)
+                {
+                    await _notificationService.CreateAsync(
+                        oldParticipantId,
+                        "Evento actualizado",
+                        $"El evento '{oldTitle}' ha sido renombrado a '{title}' el {eventDate:dd/MM/yyyy}",
+                        $"/board/{boardId}/schedule?date={eventDate:dd-MM-yyyy}"
+                    );
+                }
+            }
+
+            foreach (var participantId in addedParticipants)
+            {
+                if (participants != null && participants.TryGetValue(participantId, out var name))
+                {
+                    await _notificationService.CreateAsync(
+                        participantId,
+                        "Nuevo evento",
+                        $"Has sido añadido al evento '{title}' el {eventDate:dd/MM/yyyy}",
+                        $"/board/{boardId}/schedule?date={eventDate:dd-MM-yyyy}"
+                    );
+                }
+            }
+
+            foreach (var participantId in removedParticipants)
+            {
+                if (oldParticipants.TryGetValue(participantId, out var name))
+                {
+                    await _notificationService.CreateAsync(
+                        participantId,
+                        "Evento eliminado",
+                        $"Has sido eliminado del evento '{title}'",
+                        $"/board/{boardId}/schedule"
+                    );
+                }
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<bool> DeleteEventAsync(string eventId)
     {
         try
@@ -433,6 +520,70 @@ public class BoardService : IBoardService
         catch
         {
             return false;
+        }
+    }
+
+    public async Task<List<CalendarEvent>> GetUserEventsAsync(string userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var allEvents = await context.CalendarEvents
+                .OrderBy(e => e.EventDate)
+                .ToListAsync();
+
+            var userEvents = new List<CalendarEvent>();
+            foreach (var evt in allEvents)
+            {
+                if (!string.IsNullOrEmpty(evt.ParticipantsJson))
+                {
+                    evt.Participants = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(evt.ParticipantsJson) ?? new();
+                }
+                
+                if (evt.Participants.ContainsKey(userId))
+                {
+                    userEvents.Add(evt);
+                }
+            }
+
+            return userEvents;
+        }
+        catch
+        {
+            return new List<CalendarEvent>();
+        }
+    }
+
+    public async Task<List<TodoItem>> GetUserItemsAsync(string userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var allItems = await context.Items
+                .OrderBy(i => i.DueDate)
+                .ToListAsync();
+
+            var userItems = new List<TodoItem>();
+            foreach (var item in allItems)
+            {
+                if (!string.IsNullOrEmpty(item.AssignedUsersJson))
+                {
+                    item.AssignedUsers = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(item.AssignedUsersJson) ?? new();
+                }
+                
+                if (item.AssignedUsers.ContainsKey(userId))
+                {
+                    userItems.Add(item);
+                }
+            }
+
+            return userItems;
+        }
+        catch
+        {
+            return new List<TodoItem>();
         }
     }
 }

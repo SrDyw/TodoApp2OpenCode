@@ -20,6 +20,12 @@
             background-size: 40px 40px;
         }
     </style>
+    <style>
+        .notifications-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
         <MudText Typo="Typo.h5" Class="ml-3">FlowBoard</MudText>
@@ -27,6 +33,33 @@
         
         @if (IsAuthenticated)
         {
+            <MudMenu Label="@CurrentUsername" 
+                     Color="Color.Primary" 
+                     Variant="Variant.Text"
+                     AnchorOrigin="Origin.BottomRight"
+                     TransformOrigin="Origin.TopRight"
+                     StartIcon="@Icons.Material.Filled.Person"
+                     EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+                <MudMenuItem OnClick="NavigateToCalendar">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" />
+                        <span>Calendario</span>
+                    </MudStack>
+                </MudMenuItem>
+                <MudMenuItem OnClick="NavigateToMySchedule">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.EventNote" Size="Size.Small" />
+                        <span>Mi Calendario</span>
+                    </MudStack>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="Logout">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Color="Color.Error" />
+                        <span>Cerrar Sesión</span>
+                    </MudStack>
+                </MudMenuItem>
+            </MudMenu>
             <MudBadge Content="@UnreadNotificationCount" 
                       Color="Color.Error" 
                       Visible="@(UnreadNotificationCount > 0)"
@@ -36,19 +69,42 @@
                          Color="Color.Inherit"
                          AnchorOrigin="Origin.BottomRight"
                          TransformOrigin="Origin.TopRight">
-                    <MudMenuItem Disabled="true">
-                        <MudText Typo="Typo.subtitle2">Notificaciones</MudText>
+                    <MudMenuItem>
+                        <MudText>Notificaciones</MudText>
                     </MudMenuItem>
                     <MudDivider />
                     @if (Notifications.Any())
                     {
+                        <div class="notifications-list">
                         @foreach (var notification in Notifications.Take(10))
                         {
                             <MudMenuItem OnClick="@(() => OnNotificationClick(notification))">
-                                <MudStack Spacing="1">
-                                    <MudText Typo="Typo.body2" Style="@(notification.IsRead ? "" : "font-weight: bold;")">
-                                        @notification.Title
-                                    </MudText>
+                                <MudStack Spacing="1" Style="@(notification.IsRead ? "" : "border-left: 3px solid var(--mud-palette-primary); padding-left: 8px;")">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width: 100%;">
+                                        <MudText Typo="Typo.body2" Style="@(notification.IsRead ? "color: var(--mud-palette-text-secondary);" : "font-weight: bold;")">
+                                            @notification.Title
+                                            @if (!notification.IsRead)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Class="ml-1">Nuevo</MudChip>
+                                            }
+                                        </MudText>
+                                        <MudStack Row="true" Spacing="0">
+                                            @if (!notification.IsRead)
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.MarkEmailRead" 
+                                                               Size="Size.Small" 
+                                                               Color="Color.Default"
+                                                               Title="Marcar como leída"
+                                                               OnClick="@(() => MarkNotificationAsRead(notification))"
+                                                               StopPropagation="true" />
+                                            }
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => DeleteNotification(notification))"
+                                                           StopPropagation="true" />
+                                        </MudStack>
+                                    </MudStack>
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                         @notification.Message
                                     </MudText>
@@ -66,6 +122,7 @@
                                 </MudText>
                             </MudMenuItem>
                         }
+                        </div>
                     }
                     else
                     {
@@ -76,6 +133,9 @@
                     @if (Notifications.Any())
                     {
                         <MudDivider />
+                        <MudMenuItem OnClick="DeleteAllNotifications">
+                            <MudText Color="Color.Error">Borrar todas</MudText>
+                        </MudMenuItem>
                         <MudMenuItem OnClick="MarkAllAsRead">
                             <MudText Color="Color.Primary">Marcar todas como leídas</MudText>
                         </MudMenuItem>
@@ -83,27 +143,6 @@
                 </MudMenu>
             </MudBadge>
             
-            <MudMenu Label="@CurrentUsername" 
-                     Color="Color.Primary" 
-                     Variant="Variant.Text"
-                     AnchorOrigin="Origin.BottomRight"
-                     TransformOrigin="Origin.TopRight"
-                     StartIcon="@Icons.Material.Filled.Person"
-                     EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
-                <MudMenuItem OnClick="NavigateToCalendar">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" />
-                        <span>Calendario</span>
-                    </MudStack>
-                </MudMenuItem>
-                <MudDivider />
-                <MudMenuItem OnClick="Logout">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Color="Color.Error" />
-                        <span>Cerrar Sesión</span>
-                    </MudStack>
-                </MudMenuItem>
-            </MudMenu>
         }
         else
         {
@@ -285,6 +324,11 @@
         }
     }
 
+    private void NavigateToMySchedule()
+    {
+        Navigation.NavigateTo("/my-schedule", forceLoad: true);
+    }
+
     private async Task OnNotificationClick(Notification notification)
     {
         if (!notification.IsRead)
@@ -310,6 +354,57 @@
             {
                 n.IsRead = true;
             }
+            UnreadNotificationCount = 0;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteNotification(Notification notification)
+    {
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, $"¿Eliminar la notificación '{notification.Title}'?");
+        parameters.Add(x => x.ButtonText, "Eliminar");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await NotificationService.DeleteAsync(notification.Id);
+            Notifications.Remove(notification);
+            if (!notification.IsRead)
+            {
+                UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkNotificationAsRead(Notification notification)
+    {
+        if (notification.IsRead) return;
+        
+        await NotificationService.MarkAsReadAsync(notification.Id);
+        notification.IsRead = true;
+        UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+        StateHasChanged();
+    }
+
+    private async Task DeleteAllNotifications()
+    {
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, "¿Eliminar todas las notificaciones?");
+        parameters.Add(x => x.ButtonText, "Eliminar todas");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true } && AuthService.CurrentUser != null)
+        {
+            await NotificationService.DeleteAllAsync(AuthService.CurrentUser.Id);
+            Notifications.Clear();
             UnreadNotificationCount = 0;
             StateHasChanged();
         }
@@ -356,7 +451,7 @@
 
     public string DarkLightModeButtonIcon => _isDarkMode switch
     {
-        true => Icons.Material.Rounded.AutoMode,
-        false => Icons.Material.Outlined.DarkMode,
+        true => Icons.Material.Filled.LightMode,
+        false => Icons.Material.Filled.DarkMode,
     };
 }

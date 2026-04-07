@@ -47,7 +47,7 @@
             Cancelar
         </MudButton>
         <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@string.IsNullOrWhiteSpace(Title)">
-            Crear evento
+            @(IsEditMode ? "Guardar" : "Crear evento")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -70,6 +70,9 @@
     [Parameter]
     public Dictionary<string, string> AvailableParticipants { get; set; } = new();
 
+    [Parameter]
+    public CalendarEvent? EditEvent { get; set; }
+
     [Inject]
     private IDialogService DialogService { get; set; } = null!;
 
@@ -77,10 +80,23 @@
     public string? Description { get; set; }
     public DateTime? EventDate { get; set; }
     public Dictionary<string, string> SelectedParticipants { get; set; } = new();
+    public bool IsEditMode => EditEvent != null;
+    private Dictionary<string, string> _originalParticipants = new();
 
     protected override void OnInitialized()
     {
-        EventDate = PreSelectedDate ?? DateTime.Today;
+        if (EditEvent != null)
+        {
+            Title = EditEvent.Title;
+            Description = EditEvent.Description;
+            EventDate = EditEvent.EventDate;
+            SelectedParticipants = new Dictionary<string, string>(EditEvent.Participants);
+            _originalParticipants = new Dictionary<string, string>(EditEvent.Participants);
+        }
+        else
+        {
+            EventDate = PreSelectedDate ?? DateTime.Today;
+        }
     }
 
     private async Task OpenUserSelection()
@@ -111,17 +127,29 @@
 
     private void Submit()
     {
-        if (string.IsNullOrWhiteSpace(Title) || !EventDate.HasValue)
+        if (string.IsNullOrWhiteSpace(Title))
         {
             return;
         }
 
+        if (!EventDate.HasValue)
+        {
+            EventDate = EditEvent?.EventDate ?? DateTime.Today;
+        }
+
+        var addedParticipants = SelectedParticipants.Keys.Except(_originalParticipants.Keys).ToList();
+        var removedParticipants = _originalParticipants.Keys.Except(SelectedParticipants.Keys).ToList();
+
         var result = new AddEventResult
         {
-            Title = Title,
-            Description = Description,
+            Title = Title.Trim(),
+            Description = Description?.Trim(),
             EventDate = EventDate.Value,
-            Participants = new Dictionary<string, string>(SelectedParticipants)
+            Participants = new Dictionary<string, string>(SelectedParticipants),
+            IsEdit = IsEditMode,
+            OriginalEventDate = EditEvent?.EventDate,
+            AddedParticipants = addedParticipants,
+            RemovedParticipants = removedParticipants
         };
 
         MudDialog?.Close(DialogResult.Ok(result));
@@ -135,5 +163,9 @@
         public string? Description { get; set; }
         public DateTime EventDate { get; set; }
         public Dictionary<string, string> Participants { get; set; } = new();
+        public bool IsEdit { get; set; }
+        public DateTime? OriginalEventDate { get; set; }
+        public List<string> AddedParticipants { get; set; } = new();
+        public List<string> RemovedParticipants { get; set; } = new();
     }
 }

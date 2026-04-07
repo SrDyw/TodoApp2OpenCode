@@ -1,0 +1,80 @@
+@page "/my-schedule"
+@inject IBoardService BoardService
+@inject NavigationManager Navigation
+@inject IAuthService Auth
+@inject IDialogService DialogService
+
+<PageTitle>Mi Calendario - TodoPila</PageTitle>
+
+@if (_isReady)
+{
+    @if (Auth.IsAuthenticated && Auth.CurrentUser != null)
+    {
+        <TodoApp2OpenCode.Components.CalendarView 
+            Title="Mi Calendario"
+            Items="@Items"
+            Events="@Events"
+            ShowSidebar="true"
+            OnDayClicked="OnDayClicked"
+            OnEditEventClicked="OnEditEventClicked" />
+    }
+}
+else
+{
+    <MudText>Cargando...</MudText>
+}
+
+@code {
+    private List<TodoItem> Items = new();
+    private List<CalendarEvent> Events = new();
+    private bool _isReady = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Auth.CheckAuthStateAsync();
+        _isReady = true;
+
+        if (Auth.CurrentUser != null)
+        {
+            var userId = Auth.CurrentUser.Id;
+            Items = await BoardService.GetUserItemsAsync(userId);
+            Events = await BoardService.GetUserEventsAsync(userId);
+        }
+    }
+
+    private async Task OnDayClicked(DateTime date)
+    {
+        var itemsForDay = Items.Where(i => 
+            i.DueDate?.Date == date.Date ||
+            (i.StartDate.HasValue && i.EndDate.HasValue && date.Date >= i.StartDate.Value.Date && date.Date <= i.EndDate.Value.Date) ||
+            (i.StartDate.HasValue && !i.EndDate.HasValue && date.Date >= i.StartDate.Value.Date)
+        ).ToList();
+
+        var eventsForDay = Events.Where(e => e.EventDate.Date == date.Date).ToList();
+
+        if (!itemsForDay.Any() && !eventsForDay.Any())
+        {
+            return;
+        }
+
+        var parameters = new DialogParameters<DayItemsDialog>
+        {
+            { x => x.Date, date },
+            { x => x.Items, itemsForDay },
+            { x => x.Events, eventsForDay }
+        };
+
+        var dialog = await DialogService.ShowAsync<DayItemsDialog>("Actividades del día", parameters);
+        var result = await dialog.Result;
+
+        if (result?.Data is string url && !string.IsNullOrEmpty(url))
+        {
+            Navigation.NavigateTo(url);
+        }
+    }
+
+    private void OnEditEventClicked(CalendarEvent evt)
+    {
+        Navigation.NavigateTo($"/board/{evt.TodoBoardId}/schedule?date={evt.EventDate:dd-MM-yyyy}");
+    }
+}
