@@ -26,20 +26,27 @@
         
         @if (IsAuthenticated)
         {
-            <MudChip T="string" 
-                     Icon="@Icons.Material.Filled.Person" 
+            <MudMenu Label="@CurrentUsername" 
                      Color="Color.Primary" 
-                     Variant="Variant.Outlined"
-                     Size="Size.Small"
-                     Class="mr-2">
-                @CurrentUsername
-            </MudChip>
-            <MudButton Color="Color.Inherit" 
-                       Variant="Variant.Text"
-                       OnClick="Logout"
-                       Class="mr-2">
-                Cerrar Sesión
-            </MudButton>
+                     Variant="Variant.Text"
+                     AnchorOrigin="Origin.BottomRight"
+                     TransformOrigin="Origin.TopRight"
+                     StartIcon="@Icons.Material.Filled.Person"
+                     EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+                <MudMenuItem OnClick="NavigateToCalendar">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" />
+                        <span>Calendario</span>
+                    </MudStack>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="Logout">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Color="Color.Error" />
+                        <span>Cerrar Sesión</span>
+                    </MudStack>
+                </MudMenuItem>
+            </MudMenu>
         }
         else
         {
@@ -181,6 +188,19 @@
         await AuthService.LogoutAsync();
 
         Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private void NavigateToCalendar()
+    {
+        var lastBoardId = AuthService.GetLastVisitedBoard();
+        if (!string.IsNullOrEmpty(lastBoardId))
+        {
+            Navigation.NavigateTo($"/board/{lastBoardId}/schedule", forceLoad: true);
+        }
+        else
+        {
+            Navigation.NavigateTo("/board", forceLoad: true);
+        }
     }
 
     private readonly PaletteLight _lightPalette = new()
