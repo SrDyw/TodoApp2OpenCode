@@ -65,7 +65,8 @@
                Variant="Variant.Filled" 
                Size="Size.Medium"
                StartIcon="@Icons.Material.Filled.Add"
-               OnClick="OpenNewTaskDialogAsync">
+               OnClick="OpenNewTaskDialogAsync"
+               Disabled="!canAddTask">
             Nueva Tarea
         </MudButton>
 
@@ -145,6 +146,17 @@
                        @onmousedown:stopPropagation="true">
                 Calendario
             </MudButton>
+
+            if (isOwner)
+            {
+                <MudButton Color="Color.Default" 
+                           Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Settings"
+                           OnClick="NavigateToSettings"
+                           @onmousedown:stopPropagation="true">
+                    Ajustes
+                </MudButton>
+            }
             
             <MudSpacer/>
             @if (isOwner)
@@ -271,7 +283,7 @@
 }
 else
 {
-<div class="board-container @((isDraggingItem || isDraggingColumn) ? "no-select" : "")" @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp">
+<div class="board-container @((isDraggingItem || isDraggingColumn) ? "no-select" : "")" @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp" @ondragover:preventDefault>
     @if (columnLoading)
     {
         <div class="columns-wrapper">
@@ -344,7 +356,6 @@ else
                               <MudTooltip Text="" Placement="Placement.Right" ShowOnHover="true">
                                   <ChildContent>
                                         <div class="todo-card-wrapper @(item.IsCompleted ? "completed" : "") @(_hoverItem?.Id == item.Id ? "drop-target" : "")"
-                                           draggable="false"
                                            @onmousedown="@(e => StartItemDrag(e, item))"
                                            @onmouseenter="@(e => HandleHoverItem(e, item))"
                                            @onmouseleave="@(e => HandleHoverItem(e, null))"
@@ -360,7 +371,10 @@ else
                                                                   @item.Title
                                                               </MudText>
                                                           </MudStack>
-                                                          <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Color="Color.Default" Class="drag-handle" />
+                                                          @if (canModifyTask || isOwner)
+                                                       {
+                                                           <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Color="Color.Default" Class="drag-handle" />
+                                                       }
                                                       </MudStack>
                                                       
                                                       @if (!string.IsNullOrEmpty(item.Description))
@@ -405,10 +419,10 @@ else
                                                               <div></div>
                                                           }
                                                           
-                                                          <MudStack Row="true" Spacing="0">
-                                                              <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditItemDialog(item)" @onmousedown:stopPropagation="true" aria-label="Editar" />
-                                                              <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItemAsync(item)" @onmousedown:stopPropagation="true" aria-label="Eliminar" />
-                                                          </MudStack>
+                                                           <MudStack Row="true" Spacing="0">
+                                                               <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditItemDialog(item)" Disabled="!canModifyTask" @onmousedown:stopPropagation="true" aria-label="Editar" />
+                                                               <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItemAsync(item)" Disabled="!canDeleteTask" @onmousedown:stopPropagation="true" aria-label="Eliminar" />
+                                                           </MudStack>
                                                       </MudStack>
                                                   </MudStack>
                                               </MudCardContent>
@@ -886,6 +900,9 @@ else
     private bool isLoading = true;
     private TodoBoard? currentBoard;
     private bool isOwner = false;
+    private bool canAddTask = true;
+    private bool canModifyTask = true;
+    private bool canDeleteTask = true;
     private bool isParticipant = false;
     private Dictionary<string, string> boardParticipants = new();
     private bool showLogsView = false;
@@ -1205,6 +1222,27 @@ else
 
             currentBoard = await BoardService.GetBoardAsync(BoardId);
             isOwner = currentBoard?.User == AuthService.CurrentUser.Id;
+            
+            if (isOwner)
+            {
+                canAddTask = true;
+                canModifyTask = true;
+                canDeleteTask = true;
+            }
+            else if (currentBoard?.ParticipantPermissions != null && 
+                     currentBoard.ParticipantPermissions.TryGetValue(AuthService.CurrentUser.Id, out var perms))
+            {
+                canAddTask = perms.CanAddTasks;
+                canModifyTask = perms.CanModifyTasks;
+                canDeleteTask = perms.CanDeleteTasks;
+            }
+            else
+            {
+                canAddTask = false;
+                canModifyTask = false;
+                canDeleteTask = false;
+            }
+            
             bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
             if (currentBoard == null || (!isOwner && !isParticipant))
             {
@@ -1261,12 +1299,13 @@ else
     private int GetColumnItemCount(string columnId) => GetColumnItems(columnId).Count;
 
     // ============================================
-    // DRAG & DROP DE TAREAS
+    // DRAG & DROP DE TAREAS (mouse events - works cross-browser)
     // ============================================
     private void StartItemDrag(MouseEventArgs e, TodoItem item)
     {
-        Console.WriteLine($"StartItemDrag called for: {item.Title}");
         if (isLoading) return;
+        if (!canModifyTask && !isOwner) return;
+        
         isDraggingItem = true;
         draggedItem = item;
         sourceColumnId = item.ColumnId;
@@ -1610,6 +1649,11 @@ else
     private void NavigateToSchedule()
     {
         Navigation.NavigateTo($"/board/{BoardId}/schedule");
+    }
+
+    private void NavigateToSettings()
+    {
+        Navigation.NavigateTo($"/board/{BoardId}/settings");
     }
 
     // ============================================

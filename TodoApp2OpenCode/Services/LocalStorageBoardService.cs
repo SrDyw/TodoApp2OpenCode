@@ -78,7 +78,7 @@ public class LocalStorageBoardService : IBoardService
         }
     }
 
-    public async Task<bool> AddParticipantAsync(string boardId, string userId, string userName)
+    public async Task<bool> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null)
     {
         try
         {
@@ -93,6 +93,10 @@ public class LocalStorageBoardService : IBoardService
             if (!board.Participants.ContainsKey(userId))
             {
                 board.Participants[userId] = userName;
+                
+                var perms = permissions ?? new BoardPermissions();
+                board.ParticipantPermissions[userId] = perms;
+                
                 await SaveBoardsAsync();
             }
             return true;
@@ -116,6 +120,7 @@ public class LocalStorageBoardService : IBoardService
             if (board == null) return false;
 
             board.Participants.Remove(userId);
+            board.ParticipantPermissions.Remove(userId);
 
             await SaveBoardsAsync();
             return true;
@@ -124,6 +129,55 @@ public class LocalStorageBoardService : IBoardService
         {
             return false;
         }
+    }
+
+    public async Task<bool> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions)
+    {
+        try
+        {
+            if (!_isLoaded)
+            {
+                await LoadBoardsAsync();
+            }
+
+            var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
+            if (board == null) return false;
+
+            board.ParticipantPermissions[userId] = permissions;
+            await SaveBoardsAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool HasPermission(string boardId, string userId, string permission)
+    {
+        var board = _cachedBoards.FirstOrDefault(b => b.Id == boardId);
+        if (board == null) return false;
+
+        if (board.User == userId)
+        {
+            return true;
+        }
+
+        if (board.ParticipantPermissions.TryGetValue(userId, out var perms))
+        {
+            return permission switch
+            {
+                "CanAddTasks" => perms.CanAddTasks,
+                "CanModifyTasks" => perms.CanModifyTasks,
+                "CanDeleteTasks" => perms.CanDeleteTasks,
+                "CanAddEvents" => perms.CanAddEvents,
+                "CanModifyEvents" => perms.CanModifyEvents,
+                "CanDeleteEvents" => perms.CanDeleteEvents,
+                _ => false
+            };
+        }
+
+        return false;
     }
 
     public async Task<bool> UpdateBoardAsync(TodoBoard board)

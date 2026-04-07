@@ -121,7 +121,7 @@ public class BoardService : IBoardService
         }
     }
 
-    public async Task<bool> AddParticipantAsync(string boardId, string userId, string userName)
+    public async Task<bool> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null)
     {
         try
         {
@@ -132,6 +132,10 @@ public class BoardService : IBoardService
             if (!board.Participants.ContainsKey(userId))
             {
                 board.Participants[userId] = userName;
+                
+                var perms = permissions ?? new BoardPermissions();
+                board.ParticipantPermissions[userId] = perms;
+                
                 await context.SaveChangesAsync();
                 
                 await _notificationService.CreateAsync(
@@ -160,6 +164,7 @@ public class BoardService : IBoardService
             if (board == null) return false;
 
             board.Participants.Remove(userId);
+            board.ParticipantPermissions.Remove(userId);
 
             await context.SaveChangesAsync();
             
@@ -171,6 +176,54 @@ public class BoardService : IBoardService
         {
             return false;
         }
+    }
+
+    public async Task<bool> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards.FindAsync(boardId);
+            if (board == null) return false;
+
+            board.ParticipantPermissions[userId] = permissions;
+            await context.SaveChangesAsync();
+            
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool HasPermission(string boardId, string userId, string permission)
+    {
+        var board = GetBoardAsync(boardId).GetAwaiter().GetResult();
+        if (board == null) return false;
+
+        var currentUserId = _authService.CurrentUser?.Id ?? "";
+        
+        if (board.User == currentUserId)
+        {
+            return true;
+        }
+
+        if (board.ParticipantPermissions.TryGetValue(userId, out var perms))
+        {
+            return permission switch
+            {
+                "CanAddTasks" => perms.CanAddTasks,
+                "CanModifyTasks" => perms.CanModifyTasks,
+                "CanDeleteTasks" => perms.CanDeleteTasks,
+                "CanAddEvents" => perms.CanAddEvents,
+                "CanModifyEvents" => perms.CanModifyEvents,
+                "CanDeleteEvents" => perms.CanDeleteEvents,
+                _ => false
+            };
+        }
+
+        return false;
     }
 
     public async Task<bool> UpdateBoardAsync(TodoBoard board)

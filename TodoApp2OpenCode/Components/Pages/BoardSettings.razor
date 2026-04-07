@@ -1,0 +1,235 @@
+@page "/board/{BoardId}/settings"
+@inject IBoardService BoardService
+@inject NavigationManager Navigation
+@inject IAuthService Auth
+@inject IDialogService DialogService
+
+<PageTitle>Ajustes del Tablero - TodoPila</PageTitle>
+
+<div class="board-settings-page">
+    <div class="settings-header">
+        <MudButton Variant="Variant.Text" 
+                   Color="Color.Default" 
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="GoBack">
+            Volver al tablero
+        </MudButton>
+        
+        <MudText Typo="Typo.h4">
+            Ajustes del Tablero
+        </MudText>
+        
+        <div></div>
+    </div>
+
+    @if (_isReady)
+    {
+        @if (_canEdit)
+        {
+            <MudPaper Class="settings-card" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    Información del Tablero
+                </MudText>
+                
+                <MudTextField @bind-Value="BoardName" 
+                              Label="Nombre del Tablero" 
+                              Variant="Variant.Outlined"
+                              Class="mb-4" />
+                
+                <MudTextField @bind-Value="BoardDescription" 
+                              Label="Descripción" 
+                              Variant="Variant.Outlined"
+                              Lines="3"
+                              Class="mb-4" />
+                
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary"
+                           OnClick="SaveChanges"
+                           Disabled="_isSaving">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Guardar Cambios
+                </MudButton>
+            </MudPaper>
+
+            <MudPaper Class="settings-card mt-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    Participantes
+                </MudText>
+                
+                @if (_participants.Any())
+                {
+                    <div class="participants-list">
+                        @foreach (var participant in _participants)
+                        {
+                            <div class="participant-item" @onclick="() => ShowUserDetails(participant.Value, participant.Key)">
+                                <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                                    @participant.Value.FirstOrDefault()
+                                </MudAvatar>
+                                <MudText Typo="Typo.body1" Class="ml-3">
+                                    @participant.Value
+                                </MudText>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <MudText Color="Color.Default">
+                        No hay participantes en este tablero
+                    </MudText>
+                }
+            </MudPaper>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                No tienes permisos para editar este tablero.
+            </MudAlert>
+        }
+    }
+    else
+    {
+        <MudText>Cargando...</MudText>
+    }
+</div>
+
+<style>
+    .board-settings-page {
+        padding: 24px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .settings-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+
+    .settings-card {
+        padding: 24px;
+    }
+
+    .participants-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .participant-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.15s;
+    }
+
+    .participant-item:hover {
+        background: var(--mud-palette-action-hover);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string BoardId { get; set; } = "";
+
+    private string BoardName { get; set; } = "";
+    private string BoardDescription { get; set; } = "";
+    private bool _isReady = false;
+    private bool _canEdit = false;
+    private bool _isSaving = false;
+    private Dictionary<string, string> _participants = new();
+    private TodoBoard? _currentBoard;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Auth.CheckAuthStateAsync();
+        
+        if (string.IsNullOrEmpty(BoardId))
+        {
+            Navigation.NavigateTo("/board");
+            return;
+        }
+
+        var board = await BoardService.GetBoardAsync(BoardId);
+        
+        if (board == null)
+        {
+            Navigation.NavigateTo("/board");
+            return;
+        }
+
+        var currentUserId = Auth.CurrentUser?.Id ?? "";
+        if (board.User != currentUserId)
+        {
+            Navigation.NavigateTo($"/board/{BoardId}");
+            return;
+        }
+
+        _currentBoard = board;
+        _canEdit = true;
+        
+        BoardName = board.Name;
+        BoardDescription = board.Description ?? "";
+        
+        if (board.Participants != null)
+        {
+            _participants = board.Participants;
+        }
+        
+        _isReady = true;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/board/{BoardId}");
+    }
+
+    private async Task SaveChanges()
+    {
+        if (string.IsNullOrWhiteSpace(BoardName))
+        {
+            return;
+        }
+
+        _isSaving = true;
+
+        var board = await BoardService.GetBoardAsync(BoardId);
+        if (board != null)
+        {
+            board.Name = BoardName.Trim();
+            board.Description = BoardDescription?.Trim();
+            
+            await BoardService.UpdateBoardAsync(board);
+            
+            Navigation.NavigateTo($"/board/{BoardId}", forceLoad: true);
+        }
+
+        _isSaving = false;
+    }
+
+    private async Task ShowUserDetails(string userName, string userId)
+    {
+        BoardPermissions? permissions = null;
+        if (_currentBoard?.ParticipantPermissions != null && 
+            _currentBoard.ParticipantPermissions.TryGetValue(userId, out var perms))
+        {
+            permissions = perms;
+        }
+
+        var parameters = new DialogParameters<UserDetailsDialog>
+        {
+            { x => x.UserName, userName },
+            { x => x.UserId, userId },
+            { x => x.BoardId, BoardId },
+            { x => x.CurrentPermissions, permissions }
+        };
+
+        await DialogService.ShowAsync<UserDetailsDialog>("Usuario", parameters);
+    }
+}

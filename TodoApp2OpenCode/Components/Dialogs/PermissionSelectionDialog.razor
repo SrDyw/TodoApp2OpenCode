@@ -1,0 +1,91 @@
+@inject IBoardService BoardService
+<MudDialog ContentStyle="width: 400px; max-width: 400px;">
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">Gestionar Permisos</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Selecciona los permisos para este usuario
+            </MudText>
+            
+            <MudDivider />
+            
+            <MudText Typo="Typo.subtitle2">Tareas</MudText>
+            
+            <MudCheckBox T="bool" @bind-Value="_canAddTasks" Label="Añadir tareas" Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="_canModifyTasks" Label="Modificar tareas" Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="_canDeleteTasks" Label="Eliminar tareas" Color="Color.Primary" />
+            
+            <MudDivider />
+            
+            <MudText Typo="Typo.subtitle2">Eventos</MudText>
+            
+            <MudCheckBox T="bool" @bind-Value="_canAddEvents" Label="Añadir eventos" Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="_canModifyEvents" Label="Modificar eventos" Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="_canDeleteEvents" Label="Eliminar eventos" Color="Color.Primary" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="Submit">
+            Guardar Permisos
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string BoardId { get; set; } = "";
+
+    [Parameter]
+    public string UserId { get; set; } = "";
+
+    [Parameter]
+    public BoardPermissions? CurrentPermissions { get; set; }
+
+    private bool _canAddTasks = true;
+    private bool _canModifyTasks = true;
+    private bool _canDeleteTasks = true;
+    private bool _canAddEvents = true;
+    private bool _canModifyEvents = true;
+    private bool _canDeleteEvents = true;
+
+    protected override void OnInitialized()
+    {
+        if (CurrentPermissions != null)
+        {
+            _canAddTasks = CurrentPermissions.CanAddTasks;
+            _canModifyTasks = CurrentPermissions.CanModifyTasks;
+            _canDeleteTasks = CurrentPermissions.CanDeleteTasks;
+            _canAddEvents = CurrentPermissions.CanAddEvents;
+            _canModifyEvents = CurrentPermissions.CanModifyEvents;
+            _canDeleteEvents = CurrentPermissions.CanDeleteEvents;
+        }
+    }
+
+    private async Task Submit()
+    {
+        var permissions = new BoardPermissions
+        {
+            CanAddTasks = _canAddTasks,
+            CanModifyTasks = _canModifyTasks,
+            CanDeleteTasks = _canDeleteTasks,
+            CanAddEvents = _canAddEvents,
+            CanModifyEvents = _canModifyEvents,
+            CanDeleteEvents = _canDeleteEvents
+        };
+
+        if (!string.IsNullOrEmpty(BoardId) && !string.IsNullOrEmpty(UserId))
+        {
+            await BoardService.UpdateParticipantPermissionsAsync(BoardId, UserId, permissions);
+        }
+
+        MudDialog?.Close(DialogResult.Ok(permissions));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}

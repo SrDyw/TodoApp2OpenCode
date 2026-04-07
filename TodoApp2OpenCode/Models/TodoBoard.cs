@@ -23,6 +23,9 @@ public class TodoBoard
     [NotMapped]
     public Dictionary<string, string> Participants { get; set; } = new();
 
+    [NotMapped]
+    public Dictionary<string, BoardPermissions> ParticipantPermissions { get; set; } = new();
+
     [MaxLength(100)]
     public string OwnerName { get; set; } = string.Empty;
 
@@ -38,5 +41,13 @@ public class TodoBoard
         set => Participants = string.IsNullOrEmpty(value) 
             ? new Dictionary<string, string>() 
             : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new();
+    }
+
+    public string? ParticipantPermissionsJson
+    {
+        get => System.Text.Json.JsonSerializer.Serialize(ParticipantPermissions);
+        set => ParticipantPermissions = string.IsNullOrEmpty(value) 
+            ? new Dictionary<string, BoardPermissions>() 
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, BoardPermissions>>(value) ?? new();
     }
 }

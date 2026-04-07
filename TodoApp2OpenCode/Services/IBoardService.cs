@@ -7,9 +7,10 @@ public interface IBoardService
     Task<List<TodoBoard>> GetUserBoardsAsync(string userId);
     Task<TodoBoard?> GetBoardAsync(string boardId);
     Task<TodoBoard?> CreateBoardAsync(string userId, string name, string? description = null, List<(string Id, string Name)>? participants = null);
-    Task<bool> AddParticipantAsync(string boardId, string userId, string userName);
+    Task<bool> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null);
     Task<bool> RemoveParticipantAsync(string boardId, string userId);
     Task<bool> UpdateBoardAsync(TodoBoard board);
+    Task<bool> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions);
     Task<bool> DeleteBoardAsync(string boardId);
     Task<TodoBoard?> GetOrCreateDefaultBoardAsync(string userId);
     void ClearCache();
@@ -18,4 +19,5 @@ public interface IBoardService
     Task<bool> DeleteEventAsync(string eventId);
     Task<List<CalendarEvent>> GetUserEventsAsync(string userId);
     Task<List<TodoItem>> GetUserItemsAsync(string userId);
+    bool HasPermission(string boardId, string userId, string permission);
 }
