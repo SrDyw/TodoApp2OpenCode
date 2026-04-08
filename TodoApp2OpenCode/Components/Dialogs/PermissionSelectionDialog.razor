@@ -62,16 +62,16 @@
     [Parameter]
     public BoardPermissions? CurrentPermissions { get; set; }
 
-    private bool _canViewCalendar = true;
-    private bool _canAddTasks = true;
-    private bool _canModifyTasks = true;
-    private bool _canDeleteTasks = true;
-    private bool _canAddEvents = true;
-    private bool _canModifyEvents = true;
-    private bool _canDeleteEvents = true;
-    private bool _canAddColumn = true;
-    private bool _canEditColumn = true;
-    private bool _canDeleteColumn = true;
+    private bool _canViewCalendar = false;
+    private bool _canAddTasks = false;
+    private bool _canModifyTasks = false;
+    private bool _canDeleteTasks = false;
+    private bool _canAddEvents = false;
+    private bool _canModifyEvents = false;
+    private bool _canDeleteEvents = false;
+    private bool _canAddColumn = false;
+    private bool _canEditColumn = false;
+    private bool _canDeleteColumn = false;
 
     protected override void OnInitialized()
     {

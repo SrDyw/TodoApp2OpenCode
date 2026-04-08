@@ -8,7 +8,8 @@
 
 <PageTitle>FlowBoard - Programación</PageTitle>
 
-<CalendarView Title="@($"Programación del tablero {currentBoard?.Name}")"
+<CalendarView Title="@($"Programación del tablero")"
+              Subttitle="@($"{currentBoard?.Name}")"
               BackUrl="@($"/board/{BoardId}")"
               ShowSidebar="true"
               Items="allItems"
