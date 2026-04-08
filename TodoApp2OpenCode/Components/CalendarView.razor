@@ -11,11 +11,17 @@
             </MudButton>
         }
         
-        <MudText Typo="Typo.h4" Class="schedule-title">
-            @Title
-        </MudText>
-        
-        <div></div>
+        <div style="display:flex; justify-content:end; flex-direction:column">
+            <MudText Typo="Typo.h6" Class="schedule-title" Style="text-align: end">
+                @Title
+            </MudText>
+            <MudSpacer />
+            @if (string.IsNullOrWhiteSpace(Subttitle) == false)
+            {
+                <MudText Color="Color.Primary" Typo="Typo.h4" Style="text-align: end">@Subttitle</MudText>
+            }
+        </div>
+        <MudDivider/>
     </div>
 
     <div class="calendar-nav">
@@ -500,6 +506,8 @@
 @code {
     [Parameter]
     public string Title { get; set; } = "Programación";
+    [Parameter]
+    public string? Subttitle{ get; set; }
 
     [Parameter]
     public string? BackUrl { get; set; }

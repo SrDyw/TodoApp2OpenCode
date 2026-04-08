@@ -10,6 +10,12 @@
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
+@if (_isLoading)
+{
+    <SplashScreen />
+}
+@if (!_isLoading)
+{
 <MudLayout>
     <style>
         .board-page-bg {
@@ -169,6 +175,8 @@
         @Body
     </MudMainContent>
 </MudLayout>
+    
+}
 
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -178,7 +186,7 @@
 </div>
 
 @code {
-
+    private bool _isLoading = true;
     private bool _drawerOpen = true;
     private bool _isDarkMode = true;
     private bool IsAuthenticated => AuthService.IsAuthenticated;
@@ -201,8 +209,18 @@
         await LoadThemePreference();
         AuthService.SetAuthStateChangedCallback(OnAuthStateChanged);
         await AuthService.CheckAuthStateAsync();
-        
+
+
         await LoadNotifications();
+
+        var t = new System.Timers.Timer(1000);
+        t.Elapsed += (e, s) =>
+        {
+            _isLoading = false;
+            InvokeAsync(StateHasChanged);
+            t.Stop();
+        };
+        t.Start();
     }
 
     private async Task LoadNotifications()
