@@ -29,6 +29,14 @@
             <MudCheckBox T="bool" @bind-Value="_canAddEvents" Label="Añadir eventos" Color="Color.Primary" />
             <MudCheckBox T="bool" @bind-Value="_canModifyEvents" Label="Modificar eventos" Color="Color.Primary" />
             <MudCheckBox T="bool" @bind-Value="_canDeleteEvents" Label="Eliminar eventos" Color="Color.Primary" />
+            
+            <MudDivider />
+            
+            <MudText Typo="Typo.subtitle2">Columnas</MudText>
+            
+            <MudCheckBox T="bool" @bind-Value="_canAddColumn" Label="Añadir columnas" Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="_canEditColumn" Label="Modificar/Mover columnas" Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="_canDeleteColumn" Label="Eliminar columnas" Color="Color.Primary" />
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -61,6 +69,9 @@
     private bool _canAddEvents = true;
     private bool _canModifyEvents = true;
     private bool _canDeleteEvents = true;
+    private bool _canAddColumn = true;
+    private bool _canEditColumn = true;
+    private bool _canDeleteColumn = true;
 
     protected override void OnInitialized()
     {
@@ -73,6 +84,9 @@
             _canAddEvents = CurrentPermissions.CanAddEvents;
             _canModifyEvents = CurrentPermissions.CanModifyEvents;
             _canDeleteEvents = CurrentPermissions.CanDeleteEvents;
+            _canAddColumn = CurrentPermissions.CanAddColumn;
+            _canEditColumn = CurrentPermissions.CanEditColumn;
+            _canDeleteColumn = CurrentPermissions.CanDeleteColumn;
         }
     }
 
@@ -86,7 +100,10 @@
             CanDeleteTasks = _canDeleteTasks,
             CanAddEvents = _canAddEvents,
             CanModifyEvents = _canModifyEvents,
-            CanDeleteEvents = _canDeleteEvents
+            CanDeleteEvents = _canDeleteEvents,
+            CanAddColumn = _canAddColumn,
+            CanEditColumn = _canEditColumn,
+            CanDeleteColumn = _canDeleteColumn
         };
 
         if (!string.IsNullOrEmpty(BoardId) && !string.IsNullOrEmpty(UserId))

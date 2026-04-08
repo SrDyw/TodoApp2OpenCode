@@ -326,8 +326,11 @@ else
                      @onmouseenter="() => HandleColumnHover(column.Id)"
                      @onmouseleave="() => HandleColumnLeave()">
                     <div class="column-header column-drag-handle" >
-                        <div class="column-title-area" @onmousedown="(e) => StartColumnDrag(e, column)">
-                            <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Class="mr-1 column-drag-icon" />
+                        <div class="column-title-area" @onmousedown="@(canEditColumn || isOwner ? (e) => StartColumnDrag(e, column) : null)">
+                            @if (canEditColumn || isOwner)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Class="mr-1 column-drag-icon" />
+                            }
                             <div class="column-color-dot" style="background-color: @column.Color;"></div>
                             <MudText Typo="Typo.h6" Class="column-title">@column.Name</MudText>
                             <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">
@@ -336,19 +339,25 @@ else
                         </div>
                         
                         <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" edge="Edge.End">
-                            <MudMenuItem OnClick="() => OpenEditColumnDialog(column)">
-                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                                    <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
-                                    <span>Editar</span>
-                                </MudStack>
-                            </MudMenuItem>
-                            <MudDivider />
-                            <MudMenuItem OnClick="() => DeleteColumnAsync(column)" Class="text-danger">
-                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                                    <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" />
-                                    <span>Eliminar</span>
-                                </MudStack>
-                            </MudMenuItem>
+                            @if (canEditColumn || isOwner)
+                            {
+                                <MudMenuItem OnClick="() => OpenEditColumnDialog(column)">
+                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                                        <span>Editar</span>
+                                    </MudStack>
+                                </MudMenuItem>
+                            }
+                            @if (canDeleteColumn || isOwner)
+                            {
+                                <MudDivider />
+                                <MudMenuItem OnClick="() => DeleteColumnAsync(column)" Class="text-danger">
+                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" />
+                                        <span>Eliminar</span>
+                                    </MudStack>
+                                </MudMenuItem>
+                            }
                         </MudMenu>
                     </div>
                     
@@ -534,14 +543,17 @@ else
                           }
                      </div>
                 </div>
-            }
-            
-            <div class="board-column add-column-trigger" @onclick="AddColumnAsync">
-                <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Class="add-column-icon" />
-                <MudText>Nueva Columna</MudText>
-            </div>
-        </div>
-    }
+}
+             
+             @if (canAddColumn || isOwner)
+             {
+                 <div class="board-column add-column-trigger" @onclick="AddColumnAsync">
+                     <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Class="add-column-icon" />
+                     <MudText>Nueva Columna</MudText>
+                 </div>
+             }
+         </div>
+     }
 
 
 </div>
@@ -907,6 +919,9 @@ else
     private bool canViewCalendar = true;
     private bool canModifyTask = true;
     private bool canDeleteTask = true;
+    private bool canAddColumn = true;
+    private bool canEditColumn = true;
+    private bool canDeleteColumn = true;
     private bool isParticipant = false;
     private Dictionary<string, string> boardParticipants = new();
     private bool showLogsView = false;
@@ -1277,6 +1292,9 @@ else
                 canModifyTask = true;
                 canDeleteTask = true;
                 canViewCalendar = true;
+                canAddColumn = true;
+                canEditColumn = true;
+                canDeleteColumn = true;
             }
             else if (currentBoard?.ParticipantPermissions != null && 
                      currentBoard.ParticipantPermissions.TryGetValue(AuthService.CurrentUser.Id, out var perms))
@@ -1285,6 +1303,9 @@ else
                 canModifyTask = perms.CanModifyTasks;
                 canDeleteTask = perms.CanDeleteTasks;
                 canViewCalendar = perms.CanViewCalendar;
+                canAddColumn = perms.CanAddColumn;
+                canEditColumn = perms.CanEditColumn;
+                canDeleteColumn = perms.CanDeleteColumn;
             }
             else
             {
@@ -1292,6 +1313,9 @@ else
                 canModifyTask = false;
                 canDeleteTask = false;
                 canViewCalendar = false;
+                canAddColumn = false;
+                canEditColumn = false;
+                canDeleteColumn = false;
             }
 
             bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
@@ -1438,6 +1462,11 @@ else
     private void StartColumnDrag(MouseEventArgs e, TodoColumn column)
     {
         if (isLoading) return;
+        if (!canEditColumn && !isOwner)
+        {
+            SnackbarService.Add("No tienes permisos para mover columnas", Severity.Warning);
+            return;
+        }
         isDraggingColumn = true;
         draggedColumn = column;
         draggedColumnIndex = columns.FindIndex(c => c.Id == column.Id);
@@ -1491,6 +1520,15 @@ else
         }
         else if (isDraggingColumn && draggedColumn != null && !string.IsNullOrEmpty(targetColumnId))
         {
+            if (!canEditColumn && !isOwner)
+            {
+                isDraggingColumn = false;
+                draggedColumn = null;
+                SnackbarService.Add("No tienes permisos para mover columnas", Severity.Warning);
+                StateHasChanged();
+                return;
+            }
+
             if (targetColumnId != draggedColumn.Id)
             {
                 var targetIndex = columns.FindIndex(c => c.Id == targetColumnId);
@@ -1823,6 +1861,11 @@ else
     private async Task AddColumnAsync()
     {
         if (string.IsNullOrEmpty(BoardId)) return;
+        if (!canAddColumn && !isOwner)
+        {
+            SnackbarService.Add("No tienes permisos para añadir columnas", Severity.Warning);
+            return;
+        }
 
         var parameters = new DialogParameters<InputDialog>();
         parameters.Add(x => x.Title, "Nueva Columna");
@@ -1849,6 +1892,12 @@ else
     private async Task OpenEditColumnDialog(TodoColumn column)
     {
         if (string.IsNullOrEmpty(BoardId)) return;
+        
+        if (!canEditColumn && !isOwner)
+        {
+            SnackbarService.Add("No tienes permisos para editar columnas", Severity.Warning);
+            return;
+        }
 
         var defaultColumnName = column.Name;
 
@@ -1896,6 +1945,11 @@ else
     private async Task DeleteColumnAsync(TodoColumn column)
     {
         if (string.IsNullOrEmpty(BoardId)) return;
+        if (!canDeleteColumn && !isOwner)
+        {
+            SnackbarService.Add("No tienes permisos para eliminar columnas", Severity.Warning);
+            return;
+        }
 
         var count = GetColumnItemCount(column.Id);
         var msg = count > 0 ? $"¿Eliminar '{column.Name}' y sus {count} tareas?" : $"¿Eliminar '{column.Name}'?";

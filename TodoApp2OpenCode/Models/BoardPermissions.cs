@@ -9,4 +9,7 @@ public class BoardPermissions
     public bool CanAddEvents { get; set; } = true;
     public bool CanModifyEvents { get; set; } = true;
     public bool CanDeleteEvents { get; set; } = true;
+    public bool CanAddColumn { get; set; } = true;
+    public bool CanEditColumn { get; set; } = true;
+    public bool CanDeleteColumn { get; set; } = true;
 }
