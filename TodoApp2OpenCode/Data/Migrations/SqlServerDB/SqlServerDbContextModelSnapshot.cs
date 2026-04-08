@@ -39,7 +39,6 @@ namespace TodoApp2OpenCode.Data.Migrations.SqlServerDB
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ParticipantsJson")
-                        .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
@@ -190,6 +189,9 @@ namespace TodoApp2OpenCode.Data.Migrations.SqlServerDB
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ParticipantPermissionsJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ParticipantsJson")
                         .IsRequired()

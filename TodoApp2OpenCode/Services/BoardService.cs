@@ -267,6 +267,7 @@ public class BoardService : IBoardService
             existingBoard.Name = board.Name;
             existingBoard.Description = board.Description;
             existingBoard.Participants = board.Participants;
+            existingBoard.ParticipantPermissions = board.ParticipantPermissions;
             existingBoard.OwnerName = board.OwnerName;
 
             var existingColumns = existingBoard.Columns.ToList();

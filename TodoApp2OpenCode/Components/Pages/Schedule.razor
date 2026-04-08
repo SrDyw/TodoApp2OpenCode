@@ -43,18 +43,26 @@
     private bool canModifyEvent = true;
     private bool canDeleteEvent = true;
     private System.Threading.Timer? _permissionCheckTimer;
-    
+
     protected override async Task OnInitializedAsync()
     {
         initialDate = ParseDateFromString(DateParam);
         await AuthService.CheckAuthStateAsync();
         await LoadData();
-        
-        _permissionCheckTimer = new System.Threading.Timer(async _ =>
-        {
-            await CheckPermissionsChanged();
-        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+
+
     }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // if (firstRender == false) return;
+
+        // _permissionCheckTimer = new System.Threading.Timer(async _ =>
+        // {
+        //     await CheckPermissionsChanged();
+        // }, null, 10, 5);
+    }
+
 
     private async Task CheckPermissionsChanged()
     {

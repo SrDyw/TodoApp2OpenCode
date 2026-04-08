@@ -987,16 +987,16 @@ else
             SubscribeRealtimeEvents();
         }
 
-        _permissionCheckTimer = new System.Threading.Timer(async _ =>
-        {
-            await CheckParticipantStatus();
-        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+        // _permissionCheckTimer = new System.Threading.Timer(async _ =>
+        // {
+        //     await CheckParticipantStatus();
+        // }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 
     private async Task CheckParticipantStatus()
     {
         if (string.IsNullOrEmpty(BoardId)) return;
-        
+
         try
         {
             var board = await BoardService.GetBoardAsync(BoardId);
@@ -1005,19 +1005,19 @@ else
                 try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
                 return;
             }
-            
+
             var currentUserId = AuthService.CurrentUser?.Id ?? "";
             var isOwner = board.User == currentUserId;
-            
+
             if (isOwner) return;
-            
+
             bool isParticipant = board.Participants.ContainsKey(currentUserId);
             if (!isParticipant)
             {
                 try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
                 return;
             }
-            
+
             if (board.ParticipantPermissions != null && 
                 board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
             {
@@ -1270,7 +1270,7 @@ else
 
             currentBoard = await BoardService.GetBoardAsync(BoardId);
             isOwner = currentBoard?.User == AuthService.CurrentUser.Id;
-            
+
             if (isOwner)
             {
                 canAddTask = true;
@@ -1293,7 +1293,7 @@ else
                 canDeleteTask = false;
                 canViewCalendar = false;
             }
-            
+
             bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
             if (currentBoard == null || (!isOwner && !isParticipant))
             {
@@ -1352,10 +1352,10 @@ else
     private async Task<bool> CheckCanAddTask()
     {
         if (isOwner) return true;
-        
+
         var board = await BoardService.GetBoardAsync(BoardId);
         if (board?.User == AuthService.CurrentUser?.Id) return true;
-        
+
         if (board?.ParticipantPermissions != null && 
             board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
         {
@@ -1366,7 +1366,7 @@ else
             }
             return true;
         }
-        
+
         SnackbarService.Add("No tienes permiso para añadir tareas", Severity.Warning);
         return false;
     }
@@ -1374,10 +1374,10 @@ else
     private async Task<bool> CheckCanModifyTask()
     {
         if (isOwner) return true;
-        
+
         var board = await BoardService.GetBoardAsync(BoardId);
         if (board?.User == AuthService.CurrentUser?.Id) return true;
-        
+
         if (board?.ParticipantPermissions != null && 
             board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
         {
@@ -1388,7 +1388,7 @@ else
             }
             return true;
         }
-        
+
         SnackbarService.Add("No tienes permiso para modificar tareas", Severity.Warning);
         return false;
     }
@@ -1396,10 +1396,10 @@ else
     private async Task<bool> CheckCanDeleteTask()
     {
         if (isOwner) return true;
-        
+
         var board = await BoardService.GetBoardAsync(BoardId);
         if (board?.User == AuthService.CurrentUser?.Id) return true;
-        
+
         if (board?.ParticipantPermissions != null && 
             board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
         {
@@ -1410,7 +1410,7 @@ else
             }
             return true;
         }
-        
+
         SnackbarService.Add("No tienes permiso para eliminar tareas", Severity.Warning);
         return false;
     }
@@ -1422,7 +1422,7 @@ else
     {
         if (isLoading) return;
         if (!await CheckCanModifyTask()) return;
-        
+
         isDraggingItem = true;
         draggedItem = item;
         sourceColumnId = item.ColumnId;
@@ -1475,7 +1475,7 @@ else
             var hasHoverItem = _hoverItem != null && _hoverItem.Id != draggedItem.Id;
             var isSameItem = _hoverItem?.Id == draggedItem.Id;
             var isDifferentColumn = targetColumnId != sourceColumnId;
-            
+
             if (!string.IsNullOrEmpty(targetColumnId))
             {
                 if (isDifferentColumn || (hasHoverItem && !isSameItem))
@@ -1657,10 +1657,21 @@ else
             {
                 if (!currentBoard.Participants.ContainsKey(id))
                 {
-                    currentBoard.Participants[id] = name;
+                    await BoardService.AddParticipantAsync(BoardId, id, name);
+                    // currentBoard.Participants[id] = name;
+                    // currentBoard.ParticipantPermissions[id] = new BoardPermissions
+                    // {
+                    //     CanViewCalendar = true,
+                    //     CanAddTasks = true,
+                    //     CanModifyTasks = true,
+                    //     CanDeleteTasks = true,
+                    //     CanAddEvents = false,
+                    //     CanModifyEvents = false,
+                    //     CanDeleteEvents = false
+                    // };
                 }
             }
-            await BoardService.UpdateBoardAsync(currentBoard);
+            // await BoardService.UpdateBoardAsync(currentBoard);
             await LogService.AddLogAsync(new LogItem
             {
                 Message = $"Añade participantes {string.Join(", ", selectedParticipants.Select(x => x.Name))} del tablero {currentBoard.Name}",
