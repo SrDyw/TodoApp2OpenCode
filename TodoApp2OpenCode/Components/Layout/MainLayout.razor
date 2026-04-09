@@ -217,6 +217,21 @@
             t.Stop();
         };
         t.Start();
+
+        var notificationTimer = new System.Timers.Timer(5000);
+        notificationTimer.Elapsed += async (e, s) =>
+        {
+            if (AuthService.CurrentUser != null && AuthService.IsAuthenticated)
+            {
+                await InvokeAsync(async () =>
+                {
+                    Notifications = await NotificationService.GetAllAsync(AuthService.CurrentUser.Id);
+                    UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser.Id);
+                    StateHasChanged();
+                });
+            }
+        };
+        notificationTimer.Start();
     }
 
     private async Task LoadNotifications()

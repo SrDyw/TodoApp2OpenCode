@@ -44,7 +44,7 @@
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 20px;
         max-width: 1200px;
-        margin: 0 auto 60px;
+        margin: 0 auto 80px;
     }
 
     .board-card {
@@ -75,160 +75,92 @@
         color: var(--mud-palette-text-secondary);
     }
 
-    .tutorials-section {
-        max-width: 900px;
+    .landing-section {
+        max-width: 1000px;
         margin: 0 auto;
     }
 
-    .section-title {
-        font-size: 1.8rem;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 40px;
-        color: var(--mud-palette-text-primary);
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-bottom: 60px;
     }
 
-    .tutorial-card {
+    .feature-card {
         background: var(--mud-palette-surface);
-        border-radius: 16px;
-        padding: 32px;
-        margin-bottom: 24px;
         border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 16px;
+        padding: 32px 24px;
+        transition: all 0.3s ease;
     }
 
-    .tutorial-header {
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 16px 48px rgba(126, 111, 255, 0.12);
+        border-color: var(--mud-palette-primary);
+    }
+
+    .feature-icon-wrapper {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(126, 111, 255, 0.15) 0%, rgba(126, 111, 255, 0.05) 100%);
         display: flex;
         align-items: center;
-        gap: 16px;
+        justify-content: center;
         margin-bottom: 20px;
     }
 
-    .tutorial-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, var(--mud-palette-primary) 0%, #a78bfa 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-    }
-
-    .tutorial-title {
-        font-size: 1.3rem;
+    .feature-title {
+        font-size: 1.25rem;
         font-weight: 600;
         color: var(--mud-palette-text-primary);
+        margin-bottom: 12px;
     }
 
-    .tutorial-steps {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .tutorial-step {
-        display: flex;
-        gap: 16px;
-        align-items: flex-start;
-    }
-
-    .step-number {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: var(--mud-palette-primary);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 0.9rem;
-        flex-shrink: 0;
-    }
-
-    .step-content {
-        flex: 1;
-    }
-
-    .step-title {
-        font-weight: 600;
-        color: var(--mud-palette-text-primary);
-        margin-bottom: 4px;
-    }
-
-    .step-description {
+    .feature-description {
         color: var(--mud-palette-text-secondary);
         font-size: 0.95rem;
-        line-height: 1.5;
+        line-height: 1.6;
     }
 
-    .feature-highlight {
-        background: rgba(126, 111, 255, 0.1);
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-top: 16px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .feature-highlight-icon {
-        font-size: 1.2rem;
-    }
-
-    .feature-highlight-text {
-        color: var(--mud-palette-primary);
-        font-size: 0.9rem;
-        font-weight: 500;
-    }
-
-    .mockup-example {
-        background: var(--mud-palette-background);
-        border-radius: 12px;
-        padding: 20px;
-        margin-top: 20px;
-        overflow-x: auto;
-    }
-
-    .mockup-board {
-        display: flex;
-        gap: 12px;
-        min-width: 500px;
-    }
-
-    .mockup-column {
-        flex: 1;
-        min-width: 140px;
-    }
-
-    .mockup-column-header {
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-bottom: 8px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        display: inline-block;
-    }
-
-    .mockup-card {
-        background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-lines-default);
-        border-radius: 6px;
-        padding: 8px 10px;
-        margin-bottom: 8px;
-        font-size: 0.75rem;
-    }
-
-    .empty-state {
+    .cta-section {
+        background: linear-gradient(135deg, var(--mud-palette-primary) 0%, #9f85ff 100%);
+        border-radius: 24px;
+        padding: 48px;
         text-align: center;
-        padding: 40px;
-        color: var(--mud-palette-text-secondary);
+        color: white;
     }
 
-    .empty-state-icon {
-        font-size: 48px;
+    .cta-title {
+        font-size: 1.8rem;
+        font-weight: 700;
         margin-bottom: 16px;
-        opacity: 0.5;
+    }
+
+    .cta-description {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 32px;
+        line-height: 1.6;
+    }
+
+    .cta-button {
+        background: white !important;
+        color: var(--mud-palette-primary) !important;
+        font-weight: 600;
+        padding: 12px 32px;
+        border-radius: 12px;
+    }
+
+    .section-label {
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--mud-palette-primary);
+        margin-bottom: 12px;
     }
 </style>
 
@@ -262,188 +194,77 @@
         </div>
     }
 
-    <div class="tutorials-section">
-        <h2 class="section-title">Cómo funcionan los tableros</h2>
+    <div class="landing-section">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <MudIcon Icon="@Icons.Material.Filled.ViewKanban" Size="Size.Large" Color="Color.Primary" />
+                </div>
+                <div class="feature-title">Tableros Visuales</div>
+                <div class="feature-description">
+                    Crea tableros ilimitados para organizar tus proyectos. Cada tablero tiene columnas personalizables que puedes nombrar y colorizar.
+                </div>
+            </div>
 
-        <div class="tutorial-card">
-            <div class="tutorial-header">
-                <div class="tutorial-icon">📋</div>
-                <div class="tutorial-title">Tableros y Columnas</div>
-            </div>
-            <div class="tutorial-steps">
-                <div class="tutorial-step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <div class="step-title">Crea tu tablero</div>
-                        <div class="step-description">
-                            Cada tablero representa un proyecto o área de trabajo. Usa un nombre descriptivo para identificarlo fácilmente.
-                        </div>
-                    </div>
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <MudIcon Icon="@Icons.Material.Filled.SwapVert" Size="Size.Large" Color="Color.Primary" />
                 </div>
-                <div class="tutorial-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <div class="step-title">Añade columnas</div>
-                        <div class="step-description">
-                            Las columnas representan las etapas de tu flujo de trabajo. Por ejemplo: "Por hacer", "En progreso" y "Completado".
-                        </div>
-                    </div>
-                </div>
-                <div class="tutorial-step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <div class="step-title">Personaliza</div>
-                        <div class="step-description">
-                            Cambia el color de las columnas para distinguirlas visualmente. Arrastra las columnas para reordenarlas.
-                        </div>
-                    </div>
+                <div class="feature-title">Drag & Drop</div>
+                <div class="feature-description">
+                    Arrastra tareas entre columnas con un clic. Reordena tus columnas y tareas de forma fluida e intuitiva.
                 </div>
             </div>
-            <div class="feature-highlight">
-                <span class="feature-highlight-icon">💡</span>
-                <span class="feature-highlight-text">Consejo: Usa colores diferentes para cada etapa de tu proceso</span>
-            </div>
-        </div>
 
-        <div class="tutorial-card">
-            <div class="tutorial-header">
-                <div class="tutorial-icon">✅</div>
-                <div class="tutorial-title">Tareas y Pasos</div>
-            </div>
-            <div class="tutorial-steps">
-                <div class="tutorial-step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <div class="step-title">Crea tareas</div>
-                        <div class="step-description">
-                            Cada tarea es una unidad de trabajo. Añade un título descriptivo y una descripción opcional con más detalles.
-                        </div>
-                    </div>
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Primary" />
                 </div>
-                <div class="tutorial-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <div class="step-title">Divide en pasos</div>
-                        <div class="step-description">
-                            Si una tarea es compleja, divídela en pasos más pequeños. Marca cada paso como completado conforme avanzas.
-                        </div>
-                    </div>
-                </div>
-                <div class="tutorial-step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <div class="step-title">Asigna participantes</div>
-                        <div class="step-description">
-                            Añade miembros al tablero para colaborar. Asigna tareas específicas a cada persona.
-                        </div>
-                    </div>
+                <div class="feature-title">Colaboración</div>
+                <div class="feature-description">
+                    Añade participantes a tus tableros. Asigna tareas, sigue el progreso y trabaja en equipo en tiempo real.
                 </div>
             </div>
-            <div class="mockup-example">
-                <div class="mockup-board">
-                    <div class="mockup-column">
-                        <div class="mockup-column-header" style="background: rgba(255,107,107,0.2); color: #ff6b6b;">Por hacer</div>
-                        <div class="mockup-card">
-                            <strong>Diseñar API</strong>
-                            <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 4px;">3/5 pasos</div>
-                        </div>
-                    </div>
-                    <div class="mockup-column">
-                        <div class="mockup-column-header" style="background: rgba(255,181,69,0.2); color: #ffb545;">En progreso</div>
-                        <div class="mockup-card">
-                            <strong>Implementar UI</strong>
-                            <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 4px;">1/3 pasos</div>
-                        </div>
-                    </div>
-                    <div class="mockup-column">
-                        <div class="mockup-column-header" style="background: rgba(61,203,108,0.2); color: #3dcb6c;">Completado</div>
-                        <div class="mockup-card">
-                            <strong>Setup proyecto</strong>
-                            <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 4px;">Completado ✓</div>
-                        </div>
-                    </div>
+
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Large" Color="Color.Primary" />
+                </div>
+                <div class="feature-title">Calendario</div>
+                <div class="feature-description">
+                    Programa eventos y tareas con fechas. Visualiza tu agenda en el calendario integrado de cada tablero.
+                </div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <MudIcon Icon="@Icons.Material.Filled.Notifications" Size="Size.Large" Color="Color.Primary" />
+                </div>
+                <div class="feature-title">Notificaciones</div>
+                <div class="feature-description">
+                    Recibe alertas cuando te añadan a un tablero o evento. Mantente informado de todo lo que pasa.
+                </div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Large" Color="Color.Primary" />
+                </div>
+                <div class="feature-title">Permisos Granulares</div>
+                <div class="feature-description">
+                    Controla qué pueden hacer cada participante. Define quién puede añadir, editar o eliminar tareas y columnas.
                 </div>
             </div>
         </div>
 
-        <div class="tutorial-card">
-            <div class="tutorial-header">
-                <div class="tutorial-icon">🖱️</div>
-                <div class="tutorial-title">Arrastrar y Soltar</div>
+        <div class="cta-section">
+            <div class="cta-title">¿Listo para empezar?</div>
+            <div class="cta-description">
+                Crea tu primer tablero y comienza a organizar tus proyectos de forma visual
             </div>
-            <div class="tutorial-steps">
-                <div class="tutorial-step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <div class="step-title">Mueve tareas</div>
-                        <div class="step-description">
-                            Haz clic en una tarea y arrástrala a otra columna. La tarea se moverá instantáneamente.
-                        </div>
-                    </div>
-                </div>
-                <div class="tutorial-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <div class="step-title">Reordena columnas</div>
-                        <div class="step-description">
-                            Arrastra el encabezado de una columna para cambiar su posición en el tablero.
-                        </div>
-                    </div>
-                </div>
-                <div class="tutorial-step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <div class="step-title">Cambios en tiempo real</div>
-                        <div class="step-description">
-                            Los cambios se sincronizan automáticamente con todos los participantes del tablero.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="feature-highlight">
-                <span class="feature-highlight-icon">⚡</span>
-                <span class="feature-highlight-text">Los cambios se guardan automáticamente</span>
-            </div>
-        </div>
-
-        <div class="tutorial-card">
-            <div class="tutorial-header">
-                <div class="tutorial-icon">👥</div>
-                <div class="tutorial-title">Colaboración en Equipo</div>
-            </div>
-            <div class="tutorial-steps">
-                <div class="tutorial-step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <div class="step-title">Invita participantes</div>
-                        <div class="step-description">
-                            Añade usuarios al tablero para trabajar juntos. Cada miembro puede ver y modificar las tareas.
-                        </div>
-                    </div>
-                </div>
-                <div class="tutorial-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <div class="step-title">Asigna responsables</div>
-                        <div class="step-description">
-                            En cada tarea, puedes asignar uno o varios participantes responsables de completarla.
-                        </div>
-                    </div>
-                </div>
-                <div class="tutorial-step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <div class="step-title">Ve quién está trabajando</div>
-                        <div class="step-description">
-                            Observa los cursores de otros usuarios en tiempo real mientras trabajan en el tablero.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="feature-highlight">
-                <span class="feature-highlight-icon">🔒</span>
-                <span class="feature-highlight-text">No se puede remover un usuario con tareas sin completar</span>
-            </div>
+            <MudButton Variant="Variant.Filled" Class="cta-button" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNewBoard">
+                Crear Tablero
+            </MudButton>
         </div>
     </div>
 </div>

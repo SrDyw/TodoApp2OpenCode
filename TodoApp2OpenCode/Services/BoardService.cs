@@ -581,6 +581,7 @@ public class BoardService : IBoardService
             var eventTitle = evt.Title;
             var boardId = evt.TodoBoardId;
             var eventDate = evt.EventDate;
+            var participants = evt.Participants;
 
             context.CalendarEvents.Remove(evt);
             await context.SaveChangesAsync();
@@ -592,6 +593,19 @@ public class BoardService : IBoardService
                 BoardId = boardId,
                 User = _authService.CurrentUser?.Username ?? "Sistema"
             });
+
+            if (participants != null && participants.Any())
+            {
+                foreach (var participant in participants)
+                {
+                    await _notificationService.CreateAsync(
+                        participant.Key,
+                        "Evento eliminado",
+                        $"El evento '{eventTitle}' del {eventDate:dd/MM/yyyy} ha sido eliminado",
+                        $"/board/{boardId}/schedule"
+                    );
+                }
+            }
             
             return true;
         }
