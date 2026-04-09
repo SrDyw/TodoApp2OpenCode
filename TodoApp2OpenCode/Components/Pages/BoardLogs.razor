@@ -1,0 +1,130 @@
+@page "/board/{BoardId}/logs"
+@inject ILogService LogService
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject IBoardService BoardService;
+<PageTitle>Logs - FlowBoard</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" 
+                       Color="Color.Default" 
+                       OnClick="GoBack" >
+            Volver al tablero
+        </MudButton>
+        <MudSpacer />
+         <div style="display:flex; justify-content:end; flex-direction:column">
+            <MudText Typo="Typo.h6" Class="schedule-title" Style="text-align: end">
+                Registro de actividades
+            </MudText>
+            <MudSpacer />
+            <MudText Color="Color.Primary" Typo="Typo.h4" Style="text-align: end">
+                @_currentBoar?.Name
+            </MudText>
+        </div>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudSkeleton Height="40px" Width="100%" Class="mb-4" />
+        <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+        <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+        <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+        <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
+    }
+    else
+    {
+        <MudDataGrid T="LogItem" 
+            Items="_logs" 
+            Hover="true" 
+            QuickFilter="QuickFilter"
+            Filterable="Filterable"
+            FilterMode="DataGridFilterMode.ColumnFilterRow">
+            <ToolBarContent>
+                <MudSpacer />
+                <MudToggleIconButton Style="margin-inline: 20px;" @bind-Toggled="Filterable"
+                                    Icon="@Icons.Material.Filled.FilterAltOff" Color="@Color.Error"
+                                    ToggledIcon="@Icons.Material.Filled.FilterAlt" ToggledColor="@Color.Success"
+                                    title="@(Filterable ? "On" : "Off")" />
+                <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                            AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.Id" Title="ID" />
+                <PropertyColumn Property="x => x.User" Title="Usuario" />
+                <PropertyColumn Property="x => x.Action" Title="Acción">
+                    <CellTemplate>
+                        @switch (context.Item.Action)
+                        {
+                            case DatabaseAction.Actualizar:
+                                <MudChip Color="Color.Info">@context.Item.Action.ToString()</MudChip>
+                                break;
+                            case DatabaseAction.Remover:
+                                <MudChip Color="Color.Error">@context.Item.Action.ToString()</MudChip>
+                                break;
+                            case DatabaseAction.Crear:
+                                <MudChip Color="Color.Success">@context.Item.Action.ToString()</MudChip>
+                                break;
+                            case DatabaseAction.Leer:
+                                <MudChip Color="Color.Default">@context.Item.Action.ToString()</MudChip>
+                                break;
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.Message" Title="Mensaje" />
+                <PropertyColumn Property="x => x.CreatedAt" Title="Fecha" />
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="LogItem" PageSizeOptions="new int[] {5, 10, 15, 30}" />
+            </PagerContent>
+        </MudDataGrid>
+    }
+</MudContainer>
+
+    @code {
+    [Parameter]
+    public string BoardId { get; set; } = "";
+
+    private IEnumerable<LogItem> _logs = new List<LogItem>();
+    private bool _loading = true;
+    private bool Filterable { get; set; }
+    private string _searchString = string.Empty;
+    private TodoBoard? _currentBoar;
+
+    private Func<LogItem, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrEmpty(_searchString)) return true;
+        return x.Message.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+               x.User.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        try
+        {
+            _loading = true;
+            _logs = await LogService.GetLogsByBoardId(BoardId);
+            _currentBoar = await BoardService.GetBoardAsync(BoardId);
+        }
+        catch (Exception ex)
+        {
+            SnackbarService.Add($"Error al cargar logs: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/board/{BoardId}");
+    }
+}
