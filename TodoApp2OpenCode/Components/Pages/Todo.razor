@@ -52,123 +52,10 @@
         </MudText>
     }
 </MudStack>
+<MudText Color="Color.Primary" Typo="Typo.h5">
+    @currentBoard?.Description
+</MudText>
 
-<!-- Barra de acciones flotante estilo Win11 -->
-<div class="action-bar">
-    @if (columnLoading)
-    {
-        <MudSkeleton Width="100%" Height=" 40px"/>
-    }
-    else 
-    {
-        <MudButton Color="Color.Primary" 
-               Variant="Variant.Filled" 
-               Size="Size.Medium"
-               StartIcon="@Icons.Material.Filled.Add"
-               OnClick="OpenNewTaskDialogAsync"
-               Disabled="!canAddTask">
-            Nueva Tarea
-        </MudButton>
-
-        @if (currentBoard != null)
-        {
-            <MudMenu Label="Participantes" Color="Color.Default" Variant="Variant.Outlined" Class="ml-2" EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
-                <div class="px-3 py-2">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                        <MudText>
-                            @if (!string.IsNullOrEmpty(currentBoard.OwnerName))
-                            {
-                                @currentBoard.OwnerName
-                            }
-                            else
-                            {
-                                @:Propietario
-                            }
-                            @if (isOwner)
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
-                            }
-                        </MudText>
-                    </MudStack>
-                </div>
-                @if (currentBoard.Participants.Any())
-                {
-                    <MudDivider />
-                    @foreach (var participant in currentBoard.Participants)
-                    {
-                        <div class="px-3 py-2">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                                <MudText>
-                                    @participant.Value
-                                    @if (AuthService.CurrentUser != null && participant.Key == AuthService.CurrentUser.Id)
-                                    {
-                                        <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
-                                    }
-                                </MudText>
-                                @if (isOwner)
-                                {
-                                    <MudSpacer/>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Close" 
-                                                   Size="Size.Small" 
-                                                   Color="Color.Error"
-                                                   OnClick="@(() => ConfirmRemoveParticipant(participant.Key, participant.Value))" />
-                                }
-                            </MudStack>
-                        </div>
-                    }
-                }
-                @if (isOwner)
-                {
-                    <MudDivider />
-                    <MudMenuItem OnClick="OpenAddParticipantsDialog">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Color="Color.Primary" />
-                            <MudText Color="Color.Primary">Añadir participante</MudText>
-                        </MudStack>
-                    </MudMenuItem>
-                }
-            </MudMenu>
-
-            <MudButton Color="Color.Default" 
-                       Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.History"
-                       OnClick="ToggleLogsView"
-                       @onmousedown:stopPropagation="true">
-                @(showLogsView ? "Ver Board" : "Ver Logs")
-            </MudButton>
-            
-            @if (canViewCalendar || isOwner)
-            {
-                <MudButton Color="Color.Default" 
-                           Variant="Variant.Outlined"
-                           StartIcon="@Icons.Material.Filled.CalendarMonth"
-                           OnClick="NavigateToSchedule"
-                           @onmousedown:stopPropagation="true">
-                    Calendario
-                </MudButton>
-            }
-
-            @if (isOwner)
-            {
-                <MudButton Color="Color.Default" 
-                           Variant="Variant.Outlined"
-                           StartIcon="@Icons.Material.Filled.Settings"
-                           OnClick="NavigateToSettings"
-                           @onmousedown:stopPropagation="true">
-                    Ajustes
-                </MudButton>
-            }
-            
-            <MudSpacer/>
-            @if (isOwner)
-            {
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="OnDeleteBoardButtonClick"/>
-            }
-        }
-    }
-</div>
 
 <!-- Eventos de hoy -->
 @if (todayEvents.Any())
@@ -198,6 +85,7 @@
         </div>
     </MudAlert>
 }
+<MudDivider />
 
 <!-- Barra de estado de sincronización -->
 @if (_syncStatus != SyncStatus.Idle)
@@ -318,6 +206,99 @@ else
     else
     {
         <div class="columns-wrapper">
+                <div class="vertical-action-bar column-item">
+                <MudTooltip Text="Añadir nueva tarea">
+                    <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="OpenNewTaskDialogAsync" Disabled="!canAddTask" />
+                </MudTooltip>
+                <MudTooltip Text="Participantes">
+                    <MudMenu Color="Color.Default" Icon="@Icons.Material.Filled.People">
+                    <div class="px-3 py-2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                            <MudText>
+                                @if (!string.IsNullOrEmpty(currentBoard.OwnerName))
+                                {
+                                    @currentBoard.OwnerName
+                                }
+                                else
+                                {
+                                    @:Propietario
+                                }
+                                @if (isOwner)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
+                                }
+                            </MudText>
+                        </MudStack>
+                    </div>
+                    @if (currentBoard.Participants.Any())
+                    {
+                        <MudDivider />
+                        @foreach (var participant in currentBoard.Participants)
+                        {
+                            <div class="px-3 py-2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                    <MudText>
+                                        @participant.Value
+                                        @if (AuthService.CurrentUser != null && participant.Key == AuthService.CurrentUser.Id)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
+                                        }
+                                    </MudText>
+                                    @if (isOwner)
+                                    {
+                                        <MudSpacer />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                                        Size="Size.Small"
+                                                        Color="Color.Error"
+                                                        OnClick="@(() => ConfirmRemoveParticipant(participant.Key, participant.Value))" />
+                                    }
+                                </MudStack>
+                            </div>
+                        }
+                    }
+                    @if (isOwner)
+                    {
+                        <MudDivider />
+                        <MudMenuItem OnClick="OpenAddParticipantsDialog">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Color="Color.Primary" />
+                                <MudText Color="Color.Primary">Añadir participante</MudText>
+                            </MudStack>
+                        </MudMenuItem>
+                    }
+                </MudMenu>
+                </MudTooltip>
+                @if (canViewCalendar || isOwner)
+                {
+                    <MudTooltip Text="Calendario">
+                        <MudIconButton Color="Color.Default"
+                                    Icon="@Icons.Material.Filled.CalendarMonth"
+                                    OnClick="NavigateToSchedule"
+                                    @onmousedown:stopPropagation="true"/>
+                    </MudTooltip>
+                }
+                @if (isOwner)
+                {
+                    <MudTooltip Text="Ajustes">
+                            <MudIconButton Color="Color.Default"
+                                       Icon="@Icons.Material.Filled.Settings"
+                                       OnClick="NavigateToSettings"
+                                       @onmousedown:stopPropagation="true"/>
+                    </MudTooltip>
+                }
+                <MudSpacer />
+                <MudDivider/>
+                @if (isOwner)
+                {
+                    <MudTooltip Text="Borrar tablero">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="OnDeleteBoardButtonClick" />
+                    </MudTooltip>
+                }
+            </div>
+                <div class="columns-list column-item">
+
             @foreach (var column in columns)
             {
                 <div class="board-column @(hoveredColumnId == column.Id && isDraggingItem ? "drop-zone-hover" : "") @(isDraggingColumn && draggedColumn?.Id == column.Id ? "column-being-dragged" : "") @(hoveredColumnId == column.Id && isDraggingColumn && draggedColumn?.Id != column.Id ? "column-drop-target" : "")" 
@@ -552,6 +533,7 @@ else
                      <MudText>Nueva Columna</MudText>
                  </div>
              }
+            </div>
          </div>
      }
 
@@ -608,11 +590,25 @@ else
     }
     
     .columns-wrapper {
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        height: 100%;
+        min-height: 500px;
+        padding: 4px;
+    }
+
+    .columns-list {
         display: flex;
         gap: 16px;
         height: 100%;
         min-height: 500px;
         padding: 4px;
+        overflow-x: scroll;
+        border-radius: 16px;
+    }
+
+    .column-item {
+        margin-right: 8px;
     }
     
     .board-column {
@@ -772,6 +768,20 @@ else
 
     .action-bar {
         display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .vertical-action-bar {
+        display: flex;
+        flex-direction:column;
+        height: 100%;
         align-items: center;
         gap: 12px;
         padding: 8px 12px;
