@@ -111,96 +111,43 @@
     </div>
 }
 
-
-@if (showLogsView)
-{
-    <div class="logs-container">
-        @if (logsLoading)
-        {
-            <MudSkeleton Height="40px" Width="100%" Class="mb-4" />
-            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
-            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
-            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
-            <MudSkeleton Height="40px" Width="100%" Class="mb-2" />
-        }
-        else
-        {
-            <MudDataGrid T="LogItem" 
-                Items="boardLogs" 
-                Hover="true" 
-                QuickFilter="QuickFilter"
-                Filterable="Filterable"
-                FilterMode="DataGridFilterMode.ColumnFilterRow">
-                <ToolBarContent>
-                    <MudSpacer />
-                    <MudToggleIconButton Style="margin-inline: 20px;" @bind-Toggled="Filterable"
-                                         Icon="@Icons.Material.Filled.FilterAltOff" Color="@Color.Error"
-                                         ToggledIcon="@Icons.Material.Filled.FilterAlt" ToggledColor="@Color.Success"
-                                         title="@(Filterable ? "On" : "Off")" />
-                    <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-                </ToolBarContent>
-                <Columns>
-                    <PropertyColumn Property="x => x.Id" Title="ID" />
-                    <PropertyColumn Property="x => x.User" />
-                    <PropertyColumn Property="x => x.Action" Title="Acción">
-                        <CellTemplate>
-                            @switch (context.Item.Action)
-                            {
-                                case DatabaseAction.Actualizar:
-                                    <MudChip Color="Color.Info">@context.Item.Action.ToString()</MudChip>
-                                    break;
-                                case DatabaseAction.Remover:
-                                    <MudChip Color="Color.Error">@context.Item.Action.ToString()</MudChip>
-                                    break;
-                                case DatabaseAction.Crear:
-                                    <MudChip Color="Color.Success">@context.Item.Action.ToString()</MudChip>
-                                    break;
-                                case DatabaseAction.Leer:
-                                    <MudChip Color="Color.Default">@context.Item.Action.ToString()</MudChip>
-                                    break;
-                            }
-                        </CellTemplate>
-                    </PropertyColumn>
-                    <PropertyColumn Property="x => x.Message" Title="Mensaje" />
-                    <PropertyColumn Property="x => x.CreatedAt" Title="Fecha" />
-                </Columns>
-                <PagerContent>
-                    <MudDataGridPager T="LogItem" PageSizeOptions="new int[] {5, 10, 15, 30}" />
-                </PagerContent>
-            </MudDataGrid>
-        }
-    </div>
-}
-else
-{
 <div class="board-container @((isDraggingItem || isDraggingColumn) ? "no-select" : "")" @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp" @ondragover:preventDefault>
     @if (columnLoading)
     {
         <div class="columns-wrapper">
-            @for (int i = 0; i < 3; i++)
-            {
-                <div class="board-column skeleton-column">
-                    <div class="column-header">
-                        <div class="column-title-area">
-                            <MudSkeleton Width="16px" Height="16px" Class="mr-1" />
-                            <MudSkeleton Width="8px" Height="8px" Class="mr-1" />
-                            <MudSkeleton Width="100px" Height="24px" />
+            <!-- Skeleton barra vertical -->
+            <div class="vertical-action-bar column-item">
+                <MudSkeleton Width="40px" Height="40px" Class="mb-2" />
+                <MudSkeleton Width="40px" Height="40px" Class="mb-2" />
+                <MudSkeleton Width="40px" Height="40px" Class="mb-2" />
+                <MudSkeleton Width="40px" Height="40px" Class="mb-2" />
+            </div>
+            <div class="columns-list">
+                <!-- Skeleton columnas -->
+                @for (int i = 0; i < 3; i++)
+                {
+                    <div class="board-column skeleton-column">
+                        <div class="column-header">
+                            <div class="column-title-area">
+                                <MudSkeleton Width="16px" Height="16px" Class="mr-1" />
+                                <MudSkeleton Width="8px" Height="8px" Class="mr-1" />
+                                <MudSkeleton Width="100px" Height="24px" />
+                            </div>
+                        </div>
+                        <div class="column-content">
+                            @for (int j = 0; j < 3; j++)
+                            {
+                                <MudCard Class="todo-card-skeleton mb-3">
+                                    <MudCardContent Class="pa-3">
+                                        <MudSkeleton Width="80%" Height="18px" Class="mb-2" />
+                                        <MudSkeleton Width="60%" Height="14px" />
+                                    </MudCardContent>
+                                </MudCard>
+                            }
                         </div>
                     </div>
-                    <div class="column-content">
-                        @for (int j = 0; j < 3; j++)
-                        {
-                            <MudCard Class="todo-card-skeleton mb-3">
-                                <MudCardContent Class="pa-3">
-                                    <MudSkeleton Width="80%" Height="18px" Class="mb-2" />
-                                    <MudSkeleton Width="60%" Height="14px" />
-                                </MudCardContent>
-                            </MudCard>
-                        }
-                    </div>
-                </div>
-            }
+                }
+            </div>
         </div>
     }
     else
@@ -288,6 +235,12 @@ else
                                        @onmousedown:stopPropagation="true"/>
                     </MudTooltip>
                 }
+                <MudTooltip Text="Registros">
+                    <MudIconButton Color="Color.Default"
+                                Icon="@Icons.Material.Filled.History"
+                                OnClick="NavigateToLogs"
+                                @onmousedown:stopPropagation="true"/>
+                </MudTooltip>
                 <MudSpacer />
                 <MudDivider/>
                 @if (isOwner)
@@ -540,7 +493,7 @@ else
 
 </div>
     
-}
+
 <!-- Tablero de columnas estilo Kanban -->
 
 <style>
@@ -593,7 +546,7 @@ else
         display: grid;
         grid-template-columns: 64px 1fr;
         height: 100%;
-        min-height: 500px;
+        min-height: 600px;
         padding: 4px;
     }
 
@@ -934,9 +887,6 @@ else
     private bool canDeleteColumn = true;
     private bool isParticipant = false;
     private Dictionary<string, string> boardParticipants = new();
-    private bool showLogsView = false;
-    private IEnumerable<LogItem> boardLogs = [];
-    private bool logsLoading = false;
 
     private bool columnLoading = true;
 
@@ -952,29 +902,8 @@ else
     private string? _previousBoardId;
     private System.Threading.Timer? _permissionCheckTimer;
 
-    private bool Filterable { get; set; }
-    private string _searchString = string.Empty;
-
-    private Func<LogItem, bool> QuickFilter => x =>
-    {
-        if (string.IsNullOrWhiteSpace(_searchString))
-            return true;
-
-
-        if (x.User.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
-            return true;
-
-        if (x.Action.ToString().Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
-            return true;
-        if (x.Message.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
-            return true;
-
-        return false;
-    };
-
     protected override async Task OnParametersSetAsync()
     {
-        showLogsView = false;
         if (BoardId != _previousBoardId)
         {
             if (!string.IsNullOrEmpty(_previousBoardId))
@@ -1797,29 +1726,11 @@ else
     }
 
     // ============================================
-    // VISTA DE LOGS
+    // NAVEGACIÓN A OTRAS PÁGINAS
     // ============================================
-    private async Task ToggleLogsView()
+    private void NavigateToLogs()
     {
-        try
-        {
-            showLogsView = !showLogsView;
-            if (showLogsView)
-            {
-                logsLoading = true;
-                await InvokeAsync(StateHasChanged);
-
-                boardLogs = await LogService.GetLogsByBoardId(BoardId);
-
-                logsLoading = false;
-            }
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (Exception ex)
-        {
-            logsLoading = false;
-            SnackbarService.Add($"Error: {ex.Message}", Severity.Error);
-        }
+        Navigation.NavigateTo($"/board/{BoardId}/logs");
     }
 
     private void NavigateToSchedule()
