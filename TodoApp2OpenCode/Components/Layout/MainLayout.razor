@@ -31,10 +31,13 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        .app-navbar {
+            backdrop-filter: blur(10px);
+        }
     </style>
-    <MudAppBar Elevation="1">
+    <MudAppBar Elevation="1" Class="app-navbar">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        <MudText Typo="Typo.h5" Class="ml-3">FlowBoard</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3 cursor-pointer" @onclick="@((e) => Navigation.NavigateTo("/board"))">@Config.AppName</MudText>
         <MudSpacer />
         
         @if (IsAuthenticated)
@@ -166,7 +169,6 @@
         }
         
         <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggle" />
-        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" />
     </MudAppBar>
     <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />
