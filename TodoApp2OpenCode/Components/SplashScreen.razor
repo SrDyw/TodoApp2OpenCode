@@ -7,9 +7,7 @@
             <div class="splash-logo">
                 <MudIcon Icon="@Icons.Material.Filled.Dashboard" Size="Size.Large" Style="font-size: 80px; color: var(--mud-palette-primary);" />
             </div>
-            <MudText Typo="Typo.h3" Class="splash-title" Style="font-weight: 800; letter-spacing: -1px;">
-                @Config.AppName
-            </MudText>
+            <AppLogo/>
             <div class="splash-loading">
                 <MudProgressCircular Color="Color.Primary" Size="Size.Medium" Indeterminate="true" />
             </div>
@@ -40,13 +38,6 @@
 
     .splash-logo {
         animation: pulse 2s ease-in-out infinite;
-    }
-
-    .splash-title {
-        background: linear-gradient(90deg, #7e6fff 0%, #a5a0f0 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
     }
 
     .splash-loading {

@@ -1,5 +1,8 @@
 @using TodoApp2OpenCode.Models
 @inject IDialogService DialogService
+@inject IAuthService AuthService;
+@inject ISnackbar Snackbar;
+
 <MudDialog ContentStyle="width: 500px; max-width: 500px;">
     <DialogContent>
         <MudStack Spacing="3">
@@ -162,6 +165,12 @@
     {
         if (string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(SelectedColumnId))
             return;
+
+        if (AuthService.CurrentUser == null)
+        {
+            Snackbar.Add("Para crear un nuevo tablero primero inicia sesión", Severity.Warning);
+            return;
+        }
 
         var assignedUsers = new Dictionary<string, string>();
         foreach (var userId in SelectedUserIds)

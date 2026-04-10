@@ -113,7 +113,7 @@
 
         MudDialog?.Close(DialogResult.Ok(permissions));
         
-        Navigation.NavigateTo($"/board/{BoardId}/settings", forceLoad: true);
+        Navigation.Refresh(forceReload: true);
     }
 
     private void Cancel() => MudDialog?.Cancel();

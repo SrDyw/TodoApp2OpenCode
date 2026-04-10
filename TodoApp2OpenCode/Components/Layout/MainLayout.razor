@@ -37,7 +37,10 @@
     </style>
     <MudAppBar Elevation="1" Class="app-navbar">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        <MudText Typo="Typo.h5" Class="ml-3 cursor-pointer" @onclick="@((e) => Navigation.NavigateTo("/board"))">@Config.AppName</MudText>
+        @* <MudText Typo="Typo.h5" Class="ml-3 cursor-pointer" @onclick="@((e) => Navigation.NavigateTo("/board"))">@Config.AppName</MudText> *@
+            <div class="cursor-pointer">
+                <AppLogo Typo="Typo.h5" OnClick="@(() => Navigation.NavigateTo("/board"))" />
+            </div>
         <MudSpacer />
         
         @if (IsAuthenticated)
@@ -72,9 +75,7 @@
                          Color="Color.Inherit"
                          AnchorOrigin="Origin.BottomRight"
                          TransformOrigin="Origin.TopRight">
-                    <MudMenuItem>
-                        <MudText>Notificaciones</MudText>
-                    </MudMenuItem>
+                    <MudText Style="padding: 16px">Notificaciones</MudText>
                     <MudDivider />
                     @if (Notifications.Any())
                     {
@@ -209,7 +210,7 @@
 
         await LoadNotifications();
 
-        var t = new System.Timers.Timer(1000);
+        var t = new System.Timers.Timer(500);
         t.Elapsed += (e, s) =>
         {
             _isLoading = false;
@@ -234,6 +235,14 @@
         notificationTimer.Start();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        await LoadDrawerStatus();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task LoadNotifications()
     {
         if (AuthService.CurrentUser != null)
@@ -241,6 +250,17 @@
             Notifications = await NotificationService.GetAllAsync(AuthService.CurrentUser.Id);
             UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser.Id);
         }
+    }
+
+    private async Task LoadDrawerStatus()
+    {
+        try
+        {
+            var val = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "flowboard_drawer");
+            if (string.IsNullOrWhiteSpace(val) == false)
+                _drawerOpen = val == "true";
+        }
+        catch {}
     }
 
     private async Task LoadThemePreference()
@@ -273,7 +293,7 @@
     {
         InvokeAsync(async () =>
         {
-            StateHasChanged();
+            // StateHasChanged();
             if (user != null)
             {
                 await LoadNotifications();
@@ -289,6 +309,7 @@
     private void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;
+        JSRuntime.InvokeVoidAsync("localStorage.setItem", "flowboard_drawer", _drawerOpen);
     }
 
     private async Task DarkModeToggle()

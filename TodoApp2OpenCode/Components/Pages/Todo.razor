@@ -39,7 +39,7 @@
 }
 
 <!-- Encabezado de la página -->
-<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
     @if (currentBoard == null || columnLoading)
     {
         <MudSkeleton Width="50%" Height="40px" />
@@ -85,6 +85,7 @@
         </div>
     </MudAlert>
 }
+<div style="margin-bottom: 8px"/>
 <MudDivider />
 
 <!-- Barra de estado de sincronización -->
@@ -159,63 +160,64 @@
                 </MudTooltip>
                 <MudTooltip Text="Participantes">
                     <MudMenu Color="Color.Default" Icon="@Icons.Material.Filled.People">
-                    <div class="px-3 py-2">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                            <MudText>
-                                @if (!string.IsNullOrEmpty(currentBoard.OwnerName))
-                                {
-                                    @currentBoard.OwnerName
-                                }
-                                else
-                                {
-                                    @:Propietario
-                                }
-                                @if (isOwner)
+                        <MudMenuItem Disabled="currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                @currentBoard?.OwnerName
+                                @if (currentBoard?.OwnerName == AuthService.CurrentUser?.Username)
                                 {
                                     <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
                                 }
-                            </MudText>
-                        </MudStack>
-                    </div>
-                    @if (currentBoard.Participants.Any())
-                    {
-                        <MudDivider />
-                        @foreach (var participant in currentBoard.Participants)
+                            </MudStack>
+                        </MudMenuItem>
+                        @if (currentBoard?.Participants.Any() == true)
                         {
-                            <div class="px-3 py-2">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                                    <MudText>
+                            <MudDivider />
+                            @foreach (var participant in currentBoard.Participants)
+                            {
+                                <MudMenuItem OnClick="@(() => ShowUserDetails(participant.Value, participant.Key))" Disabled="currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small" Color="Color.Primary" />
                                         @participant.Value
-                                        @if (AuthService.CurrentUser != null && participant.Key == AuthService.CurrentUser.Id)
+                                        @if (participant.Value == AuthService.CurrentUser?.Username)
                                         {
                                             <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
                                         }
-                                    </MudText>
-                                    @if (isOwner)
-                                    {
-                                        <MudSpacer />
-                                        <MudIconButton Icon="@Icons.Material.Filled.Close"
-                                                        Size="Size.Small"
-                                                        Color="Color.Error"
-                                                        OnClick="@(() => ConfirmRemoveParticipant(participant.Key, participant.Value))" />
-                                    }
-                                </MudStack>
-                            </div>
+                                    </MudStack>
+                                </MudMenuItem>
+                                @* <div class="px-3 py-2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                        <MudText>
+                                            @participant.Value
+                                            @if (AuthService.CurrentUser != null && participant.Key == AuthService.CurrentUser.Id)
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
+                                            }
+                                        </MudText>
+                                        @if (isOwner)
+                                        {
+                                            <MudSpacer />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                                            Size="Size.Small"
+                                                            Color="Color.Error"
+                                                            OnClick="@(() => ConfirmRemoveParticipant(participant.Key, participant.Value))" />
+                                        }
+                                    </MudStack>
+                                </div> *@
+                            }
                         }
-                    }
-                    @if (isOwner)
-                    {
-                        <MudDivider />
-                        <MudMenuItem OnClick="OpenAddParticipantsDialog">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Color="Color.Primary" />
-                                <MudText Color="Color.Primary">Añadir participante</MudText>
-                            </MudStack>
-                        </MudMenuItem>
-                    }
-                </MudMenu>
+                        @if (isOwner)
+                        {
+                            <MudDivider />
+                            <MudMenuItem OnClick="OpenAddParticipantsDialog">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Color="Color.Primary" />
+                                    <MudText Color="Color.Primary">Añadir participante</MudText>
+                                </MudStack>
+                            </MudMenuItem>
+                        }
+                    </MudMenu>
                 </MudTooltip>
                 @if (canViewCalendar || isOwner)
                 {
@@ -536,7 +538,7 @@
     
     .board-container {
         width: 100%;
-        height: calc(100vh - 200px);
+        height: calc(100vh - 150px);
         overflow-x: auto;
         overflow-y: hidden;
         padding-bottom: 20px;
@@ -947,42 +949,6 @@
         // }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 
-    private async Task CheckParticipantStatus()
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-
-        try
-        {
-            var board = await BoardService.GetBoardAsync(BoardId);
-            if (board == null)
-            {
-                try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
-                return;
-            }
-
-            var currentUserId = AuthService.CurrentUser?.Id ?? "";
-            var isOwner = board.User == currentUserId;
-
-            if (isOwner) return;
-
-            bool isParticipant = board.Participants.ContainsKey(currentUserId);
-            if (!isParticipant)
-            {
-                try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
-                return;
-            }
-
-            if (board.ParticipantPermissions != null && 
-                board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
-            {
-                if (!perms.CanAddTasks && !perms.CanModifyTasks && !perms.CanDeleteTasks)
-                {
-                    try { await InvokeAsync(() => Navigation.NavigateTo("/board", forceLoad: true)); } catch { }
-                }
-            }
-        }
-        catch { }
-    }
 
     public void Dispose()
     {
@@ -1206,6 +1172,12 @@
     {
         if (string.IsNullOrEmpty(BoardId)) return;
 
+        void NotFound()
+        {
+            Navigation.NavigateTo("/board/not-found", forceLoad: true);
+            return;            
+        }
+
         columnLoading = true;
         isLoading = true;
         columns = new List<TodoColumn>();
@@ -1220,10 +1192,23 @@
                 return;
             }
 
-            await Task.Delay(500);
+            // await Task.Delay(500);
 
             currentBoard = await BoardService.GetBoardAsync(BoardId);
-            isOwner = currentBoard?.User == AuthService.CurrentUser.Id;
+            if (currentBoard == null)
+            {
+                NotFound();
+                return;
+            }
+
+            isOwner = currentBoard?.OwnerName == AuthService.CurrentUser.Username;
+
+            bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
+            if (!isOwner && !isParticipant)
+            {
+                NotFound();
+                return;
+            }
 
             if (isOwner)
             {
@@ -1257,12 +1242,7 @@
                 canDeleteColumn = false;
             }
 
-            bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
-            if (currentBoard == null || (!isOwner && !isParticipant))
-            {
-                Navigation.NavigateTo("/board/not-found", forceLoad: true);
-                return;
-            }
+
 
             if (isOwner && string.IsNullOrEmpty(currentBoard.OwnerName))
             {
@@ -2099,6 +2079,32 @@
         }
 
         _hoverItem = item;
+    }
+
+    private async Task ShowUserDetails(string userName, string userId)
+    {
+        BoardPermissions? permissions = null;
+        if (currentBoard?.ParticipantPermissions != null &&
+            currentBoard.ParticipantPermissions.TryGetValue(userId, out var perms))
+        {
+            permissions = perms;
+        }
+
+        var parameters = new DialogParameters<UserDetailsDialog>
+        {
+            { x => x.UserName, userName },
+            { x => x.UserId, userId },
+            { x => x.BoardId, BoardId },
+            { x => x.CurrentPermissions, permissions }
+        };
+
+        var dialog = await DialogService.ShowAsync<UserDetailsDialog>("Usuario", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            
+        }
     }
 }
 

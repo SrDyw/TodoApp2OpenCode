@@ -9,7 +9,7 @@
     .boards-page {
         min-height: 100vh;
         background: linear-gradient(135deg, var(--mud-palette-background) 0%, var(--mud-palette-surface) 100%);
-        padding: 40px 20px 80px;
+        padding: 40px 20px 200px;
     }
 
     .welcome-section {
@@ -76,7 +76,7 @@
     }
 
     .landing-section {
-        max-width: 1000px;
+        max-width: 1200px;
         margin: 0 auto;
     }
 
@@ -173,13 +173,14 @@
         </p>
         <div class="action-buttons">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNewBoard">
-                Crear nuevo board
+                Crear nuevo tablero
             </MudButton>
         </div>
     </div>
 
     @if (userBoards.Any())
     {
+        <MudText Typo="Typo.h4" Style="text-align:center; margin-bottom: 16px">Tus tableros</MudText>
         <div class="boards-grid">
             @foreach (var board in userBoards)
             {
@@ -195,6 +196,8 @@
     }
 
     <div class="landing-section">
+        <MudText Typo="Typo.h4" Style="text-align:center; margin-bottom: 16px">Funcionalidades</MudText>
+
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon-wrapper">
@@ -260,7 +263,7 @@
         <div class="cta-section">
             <div class="cta-title">¿Listo para empezar?</div>
             <div class="cta-description">
-                Crea tu primer tablero y comienza a organizar tus proyectos de forma visual
+                Crea un tablero y comienza a organizar tus proyectos de forma visual
             </div>
             <MudButton Variant="Variant.Filled" Class="cta-button" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNewBoard">
                 Crear Tablero
@@ -276,12 +279,16 @@
     protected override async Task OnInitializedAsync()
     {
         await AuthService.CheckAuthStateAsync();
-        
+
         if (AuthService.CurrentUser != null)
         {
             userBoards = await BoardService.GetUserBoardsAsync(AuthService.CurrentUser.Id);
         }
-        
+        else
+        {
+            Navigation.NavigateTo("/");
+        }
+
         isLoading = false;
     }
 
@@ -292,6 +299,12 @@
 
     private async Task CreateNewBoard()
     {
+        if (AuthService.CurrentUser == null)
+        {
+            SnackbarService.Add("Incia sesión para poder disfrutar de los servicios de Kanvax", Severity.Warning);
+            return;
+        }
+
         var parameters = new DialogParameters<NewBoardDialog>();
         parameters.Add(x => x.UserId, AuthService.CurrentUser?.Id);
         parameters.Add(x => x.IsInitialBoard, false);
