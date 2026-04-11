@@ -1,4 +1,4 @@
-# FlowBoard - Kanban Task Board
+# Kanvax - Kanban Task Board
 
 FlowBoard es una aplicación moderna de tablero Kanban construida con Blazor y MudBlazor. Permite a los usuarios gestionar sus tareas en un formato visual de columnas con soporte para arrastrar y soltar.
 
