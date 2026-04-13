@@ -6,12 +6,14 @@
             
             <MudTextField @bind-Value="_searchText" 
                          Label="Buscar usuario" 
+                         AutoFocus
                          Variant="Variant.Outlined"
                          Placeholder="Escribe para buscar..."
                          DebounceInterval="300"
                          OnDebounceIntervalElapsed="PerformSearch"
                          Adornment="Adornment.Start"
-                         AdornmentIcon="@Icons.Material.Filled.Search" />
+                         AdornmentIcon="@Icons.Material.Filled.Search"
+                         Immediate="true" />
 
             @if (_isSearching)
             {

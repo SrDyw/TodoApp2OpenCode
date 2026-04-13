@@ -101,6 +101,10 @@ public class BoardService : IBoardService
     {
         try
         {
+            if (_authService.CurrentUser == null)
+            {
+                return null;
+            }
             await using var context = await _contextFactory.CreateDbContextAsync();
             
             var participantDict = participants?.ToDictionary(p => p.Id, p => p.Name) ?? new Dictionary<string, string>();
@@ -112,7 +116,7 @@ public class BoardService : IBoardService
                 Name = name,
                 Description = description ?? string.Empty,
                 Participants = participantDict,
-                OwnerName = string.Empty,
+                OwnerName = _authService.CurrentUser.Username,
                 Columns = new List<TodoColumn>(),
                 Items = new List<TodoItem>()
             };

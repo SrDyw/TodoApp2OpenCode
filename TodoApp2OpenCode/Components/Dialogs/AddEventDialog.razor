@@ -5,13 +5,17 @@
                       Label="Nombre del evento" 
                       Variant="Variant.Outlined" 
                       Required="true" 
-                      Class="mb-3" />
+                      Class="mb-3" 
+                      AutoFocus
+                      Immediate="true"
+                      />
         
         <MudTextField @bind-Value="Description" 
                       Label="Descripción" 
                       Variant="Variant.Outlined" 
                       Lines="3" 
-                      Class="mb-3" />
+                      Class="mb-3"
+                      Immediate="true" />
         
         <MudDatePicker @bind-Date="EventDate" 
                        Label="Fecha del evento" 

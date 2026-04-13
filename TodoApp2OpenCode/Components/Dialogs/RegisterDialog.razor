@@ -9,7 +9,9 @@
                           Variant="Variant.Outlined"
                           Required="true"
                           Placeholder="Tu nombre"
-                          Margin="Margin.Dense" />
+                          Margin="Margin.Dense"
+                          AutoFocus="true"
+                          Immediate="true" />
             
             <MudTextField @bind-Value="Email" 
                           Label="Email" 
@@ -17,7 +19,8 @@
                           Required="true"
                           InputType="InputType.Email"
                           Placeholder="tu@email.com"
-                          Margin="Margin.Dense" />
+                          Margin="Margin.Dense"
+                          Immediate="true" />
             
             <MudTextField @bind-Value="Password" 
                           Label="Contraseña" 
@@ -28,7 +31,8 @@
                           AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
                           OnAdornmentClick="TogglePasswordVisibility"
                           HelperText="Mínimo 6 caracteres"
-                          Margin="Margin.Dense" />
+                          Margin="Margin.Dense"
+                          Immediate="true" />
             
             <MudTextField @bind-Value="ConfirmPassword" 
                           Label="Confirmar contraseña" 
@@ -40,7 +44,8 @@
                           OnAdornmentClick="ToggleConfirmPasswordVisibility"
                           Error="@_passwordMismatch"
                           ErrorText="Las contraseñas no coinciden"
-                          Margin="Margin.Dense" />
+                          Margin="Margin.Dense"
+                          Immediate="true" />
             
             @if (!string.IsNullOrEmpty(ErrorMessage))
             {

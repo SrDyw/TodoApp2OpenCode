@@ -1201,7 +1201,7 @@
                 return;
             }
 
-            isOwner = currentBoard?.OwnerName == AuthService.CurrentUser.Username;
+            isOwner = currentBoard?.User == AuthService.CurrentUser.Id;
 
             bool isParticipant = currentBoard?.Participants.ContainsKey(AuthService.CurrentUser.Id) ?? false;
             if (!isOwner && !isParticipant)
