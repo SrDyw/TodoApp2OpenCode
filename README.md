@@ -1,122 +1,99 @@
-# FlowBoard - Kanban Task Board
-
-FlowBoard es una aplicación moderna de tablero Kanban construida con Blazor y MudBlazor. Permite a los usuarios gestionar sus tareas en un formato visual de columnas con soporte para arrastrar y soltar.
-
-## Características
-
-### Autenticación
-- Registro de usuarios con nombre de usuario y contraseña
-- Inicio de sesión con validación
-- Persistencia de sesión en localStorage
-
-### Tableros
-- Crear múltiples tableros con nombre y descripción
-- Compartir tableros con otros usuarios (participantes)
--URLs dedicadas por tablero (`/board/{boardId}`)
-- Dashboard con lista de tableros del usuario
-
+# Kanvax - Kanban Task Board
+FlowBoard is a modern Kanban board application built with Blazor and MudBlazor. It allows users to manage their tasks in a visual column format with drag and drop support.
+## Features
+### Authentication
+- User registration with username and password
+- Login with validation
+- Session persistence in localStorage
+### Boards
+- Create multiple boards with name and description
+- Share boards with other users (participants)
+- Dedicated URLs per board (`/board/{boardId}`)
+- Dashboard with user's board list
 ### Kanban
-- Columnas personalizables (nombre, color)
-- Tareas con:
-  - Título y descripción
-  - Prioridad (Normal, Alta, Baja)
-  - Completar/marcar tareas
-  - Asignar usuarios
-- Drag & drop para mover tareas entre columnas
-- Drag & drop para reordenar columnas
-
-### Sistema de Participantes
-- Propietario del tablero tiene control total
-- Participantes pueden ver y editar el tablero
-- Solo el propietario puede añadir/remover participantes
-- Lista de usuarios en menú desplegable
-
-### Logs de Actividad
-- Registro de todas las operaciones
-- Vista de tabla con filtros (CRUD)
-- Carga bajo demanda
-
+- Customizable columns (name, color)
+- Tasks with:
+  - Title and description
+  - Priority (Normal, High, Low)
+  - Complete/mark tasks
+  - Assign users
+- Drag & drop to move tasks between columns
+- Drag & drop to reorder columns
+### Participant System
+- Board owner has full control
+- Participants can view and edit the board
+- Only the owner can add/remove participants
+- User list in dropdown menu
+### Activity Logs
+- Record of all operations
+- Table view with filters (CRUD)
+- On-demand loading
 ### UI/UX
-- Diseño moderno estilo Windows 11
-- Actualizaciones optimistas (sin skeletons después de la carga inicial)
-- Barra de estado de sincronización
-- Componentes MudBlazor
-
-## Tecnologías
-
+- Modern Windows 11-style design
+- Optimistic updates (no skeletons after initial load)
+- Sync status bar
+- MudBlazor components
+## Technologies
 - **Frontend**: Blazor Server (.NET 9)
 - **UI Framework**: MudBlazor
-- **Persistencia**: localStorage
-- **Estilos**: CSS con variables de MudBlazor
-
-## Estructura del Proyecto
-
+- **Persistence**: localStorage
+- **Styles**: CSS with MudBlazor variables
+## Project Structure
 ```
 TodoApp2OpenCode/
 ├── Components/
-│   ├── Pages/          # Páginas razor
+│   ├── Pages/          # Razor pages
 │   │   ├── Home.razor       # Landing page
-│   │   ├── Dashboard.razor # Dashboard de tableros
-│   │   ├── Todo.razor      # Vista principal del kanban
+│   │   ├── Dashboard.razor  # Boards dashboard
+│   │   ├── Todo.razor       # Main kanban view
 │   │   └── BoardNotFound.razor
-│   ├── Dialogs/        # Componentes de diálogo
+│   ├── Dialogs/        # Dialog components
 │   ├── Layout/         # Layouts
-│   └── Routes.razor    # Configuración de rutas
-├── Services/           # Servicios
-│   ├── AuthService.cs      # Autenticación
-│   ├── BoardService.cs     # Gestión de tableros
-│   ├── TodoService.cs      # Gestión de tareas/columnas
-│   ├── LogService.cs       # Logs de actividad
-│   └── BottomNavService.cs # Navegación inferior
-├── Models/             # Modelos de datos
-└── Program.cs          # Punto de entrada
+│   └── Routes.razor    # Route configuration
+├── Services/           # Services
+│   ├── AuthService.cs      # Authentication
+│   ├── BoardService.cs     # Board management
+│   ├── TodoService.cs      # Task/column management
+│   ├── LogService.cs       # Activity logs
+│   └── BottomNavService.cs # Bottom navigation
+├── Models/             # Data models
+└── Program.cs          # Entry point
 ```
-
-## Cómo Ejecutar
-
-1. Restaurar dependencias:
+## How to Run
+1. Restore dependencies:
    ```bash
    dotnet restore
    ```
-
-2. Compilar:
+2. Build:
    ```bash
    dotnet build
    ```
-
-3. Ejecutar:
+3. Run:
    ```bash
    dotnet run
    ```
-
-4. Abrir navegador en: `http://localhost:5000`
-
+4. Open browser at: `http://localhost:5000`
 ## Usage
-
-### Crear un Tablero
-1. Iniciar sesión o registrarse
-2. En el dashboard, hacer click en "Nuevo Tablero"
-3. Ingresar nombre y descripción (opcional)
-4. El tablero se crea y redirige automáticamente
-
-### Añadir Tareas
-1. Estar en un tablero
-2. Click en "Nueva Tarea"
-3. Llenar título, descripción, prioridad y columna
-4. Guardar
-
-### Gestionar Columnas
-1. Click en los 3 puntos de una columna
-2. Editar nombre/color o eliminar
-3. Arrastrar el encabezado para reordenar
-
-### Compartir Tablero
-1. Click en menú "Participantes"
-2. Click en "Añadir participante"
-3. Buscar usuario por nombre
-4. Confirmar
-
-### Ver Logs
-1. Click en botón "Ver Logs"
-2. Ver tabla de actividad del tablero
-3. Click en "Ver Board" para volver
+### Create a Board
+1. Log in or register
+2. On the dashboard, click "New Board"
+3. Enter name and description (optional)
+4. The board is created and redirects automatically
+### Add Tasks
+1. Be on a board
+2. Click "New Task"
+3. Fill in title, description, priority and column
+4. Save
+### Manage Columns
+1. Click the 3-dot menu on a column
+2. Edit name/color or delete
+3. Drag the header to reorder
+### Share a Board
+1. Click the "Participants" menu
+2. Click "Add participant"
+3. Search for user by name
+4. Confirm
+### View Logs
+1. Click the "View Logs" button
+2. View the board's activity table
+3. Click "View Board" to go back
