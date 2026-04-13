@@ -93,6 +93,15 @@ public class TodoService
             board.Columns[index] = column;
 
             await _boardService.UpdateBoardAsync(board);
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = $"Actualiza columna '{column.Name}'",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
             return true;
         }
         catch
@@ -190,9 +199,19 @@ public class TodoService
             item.Order = maxOrder + 1;
             item.CreatedAt = DateTime.Now;
             item.UpdatedAt = DateTime.Now;
+            
+            var columnName = board.Columns.FirstOrDefault(c => c.Id == item.ColumnId)?.Name ?? "desconocida";
 
             board.Items.Add(item);
             await _boardService.UpdateBoardAsync(board);
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Crear,
+                Message = $"Crea tarea '{item.Title}' en columna '{columnName}'",
+                BoardId = board.Id,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
 
             return true;
         }
@@ -216,6 +235,15 @@ public class TodoService
             board.Items[index] = item;
 
             await _boardService.UpdateBoardAsync(board);
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = $"Actualiza tarea '{item.Title}'",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
             return true;
         }
         catch
@@ -338,6 +366,15 @@ public class TodoService
             item.UpdatedAt = DateTime.Now;
 
             await _boardService.UpdateBoardAsync(board);
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = $"Actualiza fecha límite de '{item.Title}' a {dueDate:dd/MM/yyyy}",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
             return true;
         }
         catch

@@ -120,6 +120,14 @@ public class BoardService : IBoardService
             context.Boards.Add(board);
             await context.SaveChangesAsync();
             
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Crear,
+                Message = $"Crea tablero '{name}'",
+                BoardId = board.Id,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
             await _notifier.NotifyBoardUpdatedAsync(board.Id, _authService.CurrentUser?.Id);
             
             return board;
@@ -159,6 +167,14 @@ public class BoardService : IBoardService
                 
                 await context.SaveChangesAsync();
                 
+                await _logService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Crear,
+                    Message = $"Añade participante '{userName}' al tablero",
+                    BoardId = boardId,
+                    User = _authService.CurrentUser?.Username ?? "Sistema"
+                });
+                
                 await _notificationService.CreateAsync(
                     userId,
                     "Nuevo board",
@@ -189,6 +205,14 @@ public class BoardService : IBoardService
 
             await context.SaveChangesAsync();
             
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Remover,
+                Message = $"Elimina participante del tablero",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
             await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
             
             return true;
@@ -208,10 +232,35 @@ public class BoardService : IBoardService
             if (board == null) return false;
 
             var permsDict = board.ParticipantPermissions;
+            var oldPerms = permsDict.TryGetValue(userId, out var oldP) ? oldP : new BoardPermissions();
             permsDict[userId] = permissions;
             board.ParticipantPermissions = permsDict;
             
             await context.SaveChangesAsync();
+            
+            var userName = board.Participants.TryGetValue(userId, out var name) ? name : userId;
+            
+            var changes = new List<string>();
+            if (oldPerms.CanViewCalendar != permissions.CanViewCalendar) changes.Add($"Ver Calendario: {oldPerms.CanViewCalendar} -> {permissions.CanViewCalendar}");
+            if (oldPerms.CanAddTasks != permissions.CanAddTasks) changes.Add($"Añadir tareas: {oldPerms.CanAddTasks} -> {permissions.CanAddTasks}");
+            if (oldPerms.CanModifyTasks != permissions.CanModifyTasks) changes.Add($"Modificar tareas: {oldPerms.CanModifyTasks} -> {permissions.CanModifyTasks}");
+            if (oldPerms.CanDeleteTasks != permissions.CanDeleteTasks) changes.Add($"Eliminar tareas: {oldPerms.CanDeleteTasks} -> {permissions.CanDeleteTasks}");
+            if (oldPerms.CanAddEvents != permissions.CanAddEvents) changes.Add($"Añadir eventos: {oldPerms.CanAddEvents} -> {permissions.CanAddEvents}");
+            if (oldPerms.CanModifyEvents != permissions.CanModifyEvents) changes.Add($"Modificar eventos: {oldPerms.CanModifyEvents} -> {permissions.CanModifyEvents}");
+            if (oldPerms.CanDeleteEvents != permissions.CanDeleteEvents) changes.Add($"Eliminar eventos: {oldPerms.CanDeleteEvents} -> {permissions.CanDeleteEvents}");
+            if (oldPerms.CanAddColumn != permissions.CanAddColumn) changes.Add($"Añadir columnas: {oldPerms.CanAddColumn} -> {permissions.CanAddColumn}");
+            if (oldPerms.CanEditColumn != permissions.CanEditColumn) changes.Add($"Modificar columnas: {oldPerms.CanEditColumn} -> {permissions.CanEditColumn}");
+            if (oldPerms.CanDeleteColumn != permissions.CanDeleteColumn) changes.Add($"Eliminar columnas: {oldPerms.CanDeleteColumn} -> {permissions.CanDeleteColumn}");
+            
+            var permSummary = changes.Any() ? string.Join(", ", changes) : "Sin cambios";
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = $"Actualiza permisos de {userName}: {permSummary}",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
             
             return true;
         }
@@ -380,6 +429,15 @@ public class BoardService : IBoardService
             }
 
             await context.SaveChangesAsync();
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = $"Actualiza tablero '{existingBoard.Name}' (columnes, items, steps)",
+                BoardId = existingBoard.Id,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+            
             return true;
         }
         catch
@@ -403,6 +461,14 @@ public class BoardService : IBoardService
 
             context.Boards.Remove(board);
             await context.SaveChangesAsync();
+            
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Remover,
+                Message = $"Elimina tablero '{board.Name}'",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
             
             await _notifier.NotifyBoardDeletedAsync(boardId);
             
