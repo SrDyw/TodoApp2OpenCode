@@ -900,32 +900,28 @@
     // CICLO DE VIDA
     // ============================================
     private bool _hasLoadedBoard = false;
-    private bool _isRealtimeConnected = false;
-    private string? _previousBoardId;
     private System.Threading.Timer? _permissionCheckTimer;
+
+    private string? _previousBoardId;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (BoardId != _previousBoardId)
+        if (!string.IsNullOrEmpty(BoardId))
         {
-            if (!string.IsNullOrEmpty(_previousBoardId))
+            if (BoardId != _previousBoardId)
             {
-                UnsubscribeRealtimeEvents();
-                await RealtimeService.LeaveBoardAsync(_previousBoardId);
+                _previousBoardId = BoardId;
+                _hasLoadedBoard = false;
+                columnLoading = true;
             }
 
-            _hasLoadedBoard = false;
-            _isRealtimeConnected = false;
-            _previousBoardId = BoardId;
+            if (!_hasLoadedBoard)
+            {
+                await AuthService.CheckAuthStateAsync();
+                await LoadBoardAsync();
+                _hasLoadedBoard = true;
+            }
         }
-
-        if (!string.IsNullOrEmpty(BoardId) && !_hasLoadedBoard)
-        {
-            await AuthService.CheckAuthStateAsync();
-            await LoadBoardAsync();
-            _hasLoadedBoard = true;
-        }
-
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -933,27 +929,12 @@
         if (firstRender == false) return;
 
         BottomNavService.OnBottomNavAction += HandleBottomNavAction;
-
-        if (!string.IsNullOrEmpty(BoardId) && !_isRealtimeConnected)
-        {
-            _isRealtimeConnected = true;
-            RealtimeService.SetCurrentUserId(AuthService.CurrentUser?.Id);
-            await RealtimeService.ConnectAsync();
-            await RealtimeService.JoinBoardAsync(BoardId);
-            SubscribeRealtimeEvents();
-        }
-
-        // _permissionCheckTimer = new System.Threading.Timer(async _ =>
-        // {
-        //     await CheckParticipantStatus();
-        // }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 
 
     public void Dispose()
     {
         BottomNavService.OnBottomNavAction -= HandleBottomNavAction;
-        UnsubscribeRealtimeEvents();
         _permissionCheckTimer?.Dispose();
     }
 
