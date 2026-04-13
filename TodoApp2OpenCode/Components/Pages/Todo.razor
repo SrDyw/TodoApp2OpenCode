@@ -12,33 +12,6 @@
 
 <PageTitle>@Config.AppName | Tablero @currentBoard?.Name</PageTitle>
 
-<!-- Elemento que sigue el cursor durante el arrastre de tareas -->
-@if (isDraggingItem && draggedItem != null)
-{
-    <div class="drag-ghost" 
-         style="@($"left: {dragPosition.X}px; top: {dragPosition.Y}px;")">
-        <MudCard Class="todo-card-dragging">
-            <MudCardContent Class="pa-3">
-                <MudText Typo="Typo.body1" Style="word-break: break-word;">
-                    @draggedItem.Title
-                </MudText>
-            </MudCardContent>
-        </MudCard>
-    </div>
-}
-
-<!-- Elemento que sigue el cursor durante el arrastre de columnas -->
-@if (isDraggingColumn && draggedColumn != null)
-{
-    <div class="drag-ghost-column" 
-         style="@($"left: {dragPosition.X}px; top: {dragPosition.Y}px;")">
-        <div class="column-header-dragging">
-            <div class="column-color-dot" style="background-color: @draggedColumn.Color;"></div>
-            <MudText Typo="Typo.h6" Class="column-title">@draggedColumn.Name</MudText>
-        </div>
-    </div>
-}
-
 <!-- Encabezado de la página -->
 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
     @if (currentBoard == null || columnLoading)
@@ -89,31 +62,7 @@
 <div style="margin-bottom: 8px"/>
 <MudDivider />
 
-<!-- Barra de estado de sincronización -->
-@if (_syncStatus != SyncStatus.Idle)
-{
-    <div class="sync-status-bar visible">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            @if (_syncStatus == SyncStatus.Syncing)
-            {
-                <MudProgressCircular Size="Size.Small" Color="Color.Primary" Indeterminate="true" />
-                <MudText Typo="Typo.body2">Guardando cambios...</MudText>
-            }
-            else if (_syncStatus == SyncStatus.Success)
-            {
-                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
-                <MudText Typo="Typo.body2" Color="Color.Success">Tablero actualizado</MudText>
-            }
-            else if (_syncStatus == SyncStatus.Error)
-            {
-                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
-                <MudText Typo="Typo.body2" Color="Color.Error">Error al guardar</MudText>
-            }
-        </MudStack>
-    </div>
-}
-
-<div class="board-container @((isDraggingItem || isDraggingColumn) ? "no-select" : "")" @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp" @ondragover:preventDefault>
+<div class="board-container">
     @if (columnLoading)
     {
         <div class="columns-wrapper">
@@ -245,9 +194,6 @@
                     CanDelete="@canDeleteColumn"
                     CanModifyItems="@canModifyTask"
                     CanDeleteItems="@canDeleteTask"
-                    IsDropTarget="@(hoveredColumnId == column.Id && isDraggingItem)"
-                    StartColumnDrag="@(e => StartColumnDrag(e, column))"
-                    StartItemDrag="@(item => _ = StartItemDrag(new MouseEventArgs(), item))"
                     ColumnUpdated="LoadBoardAsync"
                     ColumnDeleted="LoadBoardAsync"
                     ItemUpdated="LoadBoardAsync"
@@ -272,43 +218,6 @@
 <!-- Tablero de columnas estilo Kanban -->
 
 <style>
-    .drag-ghost {
-        position: fixed;
-        z-index: 9999;
-        pointer-events: none;
-        transform: rotate(25deg) scale(1.05);
-        opacity: 0.95;
-        filter: drop-shadow(0 8px 24px rgba(0,0,0,0.3));
-        cursor: grabbing;
-    }
-    
-    .todo-card-dragging {
-        background: var(--mud-palette-surface);
-        border-radius: 8px;
-        max-width: 300px;
-    }
-    
-    .drag-ghost-column {
-        position: fixed;
-        z-index: 9999;
-        pointer-events: none;
-        transform: rotate(5deg) scale(1.02);
-        opacity: 0.9;
-        filter: drop-shadow(0 12px 32px rgba(0,0,0,0.3));
-        cursor: grabbing;
-        width: 320px;
-    }
-    
-    .column-header-dragging {
-        padding: 16px;
-        background: var(--mud-palette-surface);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-    }
-    
     .board-container {
         width: 100%;
         height: calc(100vh - 150px);
@@ -349,25 +258,6 @@
         max-height: 100%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .board-column.drop-zone-hover {
-        background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
-    }
-    
-    .board-column.column-being-dragged {
-        opacity: 0.4;
-        transform: scale(0.95);
-    }
-    
-    .board-column.column-drop-target {
-        outline: 3px dashed var(--mud-palette-primary);
-        outline-offset: -3px;
-    }
-
-    .drop-target {
-        outline: 3px dashed var(--mud-palette-primary);
-        outline-offset: -3px;
     }
     
     .column-header {
@@ -418,32 +308,8 @@
         min-height: 100px;
     }
     
-    .todo-card-wrapper {
-        border-radius: 8px;
-        transition: transform 0.2s, opacity 0.2s;
-        cursor: grab;
-    }
-    
-    .todo-card-wrapper:hover { transform: scale(1.02); }
-    .todo-card-wrapper:active { cursor: grabbing; }
-    .todo-card-wrapper.completed { opacity: 0.6; }
-    
-    .todo-card {
-        background: var(--mud-palette-background);
-        border-radius: 8px;
-    }
-    
-    .drag-handle { opacity: 0.4; transition: opacity 0.2s; cursor: grab; }
-    .todo-card-wrapper:hover .drag-handle { opacity: 1; }
-    
-    .todo-card-wrapper .mud-icon-button {
-        pointer-events: auto;
-    }
-    
     .text-strikethrough { text-decoration: line-through; color: var(--mud-palette-text-disabled); }
     
-    .add-item-form { margin-top: auto; padding-top: 8px; }
-
     .skeleton-column {
         background: var(--mud-palette-surface);
         border-radius: 12px;
@@ -488,11 +354,6 @@
     .board-container::-webkit-scrollbar-thumb:active { filter: brightness(1.2); }
     .board-container::-webkit-scrollbar-button { display: none; }
     .board-container::-webkit-scrollbar-corner { background: transparent; }
-
-    .no-select {
-        user-select: none;
-        -webkit-user-select: none;
-    }
 
     .action-bar {
         display: flex;
@@ -553,26 +414,11 @@
         color: var(--mud-palette-text-primary);
     }
 
-    .sync-status-bar {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(100px);
-        opacity: 0;
-        transition: transform 0.3s ease, opacity 0.3s ease;
-        padding: 12px 24px;
-        border-radius: 8px;
-        z-index: 1000;
-        background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-lines-default);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
     .sync-status-bar.visible {
         transform: translateX(-50%) translateY(0);
         opacity: 1;
     }
-
+    
     .logs-container {
         width: 100%;
         height: calc(100vh - 200px);
@@ -584,40 +430,12 @@
         margin-top: 8px;
     }
 
-    .item-reorder-line {
-        height: 4px;
-        background: var(--mud-palette-primary);
-        border-radius: 2px;
-        margin: 4px 0;
-        box-shadow: 0 0 8px rgba(126, 111, 255, 0.5);
-    }
-
-    .mud-tooltip-root {
-        --mud-tooltip-background: transparent;
-        --mud-tooltip-border: none;
-    }
-
     .mud-tooltip {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
 
-    .mud-tooltip > .mud-tooltip-content {
-        background: transparent !important;
-        position: relative;
-    }
-
-    .mud-tooltip > .mud-tooltip-content::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        right: 100%;
-        transform: translateY(-50%);
-        border: 8px solid transparent;
-        border-right-color: var(--mud-palette-surface);
-        filter: drop-shadow(-2px 0 4px rgba(0,0,0,0.1));
-    }
 </style>
 
 @code {
@@ -629,24 +447,6 @@
 
     [Parameter]
     public string? BoardId { get; set; }
-
-    private enum SyncStatus { Idle, Syncing, Success, Error }
-    private SyncStatus _syncStatus = SyncStatus.Idle;
-    private int _pendingOperations = 0;
-    private System.Timers.Timer? _syncTimer;
-
-    private bool isDraggingItem = false;
-    private TodoItem? draggedItem;
-    private string? sourceColumnId;
-
-    private bool isDraggingColumn = false;
-    private TodoColumn? draggedColumn;
-    private int draggedColumnIndex;
-    private (double X, double Y) dragPosition;
-    private string? hoveredColumnId;
-    private string? _targetColumnIdForDrop;
-    private double dragOffsetX = 0;
-    private double dragOffsetY = 0;
 
     private List<TodoColumn> columns = new();
     private Dictionary<string, List<TodoItem>> itemsByColumn = new();
@@ -846,235 +646,6 @@
             return false;
         }
         return true;
-    }
-
-    // ============================================
-    // DRAG & DROP DE TAREAS (mouse events - works cross-browser)
-    // ============================================
-    private async Task StartItemDrag(MouseEventArgs e, TodoItem item)
-    {
-        if (isLoading) return;
-        if (!await CheckCanModifyTask()) return;
-
-        isDraggingItem = true;
-        draggedItem = item;
-        sourceColumnId = item.ColumnId;
-        dragOffsetX = 80;
-        dragOffsetY = 20;
-        dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
-        StateHasChanged();
-    }
-
-    // ============================================
-    // DRAG & DROP DE COLUMNAS
-    // ============================================
-    private void StartColumnDrag(MouseEventArgs e, TodoColumn column)
-    {
-        if (isLoading) return;
-        if (!canEditColumn && !isOwner)
-        {
-            SnackbarService.Add("No tienes permisos para mover columnas", Severity.Warning);
-            return;
-        }
-        isDraggingColumn = true;
-        draggedColumn = column;
-        draggedColumnIndex = columns.FindIndex(c => c.Id == column.Id);
-        dragOffsetX = 160;
-        dragOffsetY = 40;
-        dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
-    }
-
-    private void HandleColumnHover(string columnId)
-    {
-        hoveredColumnId = columnId;
-        _targetColumnIdForDrop = columnId;
-    }
-
-    private void HandleColumnLeave()
-    {
-        // No limpiamos hoveredColumnId aquí - se limpia en HandleMouseUp
-    }
-
-    private void HandleMouseMove(MouseEventArgs e)
-    {
-        if (isDraggingItem || isDraggingColumn)
-        {
-            dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
-            StateHasChanged();
-        }
-    }
-
-    private async Task HandleMouseUp(MouseEventArgs e)
-    {
-        var targetColumnId = _targetColumnIdForDrop ?? hoveredColumnId;
-
-        if (isDraggingItem && draggedItem != null)
-        {
-            var hasHoverItem = _hoverItem != null && _hoverItem.Id != draggedItem.Id;
-            var isSameItem = _hoverItem?.Id == draggedItem.Id;
-            var isDifferentColumn = targetColumnId != sourceColumnId;
-
-            if (!string.IsNullOrEmpty(targetColumnId))
-            {
-                if (isDifferentColumn || (hasHoverItem && !isSameItem))
-                {
-                    MoveItemOptimistic(draggedItem, _hoverItem, sourceColumnId!, targetColumnId);
-                    _ = MoveItemBackgroundAsync(draggedItem.Id, _hoverItem?.Id, targetColumnId);
-                    SnackbarService.Add("Tarea movida", Severity.Info);
-                }
-            }
-            isDraggingItem = false;
-            draggedItem = null;
-            sourceColumnId = null;
-        }
-        else if (isDraggingColumn && draggedColumn != null && !string.IsNullOrEmpty(targetColumnId))
-        {
-            if (!canEditColumn && !isOwner)
-            {
-                isDraggingColumn = false;
-                draggedColumn = null;
-                SnackbarService.Add("No tienes permisos para mover columnas", Severity.Warning);
-                StateHasChanged();
-                return;
-            }
-
-            if (targetColumnId != draggedColumn.Id)
-            {
-                var targetIndex = columns.FindIndex(c => c.Id == targetColumnId);
-                if (targetIndex >= 0)
-                {
-                    SwapColumnsOptimistic(draggedColumnIndex, targetIndex);
-                    _ = SwapColumnsBackgroundAsync(draggedColumnIndex, targetIndex);
-                }
-            }
-        }
-        isDraggingColumn = false;
-        draggedColumn = null;
-        // hoveredColumnId = null;
-        // _targetColumnIdForDrop = null;
-        _hoverItem = null;
-        StateHasChanged();
-    }
-
-    private async Task SwapColumnsAsync(int from, int to)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        if (from < 0 || to < 0 || from >= columns.Count || to >= columns.Count) return;
-        try
-        {
-            await TodoService.SwapColumnsAsync(BoardId, from, to);
-            await LoadBoardAsync();
-            SnackbarService.Add("Columnas intercambiadas", Severity.Info);
-        }
-        catch (Exception ex)
-        {
-            SnackbarService.Add($"Error: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private void MoveItemOptimistic(TodoItem item, TodoItem? hoverItem, string fromColumnId, string toColumnId)
-    {
-        if (!itemsByColumn.TryGetValue(fromColumnId, out var sourceList)) return;
-
-        sourceList.Remove(item);
-
-        if (!itemsByColumn.ContainsKey(toColumnId))
-        {
-            itemsByColumn[toColumnId] = new List<TodoItem>();
-        }
-
-        var targetList = itemsByColumn[toColumnId];
-
-        if (hoverItem == null)
-        {
-            targetList.Add(item);
-        }
-        else
-        {
-            var hoverIndex = targetList.IndexOf(hoverItem);
-            if (hoverIndex < 0) hoverIndex = targetList.Count;
-            targetList.Insert(hoverIndex, item);
-        }
-
-        item.ColumnId = toColumnId;
-        item.Order = targetList.IndexOf(item);
-        StateHasChanged();
-    }
-
-    private async Task MoveItemBackgroundAsync(string itemId, string? hoverItemId, string targetColumnId)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        try
-        {
-            _pendingOperations++;
-            _syncStatus = SyncStatus.Syncing;
-            StateHasChanged();
-
-            await Task.Delay(600);
-            await TodoService.MoveItemToColumnAsync(BoardId, itemId, hoverItemId, targetColumnId);
-
-            OnOperationComplete(true);
-        }
-        catch
-        {
-            await LoadBoardAsync();
-            OnOperationComplete(false);
-        }
-    }
-
-    private void SwapColumnsOptimistic(int from, int to)
-    {
-        (columns[from], columns[to]) = (columns[to], columns[from]);
-        StateHasChanged();
-    }
-
-    private async Task SwapColumnsBackgroundAsync(int from, int to)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        try
-        {
-            _pendingOperations++;
-            _syncStatus = SyncStatus.Syncing;
-            StateHasChanged();
-
-            await Task.Delay(600);
-            await TodoService.SwapColumnsAsync(BoardId, from, to);
-
-            OnOperationComplete(true);
-        }
-        catch
-        {
-            (columns[from], columns[to]) = (columns[to], columns[from]);
-            StateHasChanged();
-            OnOperationComplete(false);
-        }
-    }
-
-    private void OnOperationComplete(bool success)
-    {
-        _pendingOperations--;
-        if (_pendingOperations <= 0)
-        {
-            _pendingOperations = 0;
-            _syncStatus = success ? SyncStatus.Success : SyncStatus.Error;
-            StateHasChanged();
-
-            _syncTimer?.Stop();
-            _syncTimer?.Dispose();
-            _syncTimer = new System.Timers.Timer(2000);
-            _syncTimer.Elapsed += (s, e) =>
-            {
-                _syncTimer?.Stop();
-                _syncTimer?.Dispose();
-                _syncTimer = null;
-                InvokeAsync(() => {
-                    _syncStatus = SyncStatus.Idle;
-                    StateHasChanged();
-                });
-            };
-            _syncTimer.AutoReset = false;
-            _syncTimer.Start();
-        }
     }
 
     // ============================================
@@ -1303,19 +874,6 @@
 
             SnackbarService.Add("No se pudo eliminar el tablero debido a un error inesperado, intenta luego", Severity.Error);
         }
-    }
-    
-    private TodoItem? _hoverItem;
-    private void HandleHoverItem(MouseEventArgs eventArgs, TodoItem? item)
-    {
-        if (isDraggingItem == false) return;
-        if (draggedItem?.Id == item?.Id) 
-        {
-            _hoverItem = null;
-            return;
-        }
-
-        _hoverItem = item;
     }
 
     private async Task ShowUserDetails(string userName, string userId)
