@@ -97,3 +97,8 @@ TodoApp2OpenCode/
 1. Click the "View Logs" button
 2. View the board's activity table
 3. Click "View Board" to go back
+### Manage a Schedule
+1. Create events and add participants into it
+2. Visualize all todo deadline 
+### Nofication System
+1. Receive notification of all movements of your dashboard
