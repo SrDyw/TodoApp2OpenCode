@@ -9,7 +9,7 @@ public interface IBoardService
     Task<TodoBoard?> CreateBoardAsync(string userId, string name, string? description = null, List<(string Id, string Name)>? participants = null);
     Task<bool> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null);
     Task<bool> RemoveParticipantAsync(string boardId, string userId);
-    Task<bool> UpdateBoardAsync(TodoBoard board);
+    Task<TodoBoard?> UpdateBoardAsync(TodoBoard board);
     Task<bool> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions);
     Task<bool> DeleteBoardAsync(string boardId);
     Task<TodoBoard?> GetOrCreateDefaultBoardAsync(string userId);

@@ -280,18 +280,18 @@ public class TodoService
         }
     }
 
-    public async Task<bool> MoveItemToColumnAsync(string boardId, string itemId, string? hoverItemId, string targetColumnId)
+    public async Task<TodoBoard?> MoveItemToColumnAsync(string boardId, string itemId, string? hoverItemId, string targetColumnId)
     {
         try
         {
             var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
+            if (board == null) return null;
 
             var item = board.Items.FirstOrDefault(i => i.Id == itemId);
-            if (item == null) return false;
+            if (item == null) return null;
 
             var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
-            if (column == null) return false;
+            if (column == null) return null;
 
             var originalColumnId = item.ColumnId;
 
@@ -321,7 +321,7 @@ public class TodoService
             item.ColumnId = targetColumnId;
             item.UpdatedAt = DateTime.Now;
 
-            await _boardService.UpdateBoardAsync(board);
+            var updatedBoard = await _boardService.UpdateBoardAsync(board);
             await _logService.AddLogAsync(new LogItem
             {
                 Action = DatabaseAction.Actualizar,
@@ -329,11 +329,11 @@ public class TodoService
                 BoardId = boardId,
                 User = _authService.CurrentUser!.Username
             });
-            return true;
+            return updatedBoard;
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 

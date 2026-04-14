@@ -192,7 +192,7 @@ public class LocalStorageBoardService : IBoardService
         return false;
     }
 
-    public async Task<bool> UpdateBoardAsync(TodoBoard board)
+    public async Task<TodoBoard?> UpdateBoardAsync(TodoBoard board)
     {
         try
         {
@@ -202,15 +202,15 @@ public class LocalStorageBoardService : IBoardService
             }
 
             var index = _cachedBoards.FindIndex(b => b.Id == board.Id);
-            if (index == -1) return false;
+            if (index == -1) return null;
 
             _cachedBoards[index] = board;
             await SaveBoardsAsync();
-            return true;
+            return _cachedBoards[index];
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 

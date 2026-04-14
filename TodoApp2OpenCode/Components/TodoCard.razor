@@ -8,11 +8,12 @@
 @inject IAuthService AuthService
 @inject ISnackbar SnackbarService
 
-<MudTooltip Text="" Placement="Placement.Right" ShowOnHover="true">
+<MudTooltip Text="" Placement="Placement.Right" Disabled="CanShowOnHoverTooltip" @ref="_mudTooltipRef" Class="todo-tooltip" RootClass="todo-root-tooltip">
     <ChildContent>
         <div class="todo-card-wrapper @(Item.IsCompleted ? "completed" : "")"
              @onmousedown="@(() => OnStartDrag.InvokeAsync(Item))"
-             style="@(Item.Priority == TodoPriority.High && !Item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
+             @onmouseenter="@(() => OnItemHover.InvokeAsync(Item.Id))"
+             style="@(Item.Priority == TodoPriority.High && !Item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "");">
             <MudCard Class="@($"todo-card{(Item.IsCompleted ? " completed" : "")}")">
                 <MudCardContent Class="pa-3">
                     <MudStack Spacing="2">
@@ -187,6 +188,8 @@
         border-radius: 8px;
         transition: transform 0.2s, opacity 0.2s;
         cursor: grab;
+        width: 100%;
+        margin-bottom: 8px;
     }
     
     .todo-card-wrapper:hover { transform: scale(1.02); }
@@ -210,6 +213,16 @@
     .item-steps-progress {
         margin-top: 8px;
     }
+
+    .todo-root-tooltip {
+        width: 100%;
+    }
+
+    .todo-tooltip {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
 </style>
 
 @code {
@@ -229,10 +242,19 @@
     public EventCallback<TodoItem> OnStartDrag { get; set; }
 
     [Parameter]
+    public EventCallback<string> OnItemHover { get; set; }
+
+    [Parameter]
     public EventCallback ItemUpdated { get; set; }
 
     [Parameter]
     public EventCallback ItemDeleted { get; set; }
+    [Parameter]
+    public bool CanShowOnHoverTooltip { get; set; }
+
+
+    private MudTooltip? _mudTooltipRef;
+
 
     private async Task EditItemAsync()
     {

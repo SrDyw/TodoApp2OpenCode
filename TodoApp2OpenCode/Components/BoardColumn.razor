@@ -10,7 +10,11 @@
 
 <div class="board-column @(IsDropTarget ? "drop-zone-hover" : "")"
      style="--column-color: @Column.Color;"
-     data-column-id="@Column.Id">
+     data-column-id="@Column.Id"
+     @ondragover="HandleDragOver"
+     @ondrop="HandleDrop"
+     @ondragenter="HandleDragEnter"
+     @ondragleave="HandleDragLeave">
     
     <div class="column-header column-drag-handle">
         <div class="column-title-area" @onmousedown="@(CanEdit ? (e) => StartColumnDrag.InvokeAsync(e) : null)">
@@ -57,6 +61,7 @@
                 CanModify="@CanModifyItems"
                 CanDelete="@CanDeleteItems"
                 OnStartDrag="@(item => StartItemDrag.InvokeAsync(item))"
+                OnItemHover="@((itemId) => OnItemHover.InvokeAsync(itemId))"
                 ItemUpdated="OnItemUpdated"
                 ItemDeleted="OnItemDeleted" />
         }
@@ -190,6 +195,18 @@
     public EventCallback<TodoItem> StartItemDrag { get; set; }
 
     [Parameter]
+    public EventCallback<string> OnDrop { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnDragEnter { get; set; }
+
+    [Parameter]
+    public EventCallback OnDragLeave { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnItemHover { get; set; }
+
+    [Parameter]
     public EventCallback ColumnUpdated { get; set; }
 
     [Parameter]
@@ -275,5 +292,34 @@
     private async Task OnItemDeleted()
     {
         await ItemDeleted.InvokeAsync();
+    }
+
+    private void HandleDragOver(DragEventArgs e)
+    {
+        e.DataTransfer!.DropEffect = "move";
+    }
+
+    private async Task HandleDrop()
+    {
+        if (OnDrop.HasDelegate)
+        {
+            await OnDrop.InvokeAsync(Column.Id);
+        }
+    }
+
+    private async Task HandleDragEnter()
+    {
+        if (OnDragEnter.HasDelegate)
+        {
+            await OnDragEnter.InvokeAsync(Column.Id);
+        }
+    }
+
+    private async Task HandleDragLeave()
+    {
+        if (OnDragLeave.HasDelegate)
+        {
+            await OnDragLeave.InvokeAsync();
+        }
     }
 }
