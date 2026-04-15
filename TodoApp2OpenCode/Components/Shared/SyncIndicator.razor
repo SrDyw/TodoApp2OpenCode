@@ -1,0 +1,100 @@
+﻿@if (_syncStatus != OperationSyncStatus.Idle)
+{
+    <div class="sync-status-bar visible">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            @if (_syncStatus == OperationSyncStatus.Syncing)
+            {
+                <MudProgressCircular Size="Size.Small" Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.body2">Guardando cambios...</MudText>
+            }
+            else if (_syncStatus == OperationSyncStatus.Success)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                <MudText Typo="Typo.body2" Color="Color.Success">Tablero actualizado</MudText>
+            }
+            else if (_syncStatus == OperationSyncStatus.Error)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
+                <MudText Typo="Typo.body2" Color="Color.Error">Error al guardar</MudText>
+            }
+        </MudStack>
+    </div>
+}
+
+<style>
+    .sync-status-bar {
+        pointer-events: none;
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        padding: 12px 24px;
+        border-radius: 8px;
+        z-index: 1000;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .sync-status-bar.visible {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+
+</style>
+@code {
+    private OperationSyncStatus _syncStatus;
+    private System.Timers.Timer? _syncTimer = null;
+
+    [Parameter]
+    public OperationSyncStatus SyncStatus { get => _syncStatus; 
+        set
+        {
+            if (value != _syncStatus)
+            {
+                _syncStatus = value;
+                OnOperationSyncChanged();
+            }
+        }
+    }
+
+    private void OnOperationSyncChanged()
+    {
+        if (_syncStatus == OperationSyncStatus.Success || _syncStatus == OperationSyncStatus.Error)
+            OnOperationComplete();
+    }
+
+    private void OnOperationComplete()
+    {
+        StateHasChanged();
+
+        _syncTimer?.Stop();
+        _syncTimer?.Dispose();
+        _syncTimer = new System.Timers.Timer(2000);
+        _syncTimer.Elapsed += (s, e) =>
+        {
+            _syncTimer?.Stop();
+            _syncTimer?.Dispose();
+            _syncTimer = null;
+            InvokeAsync(() =>
+            {
+                _syncStatus = OperationSyncStatus.Idle;
+                StateHasChanged();
+            });
+        };
+        _syncTimer.AutoReset = false;
+        _syncTimer.Start();
+    }
+
+    public enum OperationSyncStatus
+    {
+        Idle,
+        Syncing,
+        Success,
+        Error
+    }
+
+
+}

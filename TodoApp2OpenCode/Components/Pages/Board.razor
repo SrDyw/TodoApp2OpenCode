@@ -13,6 +13,7 @@
 
 <PageTitle>@Config.AppName | Tablero @_currentBoard?.Name</PageTitle>
 
+<SyncIndicator SyncStatus="_syncStatus" />
 
 <MudStack Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
 	@if (_boardLoading)
@@ -117,11 +118,11 @@ else
                 </MudTooltip>
             }
         </div>
-        <MudDropContainer T="TodoItem" Items="_items" @ref="_mudDropContainerRef" ItemsSelector="@((item, dropzone) => item.ColumnId == dropzone)" CanDropClass="mud-border-success" ItemPicked="ItemPicked" ItemDropped="ItemUpdated" Class="board-container columns-list column-item">
+        <MudDropContainer ItemDisabled="x => _perms.CanModifyTasks" T="TodoItem" Items="_items" @ref="_mudDropContainerRef" ItemsSelector="@((item, dropzone) => item.ColumnId == dropzone)" CanDropClass="mud-border-success" ItemPicked="ItemPicked" ItemDropped="ItemUpdated" Class="board-container columns-list column-item">
             <ChildContent>
                 @foreach (var column in _columns)
                 {
-                    <MudDropZone T="TodoItem" AllowReorder Identifier="@column.Id" Class="board-column" >
+                    <MudDropZone ItemDisabled="x => _perms.CanModifyTasks == false" T="TodoItem" AllowReorder Identifier="@column.Id" Class="board-column" >
                         <div class="column-header column-drag-handle">
                             <div class="column-title-area">
                                 @if (_perms.CanEditColumn)
@@ -346,52 +347,6 @@ else
         min-height: 100px;
         height: 100%;
     }
-
-    .todo-card-wrapper {
-        border-radius: 8px;
-        transition: transform 0.2s, opacity 0.2s;
-        cursor: grab;
-    }
-
-        .todo-card-wrapper:hover {
-            transform: scale(1.02);
-        }
-
-        .todo-card-wrapper:active {
-            cursor: grabbing;
-        }
-
-        .todo-card-wrapper.completed {
-            opacity: 0.6;
-        }
-
-    .todo-card {
-        background: var(--mud-palette-background);
-        border-radius: 8px;
-    }
-
-    .drag-handle {
-        opacity: 0.4;
-        transition: opacity 0.2s;
-        cursor: grab;
-    }
-
-    .todo-card-wrapper:hover .drag-handle {
-        opacity: 1;
-    }
-
-    .todo-card-wrapper .mud-icon-button {
-        pointer-events: auto;
-    }
-
-    .text-strikethrough {
-        text-decoration: line-through;
-        color: var(--mud-palette-text-disabled);
-    }
-
-    .item-steps-progress {
-        margin-top: 8px;
-    }
 </style>
 @code {
     [Parameter]
@@ -412,6 +367,8 @@ else
     private List<TodoColumn> _columns = [];
 
     private MudDropContainer<TodoItem>? _mudDropContainerRef;
+
+    private SyncIndicator.OperationSyncStatus _syncStatus;
 
 
     protected override async Task OnParametersSetAsync()
@@ -756,69 +713,49 @@ else
     {
         if (dropItem.Item == null)
         {
-            SnackbarService.Add($"Ocurrió un error durante la actualización del elemento");
+            SnackbarService.Add(SystemMessages.ITEM_UPDATE_ERROR);
             return;
         }
         _currentPickedItem = dropItem.Item;
-        Console.WriteLine(_currentPickedItem);
     }
 
     private async Task ItemUpdated(MudItemDropInfo<TodoItem> dropItem)
     {
-        if (dropItem.Item == null || _currentBoard == null || string.IsNullOrWhiteSpace(BoardId))
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
         {
-            SnackbarService.Add($"Ocurrió un error durante la actualización del elemento");
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
             return;
         }
+
+        if (dropItem.Item == null || _currentBoard == null || string.IsNullOrWhiteSpace(BoardId))
+        {
+            SnackbarService.Add(SystemMessages.ITEM_UPDATE_ERROR);
+            return;
+        }
+        _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
         var item = dropItem.Item;
         var targetIndexInZone = dropItem.IndexInZone;
-        var columnItems = _items.Where(x => x.ColumnId == dropItem.DropzoneIdentifier)
-            .OrderBy(x => x.Order)
-            .ToList();
+        var targetColumnId = dropItem.DropzoneIdentifier;
 
 
-
-        TodoItem? hoveredItem = null;
-        if (columnItems.Count > 0)
-        {
-            if (targetIndexInZone < columnItems.Count && columnItems.Count > 1)
-            {
-                hoveredItem = columnItems[targetIndexInZone];
-
-                var targetIndex = hoveredItem.Order;
-                var originIndex = item.Order;
-
-                // Solo eliminar de la lista si pertenece a la misma columna, para que al hacer el intercambio no se duplique
-                if (item.ColumnId == dropItem.DropzoneIdentifier)
-                {
-                    columnItems.RemoveAt(originIndex);
-                }
-                columnItems.Insert(targetIndex, item);
-
-            }
-            else
-            {
-                item.Order = columnItems.Count; // se inserta de ultimo
-            }
-        }
-        else
-        {
-            columnItems.Add(item);
-        }
-        for(int i = 0; i < columnItems.Count; i++)
-        {
-            columnItems[i].Order = i;
-        }
-
-        item.ColumnId = dropItem.DropzoneIdentifier;
-
-        _currentBoard.Items = _items;
-        await BoardService.UpdateBoardAsync(_currentBoard);
-        SnackbarService.Add("Tarea movida", Severity.Success);
         _currentPickedItem = null;
-        await InvokeAsync(StateHasChanged);
+        var (updatedBoard, msg) = await TodoService.MoveItemAsync(item.Id, BoardId, targetIndexInZone, targetColumnId);
+
+
+        if (updatedBoard == null)
+        {
+            SnackbarService.Add(msg, Severity.Error);
+            _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+
+            return;
+        }
+
+        _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+        item.ColumnId = dropItem.DropzoneIdentifier;
     }
-	private void NotFound()
+
+
+    private void NotFound()
 	{
 		Navigation.NavigateTo("/board/not-found");
 	}

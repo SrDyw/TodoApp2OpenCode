@@ -133,29 +133,6 @@
         min-height: 100px;
         height: 100%;
     }
-    
-    .todo-card-wrapper {
-        border-radius: 8px;
-        transition: transform 0.2s, opacity 0.2s;
-        cursor: grab;
-    }
-    
-    .todo-card-wrapper:hover { transform: scale(1.02); }
-    .todo-card-wrapper:active { cursor: grabbing; }
-    .todo-card-wrapper.completed { opacity: 0.6; }
-    
-    .todo-card {
-        background: var(--mud-palette-background);
-        border-radius: 8px;
-    }
-    
-    .drag-handle { opacity: 0.4; transition: opacity 0.2s; cursor: grab; }
-    .todo-card-wrapper:hover .drag-handle { opacity: 1; }
-    
-    .todo-card-wrapper .mud-icon-button {
-        pointer-events: auto;
-    }
-    
     .text-strikethrough { text-decoration: line-through; color: var(--mud-palette-text-disabled); }
     
     .item-steps-progress {

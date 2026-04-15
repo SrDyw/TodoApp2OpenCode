@@ -13,7 +13,7 @@
         <div class="todo-card-wrapper @(Item.IsCompleted ? "completed" : "")"
              @onmousedown="@(() => OnStartDrag.InvokeAsync(Item))"
              @onmouseenter="@(() => OnItemHover.InvokeAsync(Item.Id))"
-             style="@(Item.Priority == TodoPriority.High && !Item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "");">
+             style="@(Item.Priority == TodoPriority.High && !Item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
             <MudCard Class="@($"todo-card{(Item.IsCompleted ? " completed" : "")}")">
                 <MudCardContent Class="pa-3">
                     <MudStack Spacing="2">
@@ -187,13 +187,11 @@
     .todo-card-wrapper {
         border-radius: 8px;
         transition: transform 0.2s, opacity 0.2s;
-        cursor: grab;
         width: 100%;
         margin-bottom: 8px;
     }
     
     .todo-card-wrapper:hover { transform: scale(1.02); }
-    .todo-card-wrapper:active { cursor: grabbing; }
     .todo-card-wrapper.completed { opacity: 0.6; }
     
     .todo-card {
@@ -201,7 +199,7 @@
         border-radius: 8px;
     }
     
-    .drag-handle { opacity: 0.4; transition: opacity 0.2s; cursor: grab; }
+    .drag-handle { opacity: 0.4; transition: opacity 0.2s;}
     .todo-card-wrapper:hover .drag-handle { opacity: 1; }
     
     .todo-card-wrapper .mud-icon-button {
@@ -223,7 +221,18 @@
         border: none !important;
         box-shadow: none !important;
     }
+
+
 </style>
+@if (!CanModify)
+{
+    <style>
+        .mud-drop-item:not(.mud-drop-item-preview-start)
+        {
+            cursor: unset !important;
+        }
+    </style>
+}
 
 @code {
     [Parameter]
