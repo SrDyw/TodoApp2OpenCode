@@ -477,10 +477,10 @@ else
     private async Task AddColumnAsync()
     {
         if (!_isStillMember) return;
-        if (string.IsNullOrEmpty(BoardId)) return;
-        if (!_perms.CanAddColumn && !isOwner)
+        if (string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
+        if (_perms == null || !_perms.CanAddColumn && !isOwner)
         {
-            SnackbarService.Add("No tienes permisos para añadir columnas", Severity.Warning);
+            SnackbarService.Add(SystemMessages.ADD_COLUMN_DENIED, Severity.Warning);
             return;
         }
 
@@ -495,12 +495,23 @@ else
 
         if (result is { Canceled: false, Data: string name } && !string.IsNullOrWhiteSpace(name))
         {
-            var col = await TodoService.AddColumnAsync(BoardId, name);
-            if (col != null)
+            var column = new TodoColumn
             {
-                _columns.Add(col);
+                Id = Guid.NewGuid().ToString(),
+                Name = name.Trim(),
+                BoardId = BoardId,
+                Color = "#7e6fff",
+                Order = _currentBoard.Columns.Count,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
+            };
+
+            var (msg, success) = await BoardService.AddColumnAsync(BoardId, column);
+            if (success)
+            {
+                _columns.Add(column);
                 await InvokeAsync(StateHasChanged);
-                SnackbarService.Add($"Columna '{col.Name}' creada", Severity.Success);
+                SnackbarService.Add(msg, Severity.Success);
             }
         }
     }
@@ -602,7 +613,7 @@ else
         if (result is { Canceled: false, Data: TodoItem newItem })
         {
             var column = _currentBoard.Columns.FirstOrDefault(x => x.Id == newItem.ColumnId);
-            var success = await TodoService.AddItemAsync(BoardId!, newItem);
+            var (msg, success) = await TodoService.AddItemAsync(BoardId!, newItem);
             if (success)
             {
                 await LogService.AddLogAsync(new LogItem
@@ -614,8 +625,8 @@ else
                 });
                 _items.Add(newItem);
                 StateHasChanged();
-                SnackbarService.Add("Tarea agregada", Severity.Success);
             }
+            SnackbarService.Add(msg, success ? Severity.Success : Severity.Error);
         }
     }
 

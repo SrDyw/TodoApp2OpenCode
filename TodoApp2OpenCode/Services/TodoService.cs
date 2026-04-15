@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using MudBlazor;
 using TodoApp2OpenCode.Constants;
+using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
 using static MudBlazor.CategoryTypes;
 
@@ -17,12 +19,14 @@ public class TodoService
     private readonly IAuthService _authService;
 
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IFlowBoardDbContextFactory _contextFactory;
 
-    public TodoService(IJSRuntime jsRuntime, IBoardService boardService, ILogService logService, IAuthService authService)
+    public TodoService(IFlowBoardDbContextFactory contextFactory, IJSRuntime jsRuntime, IBoardService boardService, ILogService logService, IAuthService authService)
     {
         _jsRuntime = jsRuntime;
         _boardService = boardService;
         _logService = logService;
+        _contextFactory = contextFactory;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -43,43 +47,6 @@ public class TodoService
         var board = await _boardService.GetBoardAsync(boardId);
         if (board == null) return new List<TodoItem>();
         return board.Items.Where(i => i.ColumnId == columnId).OrderBy(i => i.Order).ToList();
-    }
-
-    public async Task<TodoColumn?> AddColumnAsync(string boardId, string name, string color = "#7e6fff")
-    {
-        try
-        {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return null;
-
-            var maxOrder = board.Columns.Any() ? board.Columns.Max(c => c.Order) : -1;
-
-            var column = new TodoColumn
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = name.Trim(),
-                Color = color,
-                Order = maxOrder + 1,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
-            };
-
-            board.Columns.Add(column);
-            await _boardService.UpdateBoardAsync(board);
-            await _logService.AddLogAsync(new LogItem
-            {
-                Message = $"Añade columna {name} al tablero {board.Name}",
-                Action = DatabaseAction.Crear,
-                BoardId = boardId,
-                User = _authService.CurrentUser!.Username
-            });
-
-            return column;
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     public async Task<bool> UpdateColumnAsync(string boardId, TodoColumn column)
@@ -181,46 +148,54 @@ public class TodoService
         }
     }
 
-    public async Task<bool> AddItemAsync(string boardId, TodoItem item)
+    public async Task<(string, bool)> AddItemAsync(string boardId, TodoItem item)
     {
         try
         {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            if (await context.Boards.AnyAsync(x => x.Id == boardId) == false) 
+                return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
             if (string.IsNullOrEmpty(item.Id))
             {
                 item.Id = Guid.NewGuid().ToString();
             }
 
-            var maxOrder = board.Items
-                .Where(i => i.ColumnId == item.ColumnId)
-                .Select(i => i.Order)
-                .DefaultIfEmpty(-1)
-                .Max();
+            var column = await context.Columns
+                .FirstOrDefaultAsync(x => x.Id == item.ColumnId);
 
-            item.Order = maxOrder + 1;
+            if (column == null)
+                return (SystemMessages.COLUMN_DOESNT_EXISTS, false);
+
+            var items = await context.Items
+                .Where(x => x.ColumnId == column.Id)
+                .ToListAsync();
+
+            var maxOrder = items.Count;
+
+            item.TodoBoardId = boardId;
+            item.Order = maxOrder;
             item.CreatedAt = DateTime.Now;
             item.UpdatedAt = DateTime.Now;
-            
-            var columnName = board.Columns.FirstOrDefault(c => c.Id == item.ColumnId)?.Name ?? "desconocida";
 
-            board.Items.Add(item);
-            await _boardService.UpdateBoardAsync(board);
+            var columnName = column.Name;
+
+            await context.Items.AddAsync(item);
+            await context.SaveChangesAsync();
             
             await _logService.AddLogAsync(new LogItem
             {
                 Action = DatabaseAction.Crear,
                 Message = $"Crea tarea '{item.Title}' en columna '{columnName}'",
-                BoardId = board.Id,
+                BoardId = boardId,
                 User = _authService.CurrentUser?.Username ?? "Sistema"
             });
 
-            return true;
+            return (SystemMessages.ITEM_ADDED.Replace(":task", item.Title), true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 

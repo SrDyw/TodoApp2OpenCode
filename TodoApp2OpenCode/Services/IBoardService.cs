@@ -10,6 +10,7 @@ public interface IBoardService
     Task<bool> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null);
     Task<bool> RemoveParticipantAsync(string boardId, string userId);
     Task<TodoBoard?> UpdateBoardAsync(TodoBoard board);
+    Task<(string, bool)> AddColumnAsync(string boardId, TodoColumn column);
     Task<bool> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions);
     Task<bool> DeleteBoardAsync(string boardId);
     Task<TodoBoard?> GetOrCreateDefaultBoardAsync(string userId);

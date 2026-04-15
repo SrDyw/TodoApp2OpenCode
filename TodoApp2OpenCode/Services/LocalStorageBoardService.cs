@@ -390,4 +390,9 @@ public class LocalStorageBoardService : IBoardService
             return Task.FromResult(new List<TodoItem>());
         }
     }
+
+    public Task<(string, bool)> AddColumnAsync(string boardId, TodoColumn column)
+    {
+        throw new NotImplementedException();
+    }
 }
