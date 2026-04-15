@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using TodoApp2OpenCode.Components;
+using TodoApp2OpenCode.Components.Shared;
 using TodoApp2OpenCode.Configurations;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Extensions;
@@ -55,6 +56,9 @@ builder.Services.AddScoped<ILogService, LogService>();
 
 // Testing (localStorage): ILogService → LocalStorageLogService
 // builder.Services.AddScoped<ILogService, LocalStorageLogService>();
+
+// Board Participants Service
+builder.Services.AddScoped<BoardParticipantsService>();
 
 // Realtime services
 builder.Services.AddScoped<IBoardNotifier, BoardNotifier>();

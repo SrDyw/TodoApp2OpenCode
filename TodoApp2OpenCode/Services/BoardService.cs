@@ -303,7 +303,7 @@ public class BoardService : IBoardService
         return false;
     }
 
-    public async Task<bool> UpdateBoardAsync(TodoBoard board)
+    public async Task<TodoBoard?> UpdateBoardAsync(TodoBoard board)
     {
         try
         {
@@ -315,7 +315,7 @@ public class BoardService : IBoardService
                     .ThenInclude(i => i.Steps)
                 .FirstOrDefaultAsync(b => b.Id == board.Id);
 
-            if (existingBoard == null) return false;
+            if (existingBoard == null) return null;
 
             existingBoard.Name = board.Name;
             existingBoard.Description = board.Description;
@@ -442,11 +442,11 @@ public class BoardService : IBoardService
                 User = _authService.CurrentUser?.Username ?? "Sistema"
             });
             
-            return true;
+            return existingBoard;
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 

@@ -43,12 +43,15 @@ public class NotificationService : INotificationService
     public async Task<List<Notification>> GetAllAsync(string userId)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        return await context.Notifications
-            .Where(n => n.UserId == userId)
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(50)
-            .ToListAsync();
+        try
+        {
+            return await context.Notifications
+                .Where(n => n.UserId == userId)
+                .OrderByDescending(n => n.CreatedAt)
+                .Take(50)
+                .ToListAsync();
+        }
+        catch { return [];  }
     }
 
     public async Task MarkAsReadAsync(string notificationId)

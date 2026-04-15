@@ -1,7 +1,8 @@
-@page "/board/{BoardId}"
+@page "/board2/{BoardId}"
 @inject IDialogService DialogService
 @inject ISnackbar SnackbarService
 @inject TodoService TodoService
+@inject BoardParticipantsService ParticipantsService
 @inject IBoardService BoardService
 @inject IAuthService AuthService
 @inject BottomNavService BottomNavService
@@ -10,33 +11,6 @@
 @inject IRealtimeService RealtimeService
 
 <PageTitle>@Config.AppName | Tablero @currentBoard?.Name</PageTitle>
-
-<!-- Elemento que sigue el cursor durante el arrastre de tareas -->
-@if (isDraggingItem && draggedItem != null)
-{
-    <div class="drag-ghost" 
-         style="@($"left: {dragPosition.X}px; top: {dragPosition.Y}px;")">
-        <MudCard Class="todo-card-dragging">
-            <MudCardContent Class="pa-3">
-                <MudText Typo="Typo.body1" Style="word-break: break-word;">
-                    @draggedItem.Title
-                </MudText>
-            </MudCardContent>
-        </MudCard>
-    </div>
-}
-
-<!-- Elemento que sigue el cursor durante el arrastre de columnas -->
-@if (isDraggingColumn && draggedColumn != null)
-{
-    <div class="drag-ghost-column" 
-         style="@($"left: {dragPosition.X}px; top: {dragPosition.Y}px;")">
-        <div class="column-header-dragging">
-            <div class="column-color-dot" style="background-color: @draggedColumn.Color;"></div>
-            <MudText Typo="Typo.h6" Class="column-title">@draggedColumn.Name</MudText>
-        </div>
-    </div>
-}
 
 <!-- Encabezado de la página -->
 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -88,31 +62,7 @@
 <div style="margin-bottom: 8px"/>
 <MudDivider />
 
-<!-- Barra de estado de sincronización -->
-@if (_syncStatus != SyncStatus.Idle)
-{
-    <div class="sync-status-bar visible">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            @if (_syncStatus == SyncStatus.Syncing)
-            {
-                <MudProgressCircular Size="Size.Small" Color="Color.Primary" Indeterminate="true" />
-                <MudText Typo="Typo.body2">Guardando cambios...</MudText>
-            }
-            else if (_syncStatus == SyncStatus.Success)
-            {
-                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
-                <MudText Typo="Typo.body2" Color="Color.Success">Tablero actualizado</MudText>
-            }
-            else if (_syncStatus == SyncStatus.Error)
-            {
-                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
-                <MudText Typo="Typo.body2" Color="Color.Error">Error al guardar</MudText>
-            }
-        </MudStack>
-    </div>
-}
-
-<div class="board-container @((isDraggingItem || isDraggingColumn) ? "no-select" : "")" @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp" @ondragover:preventDefault>
+<div class="board-container">
     @if (columnLoading)
     {
         <div class="columns-wrapper">
@@ -185,26 +135,6 @@
                                         }
                                     </MudStack>
                                 </MudMenuItem>
-                                @* <div class="px-3 py-2">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                                        <MudText>
-                                            @participant.Value
-                                            @if (AuthService.CurrentUser != null && participant.Key == AuthService.CurrentUser.Id)
-                                            {
-                                                <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
-                                            }
-                                        </MudText>
-                                        @if (isOwner)
-                                        {
-                                            <MudSpacer />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Close"
-                                                            Size="Size.Small"
-                                                            Color="Color.Error"
-                                                            OnClick="@(() => ConfirmRemoveParticipant(participant.Key, participant.Value))" />
-                                        }
-                                    </MudStack>
-                                </div> *@
                             }
                         }
                         @if (isOwner)
@@ -256,232 +186,21 @@
 
             @foreach (var column in columns)
             {
-                <div class="board-column @(hoveredColumnId == column.Id && isDraggingItem ? "drop-zone-hover" : "") @(isDraggingColumn && draggedColumn?.Id == column.Id ? "column-being-dragged" : "") @(hoveredColumnId == column.Id && isDraggingColumn && draggedColumn?.Id != column.Id ? "column-drop-target" : "")" 
-                     style="--column-color: @column.Color;"
-                     data-column-id="@column.Id"
-                     @onmouseenter="() => HandleColumnHover(column.Id)"
-                     @onmouseleave="() => HandleColumnLeave()">
-                    <div class="column-header column-drag-handle" >
-                        <div class="column-title-area" @onmousedown="@(canEditColumn || isOwner ? (e) => StartColumnDrag(e, column) : null)">
-                            @if (canEditColumn || isOwner)
-                            {
-                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Class="mr-1 column-drag-icon" />
-                            }
-                            <div class="column-color-dot" style="background-color: @column.Color;"></div>
-                            <MudText Typo="Typo.h6" Class="column-title">@column.Name</MudText>
-                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">
-                                @GetColumnItemCount(column.Id)
-                            </MudChip>
-                        </div>
-                        
-                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" edge="Edge.End">
-                            @if (canEditColumn || isOwner)
-                            {
-                                <MudMenuItem OnClick="() => OpenEditColumnDialog(column)">
-                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                                        <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
-                                        <span>Editar</span>
-                                    </MudStack>
-                                </MudMenuItem>
-                            }
-                            @if (canDeleteColumn || isOwner)
-                            {
-                                <MudDivider />
-                                <MudMenuItem OnClick="() => DeleteColumnAsync(column)" Class="text-danger">
-                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                                        <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" />
-                                        <span>Eliminar</span>
-                                    </MudStack>
-                                </MudMenuItem>
-                            }
-                        </MudMenu>
-                    </div>
-                    
-                     <div class="column-content"
-                          >
-                          @foreach (var item in GetColumnItems(column.Id))
-                          {
-                              <MudTooltip Text="" Placement="Placement.Right" ShowOnHover="true">
-                                  <ChildContent>
-                                        <div class="todo-card-wrapper @(item.IsCompleted ? "completed" : "") @(_hoverItem?.Id == item.Id ? "drop-target" : "")"
-                                           @onmousedown="@(e => StartItemDrag(e, item))"
-                                           @onmouseenter="@(e => HandleHoverItem(e, item))"
-                                           @onmouseleave="@(e => HandleHoverItem(e, null))"
-                                           style="@(item.Priority == TodoPriority.High && !item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
-                                          <MudCard Class="@($"todo-card{(item.IsCompleted ? " completed" : "")}")">
-                                              <MudCardContent Class="pa-3">
-                                                  <MudStack Spacing="2">
-                                                      <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
-                                                          <MudStack Spacing="0" Style="flex: 1;">
-                                                              <MudText Typo="Typo.body1" 
-                                                                       Class="@(item.IsCompleted ? "text-strikethrough" : null)"
-                                                                       Style="word-break: break-word;">
-                                                                  @item.Title
-                                                              </MudText>
-                                                          </MudStack>
-                                                          @if (canModifyTask || isOwner)
-                                                       {
-                                                           <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Color="Color.Default" Class="drag-handle" />
-                                                       }
-                                                      </MudStack>
-                                                      
-                                                      @if (!string.IsNullOrEmpty(item.Description))
-                                                      {
-                                                          <MudText Typo="Typo.body2" Color="Color.Secondary" Class="@(item.IsCompleted ? "text-strikethrough" : "")" Style="word-break: break-word;">
-                                                              @item.Description
-                                                          </MudText>
-                                                      }
-
-                                                      @if (item.AssignedUsers != null && item.AssignedUsers.Any())
-                                                      {
-                                                          <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                              <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
-                                                              <MudText Typo="Typo.caption" Color="Color.Primary">
-                                                                  @string.Join(", ", item.AssignedUsers.Values)
-                                                              </MudText>
-                                                          </MudStack>
-                                                      }
-
-                                                      @if (item.Steps != null && item.Steps.Any())
-                                                      {
-                                                          <div class="item-steps-progress">
-                                                              <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" />
-                                                              @if (!string.IsNullOrEmpty(item.CurrentStepName))
-                                                              {
-                                                                  <MudText Typo="Typo.caption" Color="Color.Primary">
-                                                                      @item.CurrentStepName
-                                                                  </MudText>
-                                                              }
-                                                          </div>
-                                                      }
-                                                      
-                                                      <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                                          @if (item.Priority != TodoPriority.Normal)
-                                                          {
-                                                              <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(item.Priority == TodoPriority.High ? Color.Error : Color.Default)">
-                                                                  @(item.Priority == TodoPriority.High ? "🔴 Alta" : "⚪ Baja")
-                                                              </MudChip>
-                                                          }
-                                                          else
-                                                          {
-                                                              <div></div>
-                                                          }
-                                                          
-                                                           <MudStack Row="true" Spacing="0">
-                                                               <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditItemDialog(item)" Disabled="!canModifyTask" @onmousedown:stopPropagation="true" aria-label="Editar" />
-                                                               <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItemAsync(item)" Disabled="!canDeleteTask" @onmousedown:stopPropagation="true" aria-label="Eliminar" />
-                                                           </MudStack>
-                                                      </MudStack>
-                                                  </MudStack>
-                                              </MudCardContent>
-                                          </MudCard>
-                                      </div>
-                                  </ChildContent>
-                                  <TooltipContent>
-                                      <MudPaper Class="pa-3" Elevation="4" Style="min-width: 280px; max-width: 350px;">
-                                          <MudText Typo="Typo.h6" Class="mb-2">@item.Title</MudText>
-                                          
-                                          @if (!string.IsNullOrEmpty(item.Description))
-                                          {
-                                              <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">@item.Description</MudText>
-                                          }
-
-                                          <MudDivider Class="my-2" />
-
-                                          <MudStack Spacing="1">
-                                              <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                  <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Small" Color="Color.Default" />
-                                                  <MudText Typo="Typo.caption">
-                                                      Prioridad: 
-                                                      <MudChip T="string" Size="Size.Small" Color="@(item.Priority == TodoPriority.High ? Color.Error : item.Priority == TodoPriority.Low ? Color.Default : Color.Info)">
-                                                          @(item.Priority == TodoPriority.High ? "Alta" : item.Priority == TodoPriority.Low ? "Baja" : "Normal")
-                                                      </MudChip>
-                                                  </MudText>
-                                              </MudStack>
-
-                                              @if (item.AssignedUsers != null && item.AssignedUsers.Any())
-                                              {
-                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                      <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
-                                                      <MudText Typo="Typo.caption">
-                                                          Asignados: @string.Join(", ", item.AssignedUsers.Values)
-                                                      </MudText>
-                                                  </MudStack>
-                                              }
-
-                                              <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                  <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
-                                                  <MudText Typo="Typo.caption">
-                                                      Creada: @item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
-                                                  </MudText>
-                                              </MudStack>
-
-                                              @if (item.UpdatedAt != item.CreatedAt)
-                                              {
-                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                      <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" Color="Color.Default" />
-                                                      <MudText Typo="Typo.caption">
-                                                          Actualizada: @item.UpdatedAt.ToString("dd/MM/yyyy HH:mm")
-                                                      </MudText>
-                                                  </MudStack>
-                                              }
-
-                                              @if (item.StartDate.HasValue || item.EndDate.HasValue)
-                                              {
-                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                      <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" Color="Color.Info" />
-                                                      <MudText Typo="Typo.caption" Color="Color.Info">
-                                                          @if (item.StartDate.HasValue && item.EndDate.HasValue)
-                                                          {
-                                                              @($"Desde {item.StartDate:dd/MM} hasta {item.EndDate:dd/MM}")
-                                                          }
-                                                          else if (item.StartDate.HasValue)
-                                                          {
-                                                              @($"Desde {item.StartDate:dd/MM/yyyy}")
-                                                          }
-                                                          else if (item.EndDate.HasValue)
-                                                          {
-                                                              @($"Hasta {item.EndDate:dd/MM/yyyy}")
-                                                          }
-                                                      </MudText>
-                                                  </MudStack>
-                                              }
-
-                                              @if (item.DueDate.HasValue)
-                                              {
-                                                  <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                      <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Color="Color.Warning" />
-                                                      <MudText Typo="Typo.caption" Color="Color.Warning">
-                                                          Vence: @item.DueDate.Value.ToString("dd/MM/yyyy HH:mm")
-                                                      </MudText>
-                                                  </MudStack>
-                                              }
-                                          </MudStack>
-
-                                          @if (item.Steps != null && item.Steps.Any())
-                                          {
-                                              <MudDivider Class="my-2" />
-                                              <MudText Typo="Typo.subtitle2" Class="mb-1">Pasos (@item.CompletedStepsCount/@item.TotalStepsCount)</MudText>
-                                              <MudProgressLinear Value="@item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" Class="mb-2" />
-                                              <MudList T="string" Dense="true">
-                                                  @foreach (var step in item.Steps.OrderBy(s => s.Order))
-                                                  {
-                                                      <MudListItem Icon="@(step.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
-                                                                   IconColor="@(step.IsCompleted ? Color.Success : Color.Default)">
-                                                          <MudText Typo="Typo.body2" Class="@(step.IsCompleted ? "text-strikethrough" : "")">@step.Name</MudText>
-                                                      </MudListItem>
-                                                  }
-                                              </MudList>
-                                          }
-                                      </MudPaper>
-                                  </TooltipContent>
-                              </MudTooltip>
-                          }
-                     </div>
-                </div>
-}
-             
-             @if (canAddColumn || isOwner)
+                <BoardColumn 
+                    BoardId="@BoardId"
+                    Column="@column"
+                    Items="@GetColumnItems(column.Id)"
+                    CanEdit="@canEditColumn"
+                    CanDelete="@canDeleteColumn"
+                    CanModifyItems="@canModifyTask"
+                    CanDeleteItems="@canDeleteTask"
+                    ColumnUpdated="LoadBoardAsync"
+                    ColumnDeleted="LoadBoardAsync"
+                    ItemUpdated="LoadBoardAsync"
+                    ItemDeleted="LoadBoardAsync" />
+            }
+              
+              @if (canAddColumn || isOwner)
              {
                  <div class="board-column add-column-trigger" @onclick="AddColumnAsync">
                      <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Class="add-column-icon" />
@@ -499,43 +218,6 @@
 <!-- Tablero de columnas estilo Kanban -->
 
 <style>
-    .drag-ghost {
-        position: fixed;
-        z-index: 9999;
-        pointer-events: none;
-        transform: rotate(25deg) scale(1.05);
-        opacity: 0.95;
-        filter: drop-shadow(0 8px 24px rgba(0,0,0,0.3));
-        cursor: grabbing;
-    }
-    
-    .todo-card-dragging {
-        background: var(--mud-palette-surface);
-        border-radius: 8px;
-        max-width: 300px;
-    }
-    
-    .drag-ghost-column {
-        position: fixed;
-        z-index: 9999;
-        pointer-events: none;
-        transform: rotate(5deg) scale(1.02);
-        opacity: 0.9;
-        filter: drop-shadow(0 12px 32px rgba(0,0,0,0.3));
-        cursor: grabbing;
-        width: 320px;
-    }
-    
-    .column-header-dragging {
-        padding: 16px;
-        background: var(--mud-palette-surface);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-    }
-    
     .board-container {
         width: 100%;
         height: calc(100vh - 150px);
@@ -576,25 +258,6 @@
         max-height: 100%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .board-column.drop-zone-hover {
-        background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
-    }
-    
-    .board-column.column-being-dragged {
-        opacity: 0.4;
-        transform: scale(0.95);
-    }
-    
-    .board-column.column-drop-target {
-        outline: 3px dashed var(--mud-palette-primary);
-        outline-offset: -3px;
-    }
-
-    .drop-target {
-        outline: 3px dashed var(--mud-palette-primary);
-        outline-offset: -3px;
     }
     
     .column-header {
@@ -645,32 +308,8 @@
         min-height: 100px;
     }
     
-    .todo-card-wrapper {
-        border-radius: 8px;
-        transition: transform 0.2s, opacity 0.2s;
-        cursor: grab;
-    }
-    
-    .todo-card-wrapper:hover { transform: scale(1.02); }
-    .todo-card-wrapper:active { cursor: grabbing; }
-    .todo-card-wrapper.completed { opacity: 0.6; }
-    
-    .todo-card {
-        background: var(--mud-palette-background);
-        border-radius: 8px;
-    }
-    
-    .drag-handle { opacity: 0.4; transition: opacity 0.2s; cursor: grab; }
-    .todo-card-wrapper:hover .drag-handle { opacity: 1; }
-    
-    .todo-card-wrapper .mud-icon-button {
-        pointer-events: auto;
-    }
-    
     .text-strikethrough { text-decoration: line-through; color: var(--mud-palette-text-disabled); }
     
-    .add-item-form { margin-top: auto; padding-top: 8px; }
-
     .skeleton-column {
         background: var(--mud-palette-surface);
         border-radius: 12px;
@@ -715,11 +354,6 @@
     .board-container::-webkit-scrollbar-thumb:active { filter: brightness(1.2); }
     .board-container::-webkit-scrollbar-button { display: none; }
     .board-container::-webkit-scrollbar-corner { background: transparent; }
-
-    .no-select {
-        user-select: none;
-        -webkit-user-select: none;
-    }
 
     .action-bar {
         display: flex;
@@ -780,26 +414,11 @@
         color: var(--mud-palette-text-primary);
     }
 
-    .sync-status-bar {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(100px);
-        opacity: 0;
-        transition: transform 0.3s ease, opacity 0.3s ease;
-        padding: 12px 24px;
-        border-radius: 8px;
-        z-index: 1000;
-        background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-lines-default);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
     .sync-status-bar.visible {
         transform: translateX(-50%) translateY(0);
         opacity: 1;
     }
-
+    
     .logs-container {
         width: 100%;
         height: calc(100vh - 200px);
@@ -811,40 +430,12 @@
         margin-top: 8px;
     }
 
-    .item-reorder-line {
-        height: 4px;
-        background: var(--mud-palette-primary);
-        border-radius: 2px;
-        margin: 4px 0;
-        box-shadow: 0 0 8px rgba(126, 111, 255, 0.5);
-    }
-
-    .mud-tooltip-root {
-        --mud-tooltip-background: transparent;
-        --mud-tooltip-border: none;
-    }
-
     .mud-tooltip {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
 
-    .mud-tooltip > .mud-tooltip-content {
-        background: transparent !important;
-        position: relative;
-    }
-
-    .mud-tooltip > .mud-tooltip-content::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        right: 100%;
-        transform: translateY(-50%);
-        border: 8px solid transparent;
-        border-right-color: var(--mud-palette-surface);
-        filter: drop-shadow(-2px 0 4px rgba(0,0,0,0.1));
-    }
 </style>
 
 @code {
@@ -856,24 +447,6 @@
 
     [Parameter]
     public string? BoardId { get; set; }
-
-    private enum SyncStatus { Idle, Syncing, Success, Error }
-    private SyncStatus _syncStatus = SyncStatus.Idle;
-    private int _pendingOperations = 0;
-    private System.Timers.Timer? _syncTimer;
-
-    private bool isDraggingItem = false;
-    private TodoItem? draggedItem;
-    private string? sourceColumnId;
-
-    private bool isDraggingColumn = false;
-    private TodoColumn? draggedColumn;
-    private int draggedColumnIndex;
-    private (double X, double Y) dragPosition;
-    private string? hoveredColumnId;
-    private string? _targetColumnIdForDrop;
-    private double dragOffsetX = 0;
-    private double dragOffsetY = 0;
 
     private List<TodoColumn> columns = new();
     private Dictionary<string, List<TodoItem>> itemsByColumn = new();
@@ -938,201 +511,6 @@
         _permissionCheckTimer?.Dispose();
     }
 
-    // ============================================
-    // REAL-TIME SYNC
-    // ============================================
-    private void SubscribeRealtimeEvents()
-    {
-        if (RealtimeService == null) return;
-
-        RealtimeService.OnBoardUpdated += HandleBoardUpdated;
-        RealtimeService.OnBoardDeleted += HandleBoardDeleted;
-        RealtimeService.OnColumnAdded += HandleColumnAdded;
-        RealtimeService.OnColumnUpdated += HandleColumnUpdated;
-        RealtimeService.OnColumnDeleted += HandleColumnDeleted;
-        RealtimeService.OnItemAdded += HandleItemAdded;
-        RealtimeService.OnItemUpdated += HandleItemUpdated;
-        RealtimeService.OnItemDeleted += HandleItemDeleted;
-    }
-
-    private void UnsubscribeRealtimeEvents()
-    {
-        if (RealtimeService == null) return;
-
-        RealtimeService.OnBoardUpdated -= HandleBoardUpdated;
-        RealtimeService.OnBoardDeleted -= HandleBoardDeleted;
-        RealtimeService.OnColumnAdded -= HandleColumnAdded;
-        RealtimeService.OnColumnUpdated -= HandleColumnUpdated;
-        RealtimeService.OnColumnDeleted -= HandleColumnDeleted;
-        RealtimeService.OnItemAdded -= HandleItemAdded;
-        RealtimeService.OnItemUpdated -= HandleItemUpdated;
-        RealtimeService.OnItemDeleted -= HandleItemDeleted;
-    }
-
-    private async void HandleBoardUpdated(string boardId, string? excludeUserId)
-    {
-        if (boardId != BoardId) return;
-        await LoadBoardAsync();
-        SnackbarService.Add("El tablero ha sido actualizado", Severity.Info);
-    }
-
-    private async void HandleBoardDeleted(string boardId)
-    {
-        SnackbarService.Add("Este tablero ha sido eliminado", Severity.Warning);
-        Navigation.NavigateTo("/", forceLoad: true);
-    }
-
-    private async void HandleColumnAdded(string boardId, string columnJson, string? excludeUserId)
-    {
-        if (boardId != BoardId) return;
-        if (excludeUserId == AuthService.CurrentUser?.Id) return;
-
-        try
-        {
-            var column = System.Text.Json.JsonSerializer.Deserialize<TodoColumn>(columnJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (column != null)
-            {
-                var columnExists = columns.Any(c => c.Id == column.Id);
-                if (columnExists) return;
-
-                columns.Add(column);
-                itemsByColumn[column.Id] = new List<TodoItem>();
-                await InvokeAsync(StateHasChanged);
-                SnackbarService.Add("Nueva columna añadida", Severity.Info);
-            }
-        }
-        catch
-        {
-            _ = LoadBoardAsync();
-        }
-    }
-
-    private async void HandleColumnUpdated(string boardId, string columnJson, string? excludeUserId)
-    {
-        if (boardId != BoardId) return;
-
-        var currentUserId = AuthService.CurrentUser?.Id;
-        Console.WriteLine($"HandleColumnUpdated: excludeUserId={excludeUserId}, currentUserId={currentUserId}");
-        if (excludeUserId == currentUserId) return;
-
-        try
-        {
-            var column = System.Text.Json.JsonSerializer.Deserialize<TodoColumn>(columnJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (column != null)
-            {
-                Console.WriteLine($"HandleColumnUpdated: updating column {column.Name}, Order={column.Order}");
-                var existingColumn = columns.FirstOrDefault(c => c.Id == column.Id);
-                if (existingColumn != null)
-                {
-                    var index = columns.IndexOf(existingColumn);
-                    columns[index] = column;
-                    columns = columns.OrderBy(c => c.Order).ToList();
-                    Console.WriteLine($"HandleColumnUpdated: columns reordered, count={columns.Count}");
-                }
-                StateHasChanged();
-            }
-        }
-        catch
-        {
-            _ = LoadBoardAsync();
-        }
-    }
-
-    private async void HandleColumnDeleted(string boardId, string columnId)
-    {
-        if (boardId != BoardId) return;
-        columns.RemoveAll(c => c.Id == columnId);
-        itemsByColumn.Remove(columnId);
-        await InvokeAsync(StateHasChanged);
-        SnackbarService.Add("Una columna ha sido eliminada", Severity.Info);
-    }
-
-    private async void HandleItemAdded(string boardId, string columnId, string itemJson, string? excludeUserId)
-    {
-        if (boardId != BoardId) return;
-        if (excludeUserId == AuthService.CurrentUser?.Id) return;
-
-        try
-        {
-            var item = System.Text.Json.JsonSerializer.Deserialize<TodoItem>(itemJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (item != null)
-            {
-                var itemAlreadyExists = itemsByColumn.Values.Any(list => list.Any(i => i.Id == item.Id));
-                if (itemAlreadyExists) return;
-
-                if (!itemsByColumn.ContainsKey(columnId))
-                {
-                    itemsByColumn[columnId] = new List<TodoItem>();
-                }
-                itemsByColumn[columnId].Add(item);
-                await InvokeAsync(StateHasChanged);
-                SnackbarService.Add($"Nueva tarea añadida: {item.Title}", Severity.Info);
-            }
-        }
-        catch
-        {
-            _ = LoadBoardAsync();
-        }
-    }
-
-    private async void HandleItemUpdated(string boardId, string itemJson, string? excludeUserId)
-    {
-        if (boardId != BoardId) return;
-        if (excludeUserId == AuthService.CurrentUser?.Id) return;
-
-        try
-        {
-            var item = System.Text.Json.JsonSerializer.Deserialize<TodoItem>(itemJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (item != null)
-            {
-                foreach (var colId in itemsByColumn.Keys.ToList())
-                {
-                    var existingItem = itemsByColumn[colId].FirstOrDefault(i => i.Id == item.Id);
-                    if (existingItem != null)
-                    {
-                        var index = itemsByColumn[colId].IndexOf(existingItem);
-
-                        if (existingItem.ColumnId != item.ColumnId)
-                        {
-                            itemsByColumn[colId].RemoveAt(index);
-                            if (!itemsByColumn.ContainsKey(item.ColumnId))
-                            {
-                                itemsByColumn[item.ColumnId] = new List<TodoItem>();
-                            }
-                            itemsByColumn[item.ColumnId].Add(item);
-                        }
-                        else
-                        {
-                            itemsByColumn[colId][index] = item;
-                        }
-                        break;
-                    }
-                }
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-        catch
-        {
-            _ = LoadBoardAsync();
-        }
-    }
-
-    private async void HandleItemDeleted(string boardId, string itemId)
-    {
-        if (boardId != BoardId) return;
-        foreach (var columnId in itemsByColumn.Keys.ToList())
-        {
-            var item = itemsByColumn[columnId].FirstOrDefault(i => i.Id == itemId);
-            if (item != null)
-            {
-                itemsByColumn[columnId].Remove(item);
-                break;
-            }
-        }
-        await InvokeAsync(StateHasChanged);
-        SnackbarService.Add("Una tarea ha sido eliminada", Severity.Info);
-    }
-
     private async Task HandleBottomNavAction(string action)
     {
         switch (action)
@@ -1191,39 +569,14 @@
                 return;
             }
 
-            if (isOwner)
-            {
-                canAddTask = true;
-                canModifyTask = true;
-                canDeleteTask = true;
-                canViewCalendar = true;
-                canAddColumn = true;
-                canEditColumn = true;
-                canDeleteColumn = true;
-            }
-            else if (currentBoard?.ParticipantPermissions != null && 
-                     currentBoard.ParticipantPermissions.TryGetValue(AuthService.CurrentUser.Id, out var perms))
-            {
-                canAddTask = perms.CanAddTasks;
-                canModifyTask = perms.CanModifyTasks;
-                canDeleteTask = perms.CanDeleteTasks;
-                canViewCalendar = perms.CanViewCalendar;
-                canAddColumn = perms.CanAddColumn;
-                canEditColumn = perms.CanEditColumn;
-                canDeleteColumn = perms.CanDeleteColumn;
-            }
-            else
-            {
-                canAddTask = false;
-                canModifyTask = false;
-                canDeleteTask = false;
-                canViewCalendar = false;
-                canAddColumn = false;
-                canEditColumn = false;
-                canDeleteColumn = false;
-            }
-
-
+            var perms = BoardUtils.GetUserPermissions(currentBoard, AuthService.CurrentUser.Id);
+            canAddTask = perms.CanAddTasks;
+            canModifyTask = perms.CanModifyTasks;
+            canDeleteTask = perms.CanDeleteTasks;
+            canViewCalendar = perms.CanViewCalendar;
+            canAddColumn = perms.CanAddColumn;
+            canEditColumn = perms.CanEditColumn;
+            canDeleteColumn = perms.CanDeleteColumn;
 
             if (isOwner && string.IsNullOrEmpty(currentBoard.OwnerName))
             {
@@ -1233,15 +586,7 @@
 
             AuthService.SetLastVisitedBoard(BoardId);
 
-            boardParticipants = new Dictionary<string, string>();
-            if (!string.IsNullOrEmpty(currentBoard.OwnerName))
-            {
-                boardParticipants[currentBoard.User] = currentBoard.OwnerName;
-            }
-            foreach (var participant in currentBoard.Participants)
-            {
-                boardParticipants[participant.Key] = participant.Value;
-            }
+            boardParticipants = BoardUtils.GetParticipantsDictionary(currentBoard);
 
             columns = new List<TodoColumn>(currentBoard.Columns);
             itemsByColumn.Clear();
@@ -1275,297 +620,32 @@
 
     private async Task<bool> CheckCanAddTask()
     {
-        if (isOwner) return true;
-
-        var board = await BoardService.GetBoardAsync(BoardId);
-        if (board?.User == AuthService.CurrentUser?.Id) return true;
-
-        if (board?.ParticipantPermissions != null && 
-            board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
+        if (!canAddTask)
         {
-            if (!perms.CanAddTasks)
-            {
-                SnackbarService.Add("No tienes permiso para añadir tareas", Severity.Warning);
-                return false;
-            }
-            return true;
+            SnackbarService.Add("No tienes permiso para añadir tareas", Severity.Warning);
+            return false;
         }
-
-        SnackbarService.Add("No tienes permiso para añadir tareas", Severity.Warning);
-        return false;
+        return true;
     }
 
     private async Task<bool> CheckCanModifyTask()
     {
-        if (isOwner) return true;
-
-        var board = await BoardService.GetBoardAsync(BoardId);
-        if (board?.User == AuthService.CurrentUser?.Id) return true;
-
-        if (board?.ParticipantPermissions != null && 
-            board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
+        if (!canModifyTask)
         {
-            if (!perms.CanModifyTasks)
-            {
-                SnackbarService.Add("No tienes permiso para modificar tareas", Severity.Warning);
-                return false;
-            }
-            return true;
+            SnackbarService.Add("No tienes permiso para modificar tareas", Severity.Warning);
+            return false;
         }
-
-        SnackbarService.Add("No tienes permiso para modificar tareas", Severity.Warning);
-        return false;
+        return true;
     }
 
     private async Task<bool> CheckCanDeleteTask()
     {
-        if (isOwner) return true;
-
-        var board = await BoardService.GetBoardAsync(BoardId);
-        if (board?.User == AuthService.CurrentUser?.Id) return true;
-
-        if (board?.ParticipantPermissions != null && 
-            board.ParticipantPermissions.TryGetValue(AuthService.CurrentUser?.Id ?? "", out var perms))
+        if (!canDeleteTask)
         {
-            if (!perms.CanDeleteTasks)
-            {
-                SnackbarService.Add("No tienes permiso para eliminar tareas", Severity.Warning);
-                return false;
-            }
-            return true;
+            SnackbarService.Add("No tienes permiso para eliminar tareas", Severity.Warning);
+            return false;
         }
-
-        SnackbarService.Add("No tienes permiso para eliminar tareas", Severity.Warning);
-        return false;
-    }
-
-    // ============================================
-    // DRAG & DROP DE TAREAS (mouse events - works cross-browser)
-    // ============================================
-    private async Task StartItemDrag(MouseEventArgs e, TodoItem item)
-    {
-        if (isLoading) return;
-        if (!await CheckCanModifyTask()) return;
-
-        isDraggingItem = true;
-        draggedItem = item;
-        sourceColumnId = item.ColumnId;
-        dragOffsetX = 80;
-        dragOffsetY = 20;
-        dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
-        StateHasChanged();
-    }
-
-    // ============================================
-    // DRAG & DROP DE COLUMNAS
-    // ============================================
-    private void StartColumnDrag(MouseEventArgs e, TodoColumn column)
-    {
-        if (isLoading) return;
-        if (!canEditColumn && !isOwner)
-        {
-            SnackbarService.Add("No tienes permisos para mover columnas", Severity.Warning);
-            return;
-        }
-        isDraggingColumn = true;
-        draggedColumn = column;
-        draggedColumnIndex = columns.FindIndex(c => c.Id == column.Id);
-        dragOffsetX = 160;
-        dragOffsetY = 40;
-        dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
-    }
-
-    private void HandleColumnHover(string columnId)
-    {
-        hoveredColumnId = columnId;
-        _targetColumnIdForDrop = columnId;
-    }
-
-    private void HandleColumnLeave()
-    {
-        // No limpiamos hoveredColumnId aquí - se limpia en HandleMouseUp
-    }
-
-    private void HandleMouseMove(MouseEventArgs e)
-    {
-        if (isDraggingItem || isDraggingColumn)
-        {
-            dragPosition = (e.ClientX - dragOffsetX, e.ClientY - dragOffsetY);
-            StateHasChanged();
-        }
-    }
-
-    private async Task HandleMouseUp(MouseEventArgs e)
-    {
-        var targetColumnId = _targetColumnIdForDrop ?? hoveredColumnId;
-
-        if (isDraggingItem && draggedItem != null)
-        {
-            var hasHoverItem = _hoverItem != null && _hoverItem.Id != draggedItem.Id;
-            var isSameItem = _hoverItem?.Id == draggedItem.Id;
-            var isDifferentColumn = targetColumnId != sourceColumnId;
-
-            if (!string.IsNullOrEmpty(targetColumnId))
-            {
-                if (isDifferentColumn || (hasHoverItem && !isSameItem))
-                {
-                    MoveItemOptimistic(draggedItem, _hoverItem, sourceColumnId!, targetColumnId);
-                    _ = MoveItemBackgroundAsync(draggedItem.Id, _hoverItem?.Id, targetColumnId);
-                    SnackbarService.Add("Tarea movida", Severity.Info);
-                }
-            }
-            isDraggingItem = false;
-            draggedItem = null;
-            sourceColumnId = null;
-        }
-        else if (isDraggingColumn && draggedColumn != null && !string.IsNullOrEmpty(targetColumnId))
-        {
-            if (!canEditColumn && !isOwner)
-            {
-                isDraggingColumn = false;
-                draggedColumn = null;
-                SnackbarService.Add("No tienes permisos para mover columnas", Severity.Warning);
-                StateHasChanged();
-                return;
-            }
-
-            if (targetColumnId != draggedColumn.Id)
-            {
-                var targetIndex = columns.FindIndex(c => c.Id == targetColumnId);
-                if (targetIndex >= 0)
-                {
-                    SwapColumnsOptimistic(draggedColumnIndex, targetIndex);
-                    _ = SwapColumnsBackgroundAsync(draggedColumnIndex, targetIndex);
-                }
-            }
-        }
-        isDraggingColumn = false;
-        draggedColumn = null;
-        // hoveredColumnId = null;
-        // _targetColumnIdForDrop = null;
-        _hoverItem = null;
-        StateHasChanged();
-    }
-
-    private async Task SwapColumnsAsync(int from, int to)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        if (from < 0 || to < 0 || from >= columns.Count || to >= columns.Count) return;
-        try
-        {
-            await TodoService.SwapColumnsAsync(BoardId, from, to);
-            await LoadBoardAsync();
-            SnackbarService.Add("Columnas intercambiadas", Severity.Info);
-        }
-        catch (Exception ex)
-        {
-            SnackbarService.Add($"Error: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private void MoveItemOptimistic(TodoItem item, TodoItem? hoverItem, string fromColumnId, string toColumnId)
-    {
-        if (!itemsByColumn.TryGetValue(fromColumnId, out var sourceList)) return;
-
-        sourceList.Remove(item);
-
-        if (!itemsByColumn.ContainsKey(toColumnId))
-        {
-            itemsByColumn[toColumnId] = new List<TodoItem>();
-        }
-
-        var targetList = itemsByColumn[toColumnId];
-
-        if (hoverItem == null)
-        {
-            targetList.Add(item);
-        }
-        else
-        {
-            var hoverIndex = targetList.IndexOf(hoverItem);
-            if (hoverIndex < 0) hoverIndex = targetList.Count;
-            targetList.Insert(hoverIndex, item);
-        }
-
-        item.ColumnId = toColumnId;
-        item.Order = targetList.IndexOf(item);
-        StateHasChanged();
-    }
-
-    private async Task MoveItemBackgroundAsync(string itemId, string? hoverItemId, string targetColumnId)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        try
-        {
-            _pendingOperations++;
-            _syncStatus = SyncStatus.Syncing;
-            StateHasChanged();
-
-            await Task.Delay(600);
-            await TodoService.MoveItemToColumnAsync(BoardId, itemId, hoverItemId, targetColumnId);
-
-            OnOperationComplete(true);
-        }
-        catch
-        {
-            await LoadBoardAsync();
-            OnOperationComplete(false);
-        }
-    }
-
-    private void SwapColumnsOptimistic(int from, int to)
-    {
-        (columns[from], columns[to]) = (columns[to], columns[from]);
-        StateHasChanged();
-    }
-
-    private async Task SwapColumnsBackgroundAsync(int from, int to)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        try
-        {
-            _pendingOperations++;
-            _syncStatus = SyncStatus.Syncing;
-            StateHasChanged();
-
-            await Task.Delay(600);
-            await TodoService.SwapColumnsAsync(BoardId, from, to);
-
-            OnOperationComplete(true);
-        }
-        catch
-        {
-            (columns[from], columns[to]) = (columns[to], columns[from]);
-            StateHasChanged();
-            OnOperationComplete(false);
-        }
-    }
-
-    private void OnOperationComplete(bool success)
-    {
-        _pendingOperations--;
-        if (_pendingOperations <= 0)
-        {
-            _pendingOperations = 0;
-            _syncStatus = success ? SyncStatus.Success : SyncStatus.Error;
-            StateHasChanged();
-
-            _syncTimer?.Stop();
-            _syncTimer?.Dispose();
-            _syncTimer = new System.Timers.Timer(2000);
-            _syncTimer.Elapsed += (s, e) =>
-            {
-                _syncTimer?.Stop();
-                _syncTimer?.Dispose();
-                _syncTimer = null;
-                InvokeAsync(() => {
-                    _syncStatus = SyncStatus.Idle;
-                    StateHasChanged();
-                });
-            };
-            _syncTimer.AutoReset = false;
-            _syncTimer.Start();
-        }
+        return true;
     }
 
     // ============================================
@@ -1591,32 +671,8 @@
         {
             if (selectedParticipants.Count == 0) return;
 
-            foreach (var (id, name) in selectedParticipants)
-            {
-                if (!currentBoard.Participants.ContainsKey(id))
-                {
-                    await BoardService.AddParticipantAsync(BoardId, id, name);
-                    // currentBoard.Participants[id] = name;
-                    // currentBoard.ParticipantPermissions[id] = new BoardPermissions
-                    // {
-                    //     CanViewCalendar = true,
-                    //     CanAddTasks = true,
-                    //     CanModifyTasks = true,
-                    //     CanDeleteTasks = true,
-                    //     CanAddEvents = false,
-                    //     CanModifyEvents = false,
-                    //     CanDeleteEvents = false
-                    // };
-                }
-            }
-            // await BoardService.UpdateBoardAsync(currentBoard);
-            await LogService.AddLogAsync(new LogItem
-            {
-                Message = $"Añade participantes {string.Join(", ", selectedParticipants.Select(x => x.Name))} del tablero {currentBoard.Name}",
-                Action = DatabaseAction.Crear,
-                BoardId = currentBoard.Id,
-                User = AuthService.CurrentUser!.Username
-            });
+            await ParticipantsService.AddParticipantsAsync(BoardId, currentBoard, selectedParticipants, AuthService.CurrentUser?.Username ?? "");
+            
             StateHasChanged();
             SnackbarService.Add("Participantes añadidos", Severity.Success);
         }
@@ -1626,33 +682,16 @@
     {
         if (!isOwner || string.IsNullOrEmpty(BoardId) || currentBoard == null) return;
 
-        var hasIncompleteSteps = itemsByColumn.Values
-            .SelectMany(items => items)
-            .Any(item => item.AssignedUsers.ContainsKey(participantId) && 
-                         item.Steps != null && 
-                         item.Steps.Any(step => !step.IsCompleted));
+        var allItems = itemsByColumn.Values.SelectMany(items => items).ToList();
 
-        if (hasIncompleteSteps)
+        if (ParticipantsService.HasIncompleteSteps(participantId, allItems))
         {
             SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
             return;
         }
 
-        await BoardService.RemoveParticipantAsync(BoardId, participantId);
-        currentBoard.Participants.Remove(participantId);
-
-        foreach (var columnItems in itemsByColumn.Values)
-        {
-            foreach (var item in columnItems)
-            {
-                if (item.AssignedUsers.ContainsKey(participantId))
-                {
-                    item.AssignedUsers.Remove(participantId);
-                }
-            }
-        }
-
-        StateHasChanged();
+        await ParticipantsService.RemoveParticipantAsync(BoardId, currentBoard, participantId, allItems, StateHasChanged);
+        
         SnackbarService.Add("Participante removido", Severity.Info);
     }
 
@@ -1660,13 +699,9 @@
     {
         if (!isOwner) return;
 
-        var hasIncompleteSteps = itemsByColumn.Values
-            .SelectMany(items => items)
-            .Any(item => item.AssignedUsers.ContainsKey(participantId) && 
-                         item.Steps != null && 
-                         item.Steps.Any(step => !step.IsCompleted));
+        var allItems = itemsByColumn.Values.SelectMany(items => items).ToList();
 
-        if (hasIncompleteSteps)
+        if (ParticipantsService.HasIncompleteSteps(participantId, allItems))
         {
             SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
             return;
@@ -1771,88 +806,6 @@
         }
     }
 
-    private async Task OpenEditColumnDialog(TodoColumn column)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        
-        if (!canEditColumn && !isOwner)
-        {
-            SnackbarService.Add("No tienes permisos para editar columnas", Severity.Warning);
-            return;
-        }
-
-        var defaultColumnName = column.Name;
-
-        var editing = new TodoColumn { Id = column.Id, Name = column.Name, Color = column.Color, CreatedAt = column.CreatedAt, UpdatedAt = column.UpdatedAt };
-        var parameters = new DialogParameters<EditColumnDialog>();
-        parameters.Add(x => x.Column, editing);
-
-        var dialog = await DialogService.ShowAsync<EditColumnDialog>("Editar Columna", parameters);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: EditColumnDialog.EditColumnResult editResult })
-        {
-            if (string.IsNullOrWhiteSpace(editResult.NewName) == false)
-            {
-                await LogService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Actualizar,
-                    BoardId = BoardId,
-                    Message = $"Actualiza columna {defaultColumnName} -> {editResult.NewName}",
-                    User = AuthService.CurrentUser!.Username
-                });
-            }
-            if (string.IsNullOrWhiteSpace(editResult.NewColor) == false)
-            {
-                await LogService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Actualizar,
-                    BoardId = BoardId,
-                    Message = $"Actualiza color de la columna a {editResult.NewColor}",
-                    User = AuthService.CurrentUser!.Username
-                });
-            }
-
-            await TodoService.UpdateColumnAsync(BoardId, editing);
-            var index = columns.FindIndex(c => c.Id == editing.Id);
-            if (index >= 0)
-            {
-                columns[index] = editing;
-                StateHasChanged();
-            }
-            SnackbarService.Add("Columna actualizada", Severity.Success);
-        }
-    }
-
-    private async Task DeleteColumnAsync(TodoColumn column)
-    {
-        if (string.IsNullOrEmpty(BoardId)) return;
-        if (!canDeleteColumn && !isOwner)
-        {
-            SnackbarService.Add("No tienes permisos para eliminar columnas", Severity.Warning);
-            return;
-        }
-
-        var count = GetColumnItemCount(column.Id);
-        var msg = count > 0 ? $"¿Eliminar '{column.Name}' y sus {count} tareas?" : $"¿Eliminar '{column.Name}'?";
-        var parameters = new DialogParameters<DeletionConfirmDialog>();
-        parameters.Add(x => x.ContentText, msg);
-        parameters.Add(x => x.ButtonText, "Eliminar");
-        parameters.Add(x => x.Color, Color.Error);
-
-        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: true })
-        {
-            await TodoService.DeleteColumnAsync(BoardId, column.Id);
-            columns.RemoveAll(c => c.Id == column.Id);
-            itemsByColumn.Remove(column.Id);
-            StateHasChanged();
-            SnackbarService.Add("Columna eliminada", Severity.Success);
-        }
-    }
-
     private async Task OpenNewTaskDialogAsync()
     {
         if (!await CheckCanAddTask()) return;
@@ -1865,7 +818,7 @@
 
         var parameters = new DialogParameters<NewTaskDialog>();
         parameters.Add(x => x.Columns, columns);
-        parameters.Add(x => x.Participants, boardParticipants);
+        parameters.Add(x => x.Participants, BoardUtils.GetParticipantsDictionary(currentBoard));
 
         var dialog = await DialogService.ShowAsync<NewTaskDialog>("Nueva Tarea", parameters);
         var result = await dialog.Result;
@@ -1891,132 +844,6 @@
                 StateHasChanged();
                 SnackbarService.Add("Tarea agregada", Severity.Success);
             }
-        }
-    }
-
-    private async Task OpenEditItemDialog(TodoItem item)
-    {
-        if (!await CheckCanModifyTask()) return;
-        
-        if (string.IsNullOrEmpty(BoardId) || currentBoard == null) return;
-
-        var editing = new TodoItem { 
-            Id = item.Id, 
-            Title = item.Title, 
-            Description = item.Description, 
-            Priority = item.Priority, 
-            ColumnId = item.ColumnId, 
-            IsCompleted = item.IsCompleted, 
-            Order = item.Order, 
-            CreatedAt = item.CreatedAt, 
-            UpdatedAt = item.UpdatedAt,
-            StartDate = item.StartDate,
-            EndDate = item.EndDate,
-            DueDate = item.DueDate,
-            AssignedUsers = item.AssignedUsers != null ? new Dictionary<string, string>(item.AssignedUsers) : new Dictionary<string, string>(),
-            Steps = item.Steps?.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted, Order = s.Order }).ToList(),
-            CurrentStepIndex = item.CurrentStepIndex
-        };
-        var parameters = new DialogParameters<EditItemDialog>();
-        parameters.Add(x => x.Item, editing);
-        parameters.Add(x => x.Columns, columns);
-        parameters.Add(x => x.Participants, boardParticipants);
-
-
-        var dialog = await DialogService.ShowAsync<EditItemDialog>("Editar Tarea", parameters);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: EditItemDialog.EditItemResult editResult })
-        {
-            var usersAddedToTodo = editResult.AddedUsers
-                .Select(x => currentBoard.Participants.ContainsKey(x) ? currentBoard.Participants[x] : currentBoard.OwnerName);
-            var usersRemovedFromTodo = editResult.RemovedUsers
-                .Select(x => currentBoard.Participants.ContainsKey(x) ? currentBoard.Participants[x] : currentBoard.OwnerName);
-
-
-            if (usersAddedToTodo.Any())
-            {
-                await LogService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Crear,
-                    BoardId = BoardId,
-                    Message = $"Añade {string.Join(',', usersAddedToTodo)} a la tarea {item.Title}",
-                    User = AuthService.CurrentUser!.Username
-                });
-            }
-
-            if (usersRemovedFromTodo.Any())
-            {
-                await LogService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Remover,
-                    BoardId = BoardId,
-                    Message = $"Remueve {string.Join(',', usersRemovedFromTodo)} de la tarea {item.Title}",
-                    User = AuthService.CurrentUser!.Username
-                });
-            }
-
-            if (editResult.StepsChanged)
-            {
-                var completedCount = editResult.Item.Steps?.Count(s => s.IsCompleted) ?? 0;
-                var totalCount = editResult.Item.Steps?.Count ?? 0;
-                var percentage = totalCount > 0 ? (int)((double)completedCount / totalCount * 100) : 0;
-
-                await LogService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Actualizar,
-                    BoardId = BoardId,
-                    Message = $"Actualiza pasos de '{editResult.Item.Title}': {completedCount}/{totalCount} ({percentage}%)",
-                    User = AuthService.CurrentUser!.Username
-                });
-            }
-
-            await TodoService.UpdateItemAsync(BoardId, editResult.Item);
-
-            if (editResult.ColumnChanged)
-            {
-                await TodoService.MoveItemToColumnAsync(BoardId, editResult.Item.Id, null, editResult.NewColumnId);
-                itemsByColumn[editResult.Item.ColumnId]?.RemoveAll(i => i.Id == editResult.Item.Id);
-                if (!itemsByColumn.ContainsKey(editResult.NewColumnId))
-                {
-                    itemsByColumn[editResult.NewColumnId] = new List<TodoItem>();
-                }
-                itemsByColumn[editResult.NewColumnId].Add(editResult.Item);
-            }
-            else
-            {
-                var itemList = itemsByColumn[editResult.Item.ColumnId];
-                var itemIndex = itemList.FindIndex(i => i.Id == editResult.Item.Id);
-                if (itemIndex >= 0)
-                {
-                    itemList[itemIndex] = editResult.Item;
-                }
-            }
-            StateHasChanged();
-            SnackbarService.Add("Tarea actualizada", Severity.Success);
-        }
-    }
-
-    private async Task DeleteItemAsync(TodoItem item)
-    {
-        if (!await CheckCanDeleteTask()) return;
-        
-        if (string.IsNullOrEmpty(BoardId)) return;
-
-        var parameters = new DialogParameters<DeletionConfirmDialog>();
-        parameters.Add(x => x.ContentText, $"¿Eliminar '{item.Title}'?");
-        parameters.Add(x => x.ButtonText, "Eliminar");
-        parameters.Add(x => x.Color, Color.Error);
-
-        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: true })
-        {
-            await TodoService.DeleteItemAsync(BoardId, item.Id);
-            itemsByColumn[item.ColumnId]?.RemoveAll(i => i.Id == item.Id);
-            StateHasChanged();
-            SnackbarService.Add("Tarea eliminada", Severity.Success);
         }
     }
 
@@ -2047,19 +874,6 @@
 
             SnackbarService.Add("No se pudo eliminar el tablero debido a un error inesperado, intenta luego", Severity.Error);
         }
-    }
-    
-    private TodoItem? _hoverItem;
-    private void HandleHoverItem(MouseEventArgs eventArgs, TodoItem? item)
-    {
-        if (isDraggingItem == false) return;
-        if (draggedItem?.Id == item?.Id) 
-        {
-            _hoverItem = null;
-            return;
-        }
-
-        _hoverItem = item;
     }
 
     private async Task ShowUserDetails(string userName, string userId)

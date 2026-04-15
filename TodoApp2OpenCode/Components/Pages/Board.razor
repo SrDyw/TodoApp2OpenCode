@@ -1,0 +1,762 @@
+﻿@page "/board/{BoardId}"
+
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject TodoService TodoService
+@inject BoardParticipantsService ParticipantsService
+@inject IBoardService BoardService
+@inject IAuthService AuthService
+@inject BottomNavService BottomNavService
+@inject NavigationManager Navigation
+@inject ILogService LogService
+@inject IRealtimeService RealtimeService
+
+<PageTitle>@Config.AppName | Tablero @_currentBoard?.Name</PageTitle>
+
+<SyncIndicator SyncStatus="_syncStatus" />
+
+<MudStack Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+	@if (_boardLoading)
+	{
+		<MudSkeleton Width="100%" Height="40px" />
+		<MudSkeleton Width="50%" Height="20px" />
+	}
+	else
+	{
+		<MudText Typo="Typo.h4">
+			<MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
+			@_currentBoard!.Name
+		</MudText>
+		<MudText Color="Color.Primary" Typo="Typo.h5">
+			@_currentBoard?.Description
+		</MudText>
+	}
+</MudStack>
+
+@if (_boardLoading)
+{
+    
+}
+else
+{
+    <div class="columns-wrapper">
+        <div class="vertical-action-bar column-item">
+            <MudTooltip Text="Añadir nueva tarea">
+                <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="OpenNewTaskDialogAsync" Disabled="!_perms.CanAddTasks" />
+            </MudTooltip>
+            <MudTooltip Text="Participantes">
+                <MudMenu Color="Color.Default" Icon="@Icons.Material.Filled.People">
+                    <MudMenuItem Disabled="_currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                            @_currentBoard?.OwnerName
+                            @if (_currentBoard?.OwnerName == AuthService.CurrentUser?.Username)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
+                            }
+                        </MudStack>
+                    </MudMenuItem>
+                    @if (_currentBoard?.Participants.Any() == true)
+                    {
+                        <MudDivider />
+                        @foreach (var participant in _currentBoard.Participants)
+                        {
+                            <MudMenuItem OnClick="@(() => ShowUserDetails(participant.Value, participant.Key))" Disabled="_currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small" Color="Color.Primary" />
+                                    @participant.Value
+                                    @if (participant.Value == AuthService.CurrentUser?.Username)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
+                                    }
+                                </MudStack>
+                            </MudMenuItem>
+                        }
+                    }
+                    @if (isOwner)
+                    {
+                        <MudDivider />
+                        <MudMenuItem OnClick="OpenAddParticipantsDialog">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Color="Color.Primary" />
+                                <MudText Color="Color.Primary">Añadir participante</MudText>
+                            </MudStack>
+                        </MudMenuItem>
+                    }
+                </MudMenu>
+            </MudTooltip>
+            @if (_perms.CanViewCalendar || isOwner)
+            {
+                <MudTooltip Text="Calendario">
+                    <MudIconButton Color="Color.Default"
+                                   Icon="@Icons.Material.Filled.CalendarMonth"
+                                   OnClick="NavigateToSchedule"
+                                   @onmousedown:stopPropagation="true" />
+                </MudTooltip>
+            }
+            @if (isOwner)
+            {
+                <MudTooltip Text="Ajustes">
+                    <MudIconButton Color="Color.Default"
+                                   Icon="@Icons.Material.Filled.Settings"
+                                   OnClick="NavigateToSettings"
+                                   @onmousedown:stopPropagation="true" />
+                </MudTooltip>
+            }
+            <MudTooltip Text="Registros">
+                <MudIconButton Color="Color.Default"
+                               Icon="@Icons.Material.Filled.History"
+                               OnClick="NavigateToLogs"
+                               @onmousedown:stopPropagation="true" />
+            </MudTooltip>
+            <MudSpacer />
+            <MudDivider />
+            @if (isOwner)
+            {
+                <MudTooltip Text="Borrar tablero">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="OnDeleteBoardButtonClick" />
+                </MudTooltip>
+            }
+        </div>
+        <MudDropContainer ItemDisabled="x => _perms.CanModifyTasks" T="TodoItem" Items="_items" @ref="_mudDropContainerRef" ItemsSelector="@((item, dropzone) => item.ColumnId == dropzone)" CanDropClass="mud-border-success" ItemPicked="ItemPicked" ItemDropped="ItemUpdated" Class="board-container columns-list column-item">
+            <ChildContent>
+                @foreach (var column in _columns)
+                {
+                    <MudDropZone ItemDisabled="x => _perms.CanModifyTasks == false" T="TodoItem" AllowReorder Identifier="@column.Id" Class="board-column" >
+                        <div class="column-header column-drag-handle">
+                            <div class="column-title-area">
+                                @if (_perms.CanEditColumn)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Class="mr-1 column-drag-icon" />
+                                }
+                                <div class="column-color-dot" style="background-color: @column.Color;"></div>
+                                <MudText Typo="Typo.h6" Class="column-title">@column.Name</MudText>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">
+                                    @ItemCount
+                                </MudChip>
+                            </div>
+
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Edge="Edge.End">
+                                @if (_perms.CanEditColumn)
+                                {
+                                    <MudMenuItem OnClick="@(() => EditColumnAsync(column))">
+                                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                            <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                                            <span>Editar</span>
+                                        </MudStack>
+                                    </MudMenuItem>
+                                }
+                                @if (_perms.CanDeleteColumn)
+                                {
+                                    <MudDivider />
+                                    <MudMenuItem Class="text-danger" OnClick="@(() => DeleteColumnAsync(column))">
+                                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                            <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" />
+                                            <span>Eliminar</span>
+                                        </MudStack>
+                                    </MudMenuItem>
+                                }
+                            </MudMenu>
+                        </div>
+                    </MudDropZone>
+                }
+                @if (_perms.CanAddColumn || isOwner)
+                {
+                    <div class="board-column add-column-trigger" @onclick="AddColumnAsync">
+                        <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Class="add-column-icon" />
+                        <MudText>Nueva Columna</MudText>
+                    </div>
+                }
+            </ChildContent>
+            <ItemRenderer>
+                <TodoCard BoardId="@BoardId"
+                          Item="@context"
+                          CanModify="@_perms.CanModifyTasks"
+                          CanDelete="@_perms.CanModifyTasks"
+                          ItemUpdated="RefreshItems"
+                          ItemDeleted="RefreshItems" 
+                          CanShowOnHoverTooltip="_currentPickedItem != null"
+                          />
+            </ItemRenderer>
+        </MudDropContainer>
+    </div>
+}
+<style>
+    .add-column-trigger {
+        flex: 0 0 320px;
+        max-width: 320px;
+        background: transparent;
+        border: 2px dashed var(--mud-palette-lines-default);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s, background 0.2s;
+        min-height: 200px;
+    }
+
+        .add-column-trigger:hover {
+            opacity: 1;
+            background: var(--mud-palette-surface);
+            border-color: var(--mud-palette-primary);
+        }
+    .board-column {
+        flex: 0 0 320px;
+        max-width: 320px;
+        background: var(--mud-palette-surface);
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        max-height: 100%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+
+    .action-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .vertical-action-bar {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .columns-wrapper {
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        height: 100%;
+        min-height: 600px;
+        padding: 4px;
+    }
+    .columns-list {
+        display: flex;
+        gap: 16px;
+        height: 100%;
+        min-height: 500px;
+        padding: 4px;
+        overflow-x: scroll;
+        border-radius: 16px;
+    }
+
+    .column-item {
+        margin-right: 8px;
+    }
+    .board-container {
+        width: 100%;
+        height: calc(100vh - 150px);
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 20px;
+        display: flex;
+        gap: 8px;
+    }
+
+    .board-column {
+        flex: 0 0 320px;
+        max-width: 320px;
+        background: var(--mud-palette-surface);
+        border-radius: 12px;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        max-height: 100%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+        .board-column.drop-zone-hover {
+            background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
+        }
+
+    .column-header {
+        padding: 16px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(to right, var(--column-color) 4px, transparent 4px);
+        border-radius: 12px 12px 0 0;
+    }
+
+    .column-drag-handle {
+        cursor: grab;
+    }
+
+        .column-drag-handle:active {
+            cursor: grabbing;
+        }
+
+    .column-title-area {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .column-color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .column-title {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .column-drag-icon {
+        opacity: 0.5;
+        cursor: grab;
+    }
+
+    .column-header:hover .column-drag-icon {
+        opacity: 1;
+    }
+
+    .column-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 100px;
+        height: 100%;
+    }
+</style>
+@code {
+    [Parameter]
+    public string? BoardId { get; set; }
+
+    private TodoBoard? _currentBoard;
+    private bool _boardLoading = true;
+
+    private int ItemCount { get; set; }
+
+    private List<TodoItem> _items = [];
+
+    private TodoItem? _currentPickedItem = null;
+
+    private BoardPermissions? _perms;
+    private bool isOwner = false;
+
+    private List<TodoColumn> _columns = [];
+
+    private MudDropContainer<TodoItem>? _mudDropContainerRef;
+
+    private SyncIndicator.OperationSyncStatus _syncStatus;
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(BoardId))
+        {
+            NotFound();
+            return;
+        }
+        _currentBoard = await BoardService.GetBoardAsync(BoardId);
+
+        if (_currentBoard == null)
+        {
+            NotFound();
+            return;
+        }
+
+        await AuthService.CheckAuthStateAsync();
+        if (AuthService.CurrentUser == null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        _items = _currentBoard.Items.OrderBy(x => x.Order).ToList();
+        _perms = BoardUtils.GetUserPermissions(_currentBoard, AuthService.CurrentUser.Id);
+        isOwner = _currentBoard.User == AuthService.CurrentUser.Id;
+        _columns = _currentBoard.Columns;
+        _boardLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshItems()
+    {
+
+    }
+    private async Task AddColumnAsync()
+    {
+        if (string.IsNullOrEmpty(BoardId)) return;
+        if (!_perms.CanAddColumn && !isOwner)
+        {
+            SnackbarService.Add("No tienes permisos para añadir columnas", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters<InputDialog>();
+        parameters.Add(x => x.Title, "Nueva Columna");
+        parameters.Add(x => x.ContentText, "Nombre de la columna:");
+        parameters.Add(x => x.Placeholder, "Nombre...");
+        parameters.Add(x => x.ButtonText, "Crear");
+
+        var dialog = await DialogService.ShowAsync<InputDialog>("Nueva Columna", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: string name } && !string.IsNullOrWhiteSpace(name))
+        {
+            var col = await TodoService.AddColumnAsync(BoardId, name);
+            if (col != null)
+            {
+                _columns.Add(col);
+                await InvokeAsync(StateHasChanged);
+                SnackbarService.Add($"Columna '{col.Name}' creada", Severity.Success);
+            }
+        }
+    }
+    private async Task EditColumnAsync(TodoColumn Column)
+    {
+        if (string.IsNullOrEmpty(BoardId)) return;
+
+        var defaultColumnName = Column.Name;
+
+        var editing = new TodoColumn { Id = Column.Id, Name = Column.Name, Color = Column.Color, CreatedAt = Column.CreatedAt, UpdatedAt = Column.UpdatedAt };
+        var parameters = new DialogParameters<EditColumnDialog>();
+        parameters.Add(x => x.Column, editing);
+
+        var dialog = await DialogService.ShowAsync<EditColumnDialog>("Editar Columna", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: EditColumnDialog.EditColumnResult editResult })
+        {
+            if (string.IsNullOrWhiteSpace(editResult.NewName) == false)
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Actualizar,
+                    BoardId = BoardId,
+                    Message = $"Actualiza columna {defaultColumnName} -> {editResult.NewName}",
+                    User = AuthService.CurrentUser?.Username ?? ""
+                });
+            }
+            if (string.IsNullOrWhiteSpace(editResult.NewColor) == false)
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Actualizar,
+                    BoardId = BoardId,
+                    Message = $"Actualiza color de la columna a {editResult.NewColor}",
+                    User = AuthService.CurrentUser?.Username ?? ""
+                });
+            }
+
+            await TodoService.UpdateColumnAsync(BoardId, editing);
+
+            var targetColumnIndex = _columns.IndexOf(_columns.FirstOrDefault(x => x.Id == editing.Id) ?? new());
+            if (targetColumnIndex != -1)
+            {
+                _columns[targetColumnIndex] = editing;
+            }
+
+            await InvokeAsync(StateHasChanged);
+            SnackbarService.Add("Columna actualizada", Severity.Success);
+        }
+    }
+
+    private async Task DeleteColumnAsync(TodoColumn Column)
+    {
+        if (string.IsNullOrEmpty(BoardId)) return;
+
+        var count = _items.Count(x => x.ColumnId == Column.Id);
+        var msg = count > 0 ? $"¿Eliminar '{Column.Name}' y sus {count} tareas?" : $"¿Eliminar '{Column.Name}'?";
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, msg);
+        parameters.Add(x => x.ButtonText, "Eliminar");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await TodoService.DeleteColumnAsync(BoardId, Column.Id);
+
+            _columns.Remove(_columns.FirstOrDefault(x => x.Id == Column.Id) ?? new());
+            await InvokeAsync(StateHasChanged);
+            SnackbarService.Add("Columna eliminada", Severity.Success);
+        }
+    }
+    private async Task OpenNewTaskDialogAsync()
+    {
+        if(_currentBoard == null)
+        {
+            return;
+        }
+
+        if (!_currentBoard.Columns.Any())
+        {
+            SnackbarService.Add("Primero crea una columna", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters<NewTaskDialog>();
+        parameters.Add(x => x.Columns, _currentBoard.Columns);
+        parameters.Add(x => x.Participants, BoardUtils.GetParticipantsDictionary(_currentBoard));
+
+        var dialog = await DialogService.ShowAsync<NewTaskDialog>("Nueva Tarea", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: TodoItem newItem })
+        {
+            var success = await TodoService.AddItemAsync(BoardId!, newItem);
+            if (success)
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Crear,
+                    BoardId = BoardId!,
+                    Message = $"Añade tarea {newItem.Title}",
+                    User = AuthService.CurrentUser!.Username
+                });
+                _items.Add(newItem);
+                StateHasChanged();
+                SnackbarService.Add("Tarea agregada", Severity.Success);
+            }
+        }
+    }
+
+    private async Task ShowUserDetails(string userName, string userId)
+    {
+        BoardPermissions? permissions = null;
+        if (_currentBoard?.ParticipantPermissions != null &&
+            _currentBoard.ParticipantPermissions.TryGetValue(userId, out var perms))
+        {
+            permissions = perms;
+        }
+
+        var parameters = new DialogParameters<UserDetailsDialog>
+        {
+            { x => x.UserName, userName },
+            { x => x.UserId, userId },
+            { x => x.BoardId, BoardId },
+            { x => x.CurrentPermissions, permissions }
+        };
+
+        var dialog = await DialogService.ShowAsync<UserDetailsDialog>("Usuario", parameters);
+        var result = await dialog.Result;
+    }
+
+    private async Task OpenAddParticipantsDialog()
+    {
+        if (!isOwner || string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+
+        var parameters = new DialogParameters<AddParticipantsDialog>();
+        parameters.Add(x => x.ExistingParticipantIds, _currentBoard.Participants.Keys.ToList());
+
+        var dialog = await DialogService.ShowAsync<AddParticipantsDialog>("Añadir participantes", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: List<(string Id, string Name)> selectedParticipants })
+        {
+            if (selectedParticipants.Count == 0) return;
+
+            await ParticipantsService.AddParticipantsAsync(BoardId, _currentBoard, selectedParticipants, AuthService.CurrentUser?.Username ?? "");
+
+            StateHasChanged();
+            SnackbarService.Add("Participantes añadidos", Severity.Success);
+        }
+    }
+
+    private async Task RemoveParticipant(string participantId)
+    {
+        if (!isOwner || string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
+
+
+        if (ParticipantsService.HasIncompleteSteps(participantId, _items))
+        {
+            SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
+            return;
+        }
+
+        await ParticipantsService.RemoveParticipantAsync(BoardId, _currentBoard, participantId, _items, StateHasChanged);
+
+        SnackbarService.Add("Participante removido", Severity.Info);
+    }
+
+    private async Task ConfirmRemoveParticipant(string participantId, string participantName)
+    {
+        if (!isOwner) return;
+
+
+        if (ParticipantsService.HasIncompleteSteps(participantId, _items))
+        {
+            SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, $"¿Estás seguro de que deseas remover a {participantName} del tablero?");
+        parameters.Add(x => x.ButtonText, "Remover");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Remover participante", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await RemoveParticipant(participantId);
+        }
+    }
+    private void NavigateToLogs()
+    {
+        Navigation.NavigateTo($"/board/{BoardId}/logs");
+    }
+
+    private void NavigateToSchedule()
+    {
+        _ = CheckCanViewCalendar();
+    }
+
+    private async Task CheckCanViewCalendar()
+    {
+        if (isOwner)
+        {
+            Navigation.NavigateTo($"/board/{BoardId}/schedule");
+            return;
+        }
+
+        var board = await BoardService.GetBoardAsync(BoardId);
+        if (board == null) return;
+
+        var currentUserId = AuthService.CurrentUser?.Id ?? "";
+        if (board.User == currentUserId)
+        {
+            Navigation.NavigateTo($"/board/{BoardId}/schedule");
+            return;
+        }
+
+        if (board.ParticipantPermissions != null &&
+            board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
+        {
+            if (!perms.CanViewCalendar)
+            {
+                SnackbarService.Add("No tienes permiso para ver el calendario", Severity.Warning);
+                return;
+            }
+            Navigation.NavigateTo($"/board/{BoardId}/schedule");
+            return;
+        }
+
+        SnackbarService.Add("No tienes permiso para ver el calendario", Severity.Warning);
+    }
+
+    private void NavigateToSettings()
+    {
+        Navigation.NavigateTo($"/board/{BoardId}/settings");
+    }
+
+    private async Task OnDeleteBoardButtonClick()
+    {
+        if (_currentBoard == null) return;
+
+        var dialogParams = new DialogParameters<SecureDeletionConfirmDialog>();
+        dialogParams.Add(x => x.ContentText, "¿Seguro que desea borrar el tablero con todo su contenido? La accion es irreversible.");
+        dialogParams.Add(x => x.RequestedItem, _currentBoard.Name);
+        dialogParams.Add(x => x.ButtonText, "Borrar tablero");
+
+        var dialog = await DialogService.ShowAsync<SecureDeletionConfirmDialog>("Borrar el tablero", dialogParams, new DialogOptions
+        {
+            CloseOnEscapeKey = false
+        });
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            var deletionResult = await BoardService.DeleteBoardAsync(_currentBoard.Id);
+
+            if (deletionResult == true)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
+
+            SnackbarService.Add("No se pudo eliminar el tablero debido a un error inesperado, intenta luego", Severity.Error);
+        }
+    }
+    private void ItemPicked(MudDragAndDropItemTransaction<TodoItem> dropItem)
+    {
+        if (dropItem.Item == null)
+        {
+            SnackbarService.Add(SystemMessages.ITEM_UPDATE_ERROR);
+            return;
+        }
+        _currentPickedItem = dropItem.Item;
+    }
+
+    private async Task ItemUpdated(MudItemDropInfo<TodoItem> dropItem)
+    {
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
+
+        if (dropItem.Item == null || _currentBoard == null || string.IsNullOrWhiteSpace(BoardId))
+        {
+            SnackbarService.Add(SystemMessages.ITEM_UPDATE_ERROR);
+            return;
+        }
+        _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+        var item = dropItem.Item;
+        var targetIndexInZone = dropItem.IndexInZone;
+        var targetColumnId = dropItem.DropzoneIdentifier;
+
+
+        _currentPickedItem = null;
+        var (updatedBoard, msg) = await TodoService.MoveItemAsync(item.Id, BoardId, targetIndexInZone, targetColumnId);
+
+
+        if (updatedBoard == null)
+        {
+            SnackbarService.Add(msg, Severity.Error);
+            _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+
+            return;
+        }
+
+        _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+        item.ColumnId = dropItem.DropzoneIdentifier;
+    }
+
+
+    private void NotFound()
+	{
+		Navigation.NavigateTo("/board/not-found");
+	}
+}

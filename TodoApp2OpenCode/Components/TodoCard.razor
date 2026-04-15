@@ -1,0 +1,342 @@
+@using TodoApp2OpenCode.Services
+@using TodoApp2OpenCode.Components.Dialogs
+@using Microsoft.AspNetCore.Components.Web
+
+@inject IDialogService DialogService
+@inject TodoService TodoService
+@inject ILogService LogService
+@inject IAuthService AuthService
+@inject ISnackbar SnackbarService
+
+<MudTooltip Text="" Placement="Placement.Right" Disabled="CanShowOnHoverTooltip" @ref="_mudTooltipRef" Class="todo-tooltip" RootClass="todo-root-tooltip">
+    <ChildContent>
+        <div class="todo-card-wrapper @(Item.IsCompleted ? "completed" : "")"
+             @onmousedown="@(() => OnStartDrag.InvokeAsync(Item))"
+             @onmouseenter="@(() => OnItemHover.InvokeAsync(Item.Id))"
+             style="@(Item.Priority == TodoPriority.High && !Item.IsCompleted ? "border-left: 3px solid var(--mud-palette-error);" : "")">
+            <MudCard Class="@($"todo-card{(Item.IsCompleted ? " completed" : "")}")">
+                <MudCardContent Class="pa-3">
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+                            <MudStack Spacing="0" Style="flex: 1;">
+                                <MudText Typo="Typo.body1" 
+                                         Class="@(Item.IsCompleted ? "text-strikethrough" : null)"
+                                         Style="word-break: break-word;">
+                                    @Item.Title
+                                </MudText>
+                            </MudStack>
+                            @if (CanModify)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Color="Color.Default" Class="drag-handle" />
+                            }
+                        </MudStack>
+                        
+                        @if (!string.IsNullOrEmpty(Item.Description))
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="@(Item.IsCompleted ? "text-strikethrough" : "")" Style="word-break: break-word;">
+                                @Item.Description
+                            </MudText>
+                        }
+
+                        @if (Item.AssignedUsers != null && Item.AssignedUsers.Any())
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                <MudText Typo="Typo.caption" Color="Color.Primary">
+                                    @string.Join(", ", Item.AssignedUsers.Values)
+                                </MudText>
+                            </MudStack>
+                        }
+
+                        @if (Item.Steps != null && Item.Steps.Any())
+                        {
+                            <div class="item-steps-progress">
+                                <MudProgressLinear Value="@Item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" />
+                                @if (!string.IsNullOrEmpty(Item.CurrentStepName))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Primary">
+                                        @Item.CurrentStepName
+                                    </MudText>
+                                }
+                            </div>
+                        }
+                        
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            @if (Item.Priority != TodoPriority.Normal)
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(Item.Priority == TodoPriority.High ? Color.Error : Color.Default)">
+                                    @(Item.Priority == TodoPriority.High ? "🔴 Alta" : "⚪ Baja")
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <div></div>
+                            }
+                            
+                            <MudStack Row="true" Spacing="0">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => EditItemAsync())" Disabled="!CanModify" @onmousedown:stopPropagation="true" aria-label="Editar" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteItemAsync())" Disabled="!CanDelete" @onmousedown:stopPropagation="true" aria-label="Eliminar" />
+                            </MudStack>
+                        </MudStack>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </div>
+    </ChildContent>
+    <TooltipContent>
+        <MudPaper Class="pa-3" Elevation="4" Style="min-width: 280px; max-width: 350px;">
+            <MudText Typo="Typo.h6" Class="mb-2">@Item.Title</MudText>
+            
+            @if (!string.IsNullOrEmpty(Item.Description))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">@Item.Description</MudText>
+            }
+
+            <MudDivider Class="my-2" />
+
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Small" Color="Color.Default" />
+                    <MudText Typo="Typo.caption">
+                        Prioridad: 
+                        <MudChip T="string" Size="Size.Small" Color="@(Item.Priority == TodoPriority.High ? Color.Error : Item.Priority == TodoPriority.Low ? Color.Default : Color.Info)">
+                            @(Item.Priority == TodoPriority.High ? "Alta" : Item.Priority == TodoPriority.Low ? "Baja" : "Normal")
+                        </MudChip>
+                    </MudText>
+                </MudStack>
+
+                @if (Item.AssignedUsers != null && Item.AssignedUsers.Any())
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.caption">
+                            Asignados: @string.Join(", ", Item.AssignedUsers.Values)
+                        </MudText>
+                    </MudStack>
+                }
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                    <MudText Typo="Typo.caption">
+                        Creada: @Item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                    </MudText>
+                </MudStack>
+
+                @if (Item.UpdatedAt != Item.CreatedAt)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" Color="Color.Default" />
+                        <MudText Typo="Typo.caption">
+                            Actualizada: @Item.UpdatedAt.ToString("dd/MM/yyyy HH:mm")
+                        </MudText>
+                    </MudStack>
+                }
+
+                @if (Item.StartDate.HasValue || Item.EndDate.HasValue)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" Color="Color.Info" />
+                        <MudText Typo="Typo.caption" Color="Color.Info">
+                            @if (Item.StartDate.HasValue && Item.EndDate.HasValue)
+                            {
+                                @($"Desde {Item.StartDate:dd/MM} hasta {Item.EndDate:dd/MM}")
+                            }
+                            else if (Item.StartDate.HasValue)
+                            {
+                                @($"Desde {Item.StartDate:dd/MM/yyyy}")
+                            }
+                            else if (Item.EndDate.HasValue)
+                            {
+                                @($"Hasta {Item.EndDate:dd/MM/yyyy}")
+                            }
+                        </MudText>
+                    </MudStack>
+                }
+
+                @if (Item.DueDate.HasValue)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Color="Color.Warning" />
+                        <MudText Typo="Typo.caption" Color="Color.Warning">
+                            Vence: @Item.DueDate.Value.ToString("dd/MM/yyyy HH:mm")
+                        </MudText>
+                    </MudStack>
+                }
+            </MudStack>
+
+            @if (Item.Steps != null && Item.Steps.Any())
+            {
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Pasos (@Item.CompletedStepsCount/@Item.TotalStepsCount)</MudText>
+                <MudProgressLinear Value="@Item.ProgressPercentage" Color="Color.Primary" Size="Size.Small" Class="mb-2" />
+                <MudList T="string" Dense="true">
+                    @foreach (var step in Item.Steps.OrderBy(s => s.Order))
+                    {
+                        <MudListItem Icon="@(step.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                     IconColor="@(step.IsCompleted ? Color.Success : Color.Default)">
+                            <MudText Typo="Typo.body2" Class="@(step.IsCompleted ? "text-strikethrough" : "")">@step.Name</MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudPaper>
+    </TooltipContent>
+</MudTooltip>
+
+<style>
+    .todo-card-wrapper {
+        border-radius: 8px;
+        transition: transform 0.2s, opacity 0.2s;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .todo-card-wrapper:hover { transform: scale(1.02); }
+    .todo-card-wrapper.completed { opacity: 0.6; }
+    
+    .todo-card {
+        background: var(--mud-palette-background);
+        border-radius: 8px;
+    }
+    
+    .drag-handle { opacity: 0.4; transition: opacity 0.2s;}
+    .todo-card-wrapper:hover .drag-handle { opacity: 1; }
+    
+    .todo-card-wrapper .mud-icon-button {
+        pointer-events: auto;
+    }
+    
+    .text-strikethrough { text-decoration: line-through; color: var(--mud-palette-text-disabled); }
+    
+    .item-steps-progress {
+        margin-top: 8px;
+    }
+
+    .todo-root-tooltip {
+        width: 100%;
+    }
+
+    .todo-tooltip {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+
+</style>
+@if (!CanModify)
+{
+    <style>
+        .mud-drop-item:not(.mud-drop-item-preview-start)
+        {
+            cursor: unset !important;
+        }
+    </style>
+}
+
+@code {
+    [Parameter]
+    public string BoardId { get; set; } = string.Empty;
+
+    [Parameter]
+    public TodoItem Item { get; set; } = null!;
+
+    [Parameter]
+    public bool CanModify { get; set; }
+
+    [Parameter]
+    public bool CanDelete { get; set; }
+
+    [Parameter]
+    public EventCallback<TodoItem> OnStartDrag { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnItemHover { get; set; }
+
+    [Parameter]
+    public EventCallback ItemUpdated { get; set; }
+
+    [Parameter]
+    public EventCallback ItemDeleted { get; set; }
+    [Parameter]
+    public bool CanShowOnHoverTooltip { get; set; }
+
+
+    private MudTooltip? _mudTooltipRef;
+
+
+    private async Task EditItemAsync()
+    {
+        if (string.IsNullOrEmpty(BoardId)) return;
+
+        var editing = new TodoItem
+        {
+            Id = Item.Id,
+            Title = Item.Title,
+            Description = Item.Description,
+            ColumnId = Item.ColumnId,
+            Priority = Item.Priority,
+            AssignedUsers = Item.AssignedUsers != null ? new Dictionary<string, string>(Item.AssignedUsers) : null,
+            Steps = Item.Steps != null ? Item.Steps.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted, Order = s.Order }).ToList() : null,
+            StartDate = Item.StartDate,
+            EndDate = Item.EndDate,
+            DueDate = Item.DueDate,
+            IsCompleted = Item.IsCompleted,
+            CreatedAt = Item.CreatedAt,
+            UpdatedAt = Item.UpdatedAt
+        };
+
+        var columns = await TodoService.GetColumnsAsync(BoardId);
+
+        var parameters = new DialogParameters<EditItemDialog>();
+        parameters.Add(x => x.Item, editing);
+        parameters.Add(x => x.Columns, columns);
+
+        var dialog = await DialogService.ShowAsync<EditItemDialog>("Editar Tarea", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: EditItemDialog.EditItemResult editResult })
+        {
+            await TodoService.UpdateItemAsync(BoardId, editResult.Item);
+
+            if (editResult.Item.ColumnId != Item.ColumnId)
+            {
+                await TodoService.MoveItemToColumnAsync(BoardId, editResult.Item.Id, null, editResult.Item.ColumnId);
+            }
+
+            if (!string.IsNullOrEmpty(editResult.Item.Description))
+            {
+                await LogService.AddLogAsync(new LogItem
+                {
+                    Action = DatabaseAction.Actualizar,
+                    BoardId = BoardId,
+                    Message = $"Actualiza tarea '{editResult.Item.Title}'",
+                    User = AuthService.CurrentUser?.Username ?? ""
+                });
+            }
+
+            SnackbarService.Add("Tarea actualizada", Severity.Success);
+            await ItemUpdated.InvokeAsync();
+        }
+    }
+
+    private async Task DeleteItemAsync()
+    {
+        if (string.IsNullOrEmpty(BoardId)) return;
+
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, $"¿Eliminar '{Item.Title}'?");
+        parameters.Add(x => x.ButtonText, "Eliminar");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            await TodoService.DeleteItemAsync(BoardId, Item.Id);
+            SnackbarService.Add("Tarea eliminada", Severity.Success);
+            await ItemDeleted.InvokeAsync();
+        }
+    }
+}
