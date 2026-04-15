@@ -406,9 +406,6 @@ public class BoardService : IBoardService
                 }
                 else
                 {
-                    item.ColumnId = board.Columns.FirstOrDefault()?.Id ?? "";
-                    item.TodoBoardId = board.Id;
-                    
                     if (item.Steps != null)
                     {
                         int order = 0;

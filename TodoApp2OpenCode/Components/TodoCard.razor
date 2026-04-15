@@ -7,6 +7,7 @@
 @inject ILogService LogService
 @inject IAuthService AuthService
 @inject ISnackbar SnackbarService
+@inject IBoardService BoardService
 
 <MudTooltip Text="" Placement="Placement.Right" Disabled="CanShowOnHoverTooltip" @ref="_mudTooltipRef" Class="todo-tooltip" RootClass="todo-root-tooltip">
     <ChildContent>
@@ -254,10 +255,10 @@
     public EventCallback<string> OnItemHover { get; set; }
 
     [Parameter]
-    public EventCallback ItemUpdated { get; set; }
+    public EventCallback<TodoItem> ItemUpdated { get; set; }
 
     [Parameter]
-    public EventCallback ItemDeleted { get; set; }
+    public EventCallback<TodoItem> ItemDeleted { get; set; }
     [Parameter]
     public bool CanShowOnHoverTooltip { get; set; }
 
@@ -269,28 +270,14 @@
     {
         if (string.IsNullOrEmpty(BoardId)) return;
 
-        var editing = new TodoItem
-        {
-            Id = Item.Id,
-            Title = Item.Title,
-            Description = Item.Description,
-            ColumnId = Item.ColumnId,
-            Priority = Item.Priority,
-            AssignedUsers = Item.AssignedUsers != null ? new Dictionary<string, string>(Item.AssignedUsers) : null,
-            Steps = Item.Steps != null ? Item.Steps.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted, Order = s.Order }).ToList() : null,
-            StartDate = Item.StartDate,
-            EndDate = Item.EndDate,
-            DueDate = Item.DueDate,
-            IsCompleted = Item.IsCompleted,
-            CreatedAt = Item.CreatedAt,
-            UpdatedAt = Item.UpdatedAt
-        };
-
         var columns = await TodoService.GetColumnsAsync(BoardId);
+        var board = await BoardService.GetBoardAsync(BoardId);
+        var participants = BoardUtils.GetParticipantsDictionary(board ?? new TodoBoard());
 
         var parameters = new DialogParameters<EditItemDialog>();
-        parameters.Add(x => x.Item, editing);
+        parameters.Add(x => x.Item, Item);
         parameters.Add(x => x.Columns, columns);
+        parameters.Add(x => x.Participants, participants);
 
         var dialog = await DialogService.ShowAsync<EditItemDialog>("Editar Tarea", parameters);
         var result = await dialog.Result;
@@ -316,7 +303,7 @@
             }
 
             SnackbarService.Add("Tarea actualizada", Severity.Success);
-            await ItemUpdated.InvokeAsync();
+            await ItemUpdated.InvokeAsync(editResult.Item);
         }
     }
 
@@ -336,7 +323,7 @@
         {
             await TodoService.DeleteItemAsync(BoardId, Item.Id);
             SnackbarService.Add("Tarea eliminada", Severity.Success);
-            await ItemDeleted.InvokeAsync();
+            await ItemDeleted.InvokeAsync(Item);
         }
     }
 }

@@ -69,6 +69,8 @@ else
                                     {
                                         <MudText Typo="Typo.caption" Color="Color.Primary">(Tú)</MudText>
                                     }
+                                    <MudSpacer/>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveParticipant(participant.Key))"/>
                                 </MudStack>
                             </MudMenuItem>
                         }
@@ -158,6 +160,7 @@ else
                                 }
                             </MudMenu>
                         </div>
+                        <div style="width: 100%; margin-top: 12px"/>
                     </MudDropZone>
                 }
                 @if (_perms.CanAddColumn || isOwner)
@@ -174,7 +177,7 @@ else
                           CanModify="@_perms.CanModifyTasks"
                           CanDelete="@_perms.CanModifyTasks"
                           ItemUpdated="RefreshItems"
-                          ItemDeleted="RefreshItems" 
+                          ItemDeleted="OnItemDelete"
                           CanShowOnHoverTooltip="_currentPickedItem != null"
                           />
             </ItemRenderer>
@@ -276,17 +279,18 @@ else
         max-width: 320px;
         background: var(--mud-palette-surface);
         border-radius: 12px;
-        padding: 8px;
+        padding: 0 8px;
         display: flex;
         flex-direction: column;
         max-height: 100%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
+        overflow-y: auto;
     }
 
-        .board-column.drop-zone-hover {
-            background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
-        }
+    .board-column.drop-zone-hover {
+        background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
+    }
 
     .column-header {
         padding: 16px;
@@ -294,8 +298,12 @@ else
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: linear-gradient(to right, var(--column-color) 4px, transparent 4px);
+        background: var(--mud-palette-surface);
         border-radius: 12px 12px 0 0;
+        position: sticky;
+        z-index: 50;
+        left: 0;
+        top: 0;
     }
 
     .column-drag-handle {
@@ -401,9 +409,16 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task RefreshItems()
+    private async Task RefreshItems(TodoItem item)
     {
+        _items[_items.IndexOf(_items.First(x => x.Id == item.Id))] = item;
+        await InvokeAsync(StateHasChanged);
+    }
 
+    private async Task OnItemDelete(TodoItem item)
+    {
+        _items.Remove(item);
+        await InvokeAsync(StateHasChanged);
     }
     private async Task AddColumnAsync()
     {
@@ -528,6 +543,7 @@ else
 
         if (result is { Canceled: false, Data: TodoItem newItem })
         {
+            var column = _currentBoard.Columns.FirstOrDefault(x => x.Id == newItem.ColumnId);
             var success = await TodoService.AddItemAsync(BoardId!, newItem);
             if (success)
             {
@@ -587,9 +603,7 @@ else
             if (selectedParticipants.Count == 0) return;
 
             await ParticipantsService.AddParticipantsAsync(BoardId, _currentBoard, selectedParticipants, AuthService.CurrentUser?.Username ?? "");
-
-            StateHasChanged();
-            SnackbarService.Add("Participantes añadidos", Severity.Success);
+            Navigation.Refresh(forceReload: true);
         }
     }
 
@@ -598,15 +612,27 @@ else
         if (!isOwner || string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
 
 
-        if (ParticipantsService.HasIncompleteSteps(participantId, _items))
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        var options = new DialogOptions
         {
-            SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
-            return;
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+        parameters.Add(x => x.ContentText, $"Seguro deseas remover del tablero a {_currentBoard.Participants[participantId]}");
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>($"Remover participante", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is {Data: true})
+        {
+            if (ParticipantsService.HasIncompleteSteps(participantId, _items))
+            {
+                SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
+                return;
+            }
+
+            await ParticipantsService.RemoveParticipantAsync(BoardId, _currentBoard, participantId, _items, StateHasChanged);
+            SnackbarService.Add("Participante removido", Severity.Info);
         }
-
-        await ParticipantsService.RemoveParticipantAsync(BoardId, _currentBoard, participantId, _items, StateHasChanged);
-
-        SnackbarService.Add("Participante removido", Severity.Info);
     }
 
     private async Task ConfirmRemoveParticipant(string participantId, string participantName)
