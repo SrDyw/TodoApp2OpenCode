@@ -158,6 +158,7 @@ else
                                 }
                             </MudMenu>
                         </div>
+                        <div style="width: 100%; margin-top: 12px"/>
                     </MudDropZone>
                 }
                 @if (_perms.CanAddColumn || isOwner)
@@ -276,17 +277,18 @@ else
         max-width: 320px;
         background: var(--mud-palette-surface);
         border-radius: 12px;
-        padding: 8px;
+        padding: 0 8px;
         display: flex;
         flex-direction: column;
         max-height: 100%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
+        overflow-y: scroll;
     }
 
-        .board-column.drop-zone-hover {
-            background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
-        }
+    .board-column.drop-zone-hover {
+        background: color-mix(in srgb, var(--mud-palette-primary) 10%, transparent);
+    }
 
     .column-header {
         padding: 16px;
@@ -294,8 +296,12 @@ else
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: linear-gradient(to right, var(--column-color) 4px, transparent 4px);
+        background: var(--mud-palette-surface);
         border-radius: 12px 12px 0 0;
+        position: sticky;
+        z-index: 50;
+        left: 0;
+        top: 0;
     }
 
     .column-drag-handle {
