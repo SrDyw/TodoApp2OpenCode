@@ -204,6 +204,7 @@ public class BoardService : IBoardService
             var board = await context.Boards.FindAsync(boardId);
             if (board == null) return false;
 
+            var removedUserName = board.Participants.GetValueOrDefault(userId);
             board.Participants.Remove(userId);
             board.ParticipantPermissions.Remove(userId);
 
@@ -216,6 +217,16 @@ public class BoardService : IBoardService
                 BoardId = boardId,
                 User = _authService.CurrentUser?.Username ?? "Sistema"
             });
+
+            if (!string.IsNullOrEmpty(removedUserName))
+            {
+                await _notificationService.CreateAsync(
+                    userId,
+                    "Eliminado del tablero",
+                    $"Has sido eliminado del tablero '{board.Name}'",
+                    null
+                );
+            }
             
             await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
             

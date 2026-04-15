@@ -1,4 +1,4 @@
-﻿@page "/board/{BoardId}"
+@page "/board/{BoardId}"
 
 @inject IDialogService DialogService
 @inject ISnackbar SnackbarService
@@ -378,6 +378,9 @@ else
 
     private SyncIndicator.OperationSyncStatus _syncStatus;
 
+    private System.Threading.Timer? _membershipCheckTimer;
+    private bool _isStillMember = true;
+
 
     protected override async Task OnParametersSetAsync()
     {
@@ -401,27 +404,79 @@ else
             return;
         }
 
+        if (!BoardUtils.IsUserOwnerOrParticipant(_currentBoard, AuthService.CurrentUser.Id))
+        {
+            SnackbarService.Add($"Has sido eliminado del tablero '{_currentBoard.Name}'", Severity.Warning);
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         _items = _currentBoard.Items.OrderBy(x => x.Order).ToList();
         _perms = BoardUtils.GetUserPermissions(_currentBoard, AuthService.CurrentUser.Id);
         isOwner = _currentBoard.User == AuthService.CurrentUser.Id;
         _columns = _currentBoard.Columns;
         _boardLoading = false;
+        _isStillMember = true;
+        
+        _membershipCheckTimer?.Dispose();
+        _membershipCheckTimer = new System.Threading.Timer(
+            async _ => await CheckMembershipAsync(),
+            null,
+            TimeSpan.FromSeconds(10),
+            TimeSpan.FromSeconds(10)
+        );
+        
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CheckMembershipAsync()
+    {
+        if (string.IsNullOrEmpty(BoardId) || AuthService.CurrentUser == null) return;
+        
+        var board = await BoardService.GetBoardAsync(BoardId);
+        if (board == null)
+        {
+            _membershipCheckTimer?.Dispose();
+            SnackbarService.Add("El tablero ya no existe", Severity.Warning);
+            Navigation.NavigateTo("/");
+            return;
+        }
+        
+        if (!BoardUtils.IsUserOwnerOrParticipant(board, AuthService.CurrentUser.Id))
+        {
+            _membershipCheckTimer?.Dispose();
+            _isStillMember = false;
+            SnackbarService.Add($"Has sido eliminado del tablero '{board.Name}'", Severity.Warning);
+            Navigation.NavigateTo("/");
+            return;
+        }
+        
+        _currentBoard = board;
+        _perms = BoardUtils.GetUserPermissions(board, AuthService.CurrentUser.Id);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _membershipCheckTimer?.Dispose();
     }
 
     private async Task RefreshItems(TodoItem item)
     {
+        if (!_isStillMember) return;
         _items[_items.IndexOf(_items.First(x => x.Id == item.Id))] = item;
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnItemDelete(TodoItem item)
     {
+        if (!_isStillMember) return;
         _items.Remove(item);
         await InvokeAsync(StateHasChanged);
     }
     private async Task AddColumnAsync()
     {
+        if (!_isStillMember) return;
         if (string.IsNullOrEmpty(BoardId)) return;
         if (!_perms.CanAddColumn && !isOwner)
         {
@@ -451,6 +506,7 @@ else
     }
     private async Task EditColumnAsync(TodoColumn Column)
     {
+        if (!_isStillMember) return;
         if (string.IsNullOrEmpty(BoardId)) return;
 
         var defaultColumnName = Column.Name;
@@ -500,6 +556,7 @@ else
 
     private async Task DeleteColumnAsync(TodoColumn Column)
     {
+        if (!_isStillMember) return;
         if (string.IsNullOrEmpty(BoardId)) return;
 
         var count = _items.Count(x => x.ColumnId == Column.Id);
@@ -523,6 +580,7 @@ else
     }
     private async Task OpenNewTaskDialogAsync()
     {
+        if (!_isStillMember) return;
         if(_currentBoard == null)
         {
             return;
@@ -563,6 +621,7 @@ else
 
     private async Task ShowUserDetails(string userName, string userId)
     {
+        if (!_isStillMember) return;
         BoardPermissions? permissions = null;
         if (_currentBoard?.ParticipantPermissions != null &&
             _currentBoard.ParticipantPermissions.TryGetValue(userId, out var perms))
@@ -584,6 +643,7 @@ else
 
     private async Task OpenAddParticipantsDialog()
     {
+        if (!_isStillMember) return;
         if (!isOwner || string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
 
         var options = new DialogOptions
@@ -609,6 +669,7 @@ else
 
     private async Task RemoveParticipant(string participantId)
     {
+        if (!_isStillMember) return;
         if (!isOwner || string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
 
 
@@ -637,6 +698,7 @@ else
 
     private async Task ConfirmRemoveParticipant(string participantId, string participantName)
     {
+        if (!_isStillMember) return;
         if (!isOwner) return;
 
 
@@ -671,6 +733,7 @@ else
 
     private async Task CheckCanViewCalendar()
     {
+        if (!_isStillMember) return;
         if (isOwner)
         {
             Navigation.NavigateTo($"/board/{BoardId}/schedule");
@@ -709,6 +772,7 @@ else
 
     private async Task OnDeleteBoardButtonClick()
     {
+        if (!_isStillMember) return;
         if (_currentBoard == null) return;
 
         var dialogParams = new DialogParameters<SecureDeletionConfirmDialog>();
@@ -747,6 +811,7 @@ else
 
     private async Task ItemUpdated(MudItemDropInfo<TodoItem> dropItem)
     {
+        if (!_isStillMember) return;
         if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
         {
             SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
