@@ -7,6 +7,7 @@
 @inject ILogService LogService
 @inject IAuthService AuthService
 @inject ISnackbar SnackbarService
+@inject IBoardService BoardService
 
 <MudTooltip Text="" Placement="Placement.Right" Disabled="CanShowOnHoverTooltip" @ref="_mudTooltipRef" Class="todo-tooltip" RootClass="todo-root-tooltip">
     <ChildContent>
@@ -257,7 +258,7 @@
     public EventCallback ItemUpdated { get; set; }
 
     [Parameter]
-    public EventCallback ItemDeleted { get; set; }
+    public EventCallback<TodoItem> ItemDeleted { get; set; }
     [Parameter]
     public bool CanShowOnHoverTooltip { get; set; }
 
@@ -287,10 +288,13 @@
         };
 
         var columns = await TodoService.GetColumnsAsync(BoardId);
+        var board = await BoardService.GetBoardAsync(BoardId);
+        var participants = BoardUtils.GetParticipantsDictionary(board ?? new TodoBoard());
 
         var parameters = new DialogParameters<EditItemDialog>();
         parameters.Add(x => x.Item, editing);
         parameters.Add(x => x.Columns, columns);
+        parameters.Add(x => x.Participants, participants);
 
         var dialog = await DialogService.ShowAsync<EditItemDialog>("Editar Tarea", parameters);
         var result = await dialog.Result;
@@ -336,7 +340,7 @@
         {
             await TodoService.DeleteItemAsync(BoardId, Item.Id);
             SnackbarService.Add("Tarea eliminada", Severity.Success);
-            await ItemDeleted.InvokeAsync();
+            await ItemDeleted.InvokeAsync(Item);
         }
     }
 }
