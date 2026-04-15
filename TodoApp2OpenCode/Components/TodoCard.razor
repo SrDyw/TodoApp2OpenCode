@@ -255,7 +255,7 @@
     public EventCallback<string> OnItemHover { get; set; }
 
     [Parameter]
-    public EventCallback ItemUpdated { get; set; }
+    public EventCallback<TodoItem> ItemUpdated { get; set; }
 
     [Parameter]
     public EventCallback<TodoItem> ItemDeleted { get; set; }
@@ -270,29 +270,12 @@
     {
         if (string.IsNullOrEmpty(BoardId)) return;
 
-        var editing = new TodoItem
-        {
-            Id = Item.Id,
-            Title = Item.Title,
-            Description = Item.Description,
-            ColumnId = Item.ColumnId,
-            Priority = Item.Priority,
-            AssignedUsers = Item.AssignedUsers != null ? new Dictionary<string, string>(Item.AssignedUsers) : null,
-            Steps = Item.Steps != null ? Item.Steps.Select(s => new TodoStep { Id = s.Id, Name = s.Name, IsCompleted = s.IsCompleted, Order = s.Order }).ToList() : null,
-            StartDate = Item.StartDate,
-            EndDate = Item.EndDate,
-            DueDate = Item.DueDate,
-            IsCompleted = Item.IsCompleted,
-            CreatedAt = Item.CreatedAt,
-            UpdatedAt = Item.UpdatedAt
-        };
-
         var columns = await TodoService.GetColumnsAsync(BoardId);
         var board = await BoardService.GetBoardAsync(BoardId);
         var participants = BoardUtils.GetParticipantsDictionary(board ?? new TodoBoard());
 
         var parameters = new DialogParameters<EditItemDialog>();
-        parameters.Add(x => x.Item, editing);
+        parameters.Add(x => x.Item, Item);
         parameters.Add(x => x.Columns, columns);
         parameters.Add(x => x.Participants, participants);
 
@@ -320,7 +303,7 @@
             }
 
             SnackbarService.Add("Tarea actualizada", Severity.Success);
-            await ItemUpdated.InvokeAsync();
+            await ItemUpdated.InvokeAsync(editResult.Item);
         }
     }
 

@@ -409,8 +409,9 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task RefreshItems()
+    private async Task RefreshItems(TodoItem item)
     {
+        _items[_items.IndexOf(_items.First(x => x.Id == item.Id))] = item;
         await InvokeAsync(StateHasChanged);
     }
 
