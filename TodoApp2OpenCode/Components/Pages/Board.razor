@@ -738,11 +738,17 @@ else
 
             _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
 
-            var (msg, success) = await BoardService.AddParticipantAsync(BoardId, "", "", null);
-            await ParticipantsService.AddParticipantsAsync(BoardId, _currentBoard, selectedParticipants, AuthService.CurrentUser?.Username ?? "");
-            
-            _syncStatus = SyncIndicator.OperationSyncStatus.Success;
-            Navigation.Refresh(forceReload: true);
+            var (msg, success) = await ParticipantsService.AddParticipantsAsync(BoardId, _currentBoard, selectedParticipants, AuthService.CurrentUser?.Username ?? "");
+            if (success)
+            {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+                Navigation.Refresh(forceReload: true);
+                return;
+            }
+
+            _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+            SnackbarService.Add(msg, Severity.Error);
+
         }
     }
 
