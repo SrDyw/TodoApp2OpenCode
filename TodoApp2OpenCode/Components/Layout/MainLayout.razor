@@ -34,8 +34,17 @@
         .app-navbar {
             backdrop-filter: blur(10px);
         }
+        
+        .app-footer {
+            background: var(--mud-palette-surface);
+            border-top: 1px solid var(--mud-palette-lines-default);
+            padding: 16px 0;
+            margin-top: auto;
+            z-index: 2000;
+            padding-right: 24px;
+        }
     </style>
-    <MudAppBar Elevation="1" Class="app-navbar">
+    <MudAppBar Elevation="3" Class="app-navbar">
             @if (AuthService.CurrentUser != null)
             {
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
@@ -177,6 +186,24 @@
     <MudMainContent Class="pt-16 pa-4 board-page-bg">
         @Body
     </MudMainContent>
+    
+    <footer class="app-footer">
+        <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.caption" Color="Color.Primary">
+                © @DateTime.Now.Year FlowBoard - Organiza tu trabajo
+            </MudText>
+            <MudLink Href="https://github.com/SrDyw/TodoApp2OpenCode" 
+                        Typo="Typo.caption" 
+                        Color="Color.Primary"
+                        Target="Target.Blank"
+                        Underline="Underline.None">
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.IosShare" Size="Size.Small" />
+                    <span>GitHub</span>
+                </MudStack>
+            </MudLink>
+        </MudStack>
+    </footer>
 </MudLayout>
     
 }
