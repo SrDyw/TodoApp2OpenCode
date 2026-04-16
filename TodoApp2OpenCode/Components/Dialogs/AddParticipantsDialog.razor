@@ -2,8 +2,6 @@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3">
-            <MudText Typo="Typo.h6">Añadir participantes</MudText>
-            
             <MudTextField @bind-Value="_searchText" 
                          Label="Buscar usuario" 
                          AutoFocus
@@ -26,7 +24,6 @@
                     @foreach (var user in _searchResults)
                     {
                         <MudButton FullWidth="true" 
-                                   Variant="Variant.Outlined" 
                                    Color="Color.Default"
                                    OnClick="@(() => SelectUser(user))"
                                    Class="search-result-item">
@@ -38,6 +35,7 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Add" Color="Color.Primary" />
                             </MudStack>
                         </MudButton>
+                        <MudDivider/>
                     }
                 </div>
             }
@@ -90,7 +88,6 @@
         justify-content: flex-start;
         text-transform: none;
         border-radius: 0;
-        border-bottom: 1px solid var(--mud-palette-lines-default);
     }
 
     .search-result-item:last-child {

@@ -140,11 +140,11 @@ public class TodoService
                 .ToListAsync() ?? [];
 
             var newSteps = item.Steps?
-                .Where(step => stepsDb.Any(stepDb => stepDb.Id == step.Id) == false)
+                .Where(step => !stepsDb.Any(stepDb => stepDb.Id == step.Id))
                 .ToList() ?? [];
             
             var toRemoveSteps = stepsDb
-                .Where(stepDb => item.Steps?.Any(step => stepDb.Id == step.Id) == false)
+                .Where(stepDb => !(item.Steps?.Any(step => stepDb.Id == step.Id) ?? false))
                 .ToList() ?? [];
 
             if (stepsDb.Count != 0)
@@ -240,7 +240,7 @@ public class TodoService
                 .FirstOrDefaultAsync(x => x.Id == boardId);
 
             if (board == null) return (null, SystemMessages.DASHBOARD_NOT_EXISTS);
-            if (await context.Columns.AnyAsync(x => x.Id == targetColumnId) == false)
+            if (await context.Columns.CountAsync(x => x.Id == targetColumnId) == 0)
                 return (null, SystemMessages.COLUMN_DOESNT_EXISTS);
 
             var permCheck = BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanModifyTasks);

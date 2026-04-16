@@ -195,11 +195,15 @@ public class AuthService : IAuthService
 
         var term = searchTerm.ToLower();
 
-        return await context.Users
+        var users = await context.Users
             .Where(u => u.Username.ToLower().Contains(term) || u.Email.ToLower().Contains(term))
             .Where(u => _currentUser == null || u.Id != _currentUser.Id)
             .Take(10)
             .Select(u => new UserInfo { Id = u.Id, Username = u.Username, Email = u.Email })
             .ToListAsync();
+
+        var result = new List<UserInfo>();
+        result.AddRange(users);
+        return result;
     }
 }
