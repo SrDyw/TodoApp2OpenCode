@@ -4,6 +4,23 @@ namespace TodoApp2OpenCode.Services;
 
 public static class BoardUtils
 {
+    public static bool CheckPermission(TodoBoard board, string userId, Func<BoardPermissions, bool> hasPermission)
+    {
+        if (string.IsNullOrEmpty(userId))
+            return false;
+
+        if (board.User != userId)
+        {
+            if (!board.ParticipantPermissions.TryGetValue(userId, out var perms) || perms == null)
+                return false;
+
+            if (!hasPermission(perms))
+                return false;
+        }
+
+        return true;
+    }
+
     public static Dictionary<string, string> GetParticipantsDictionary(TodoBoard board)
     {
         var participants = new Dictionary<string, string>();

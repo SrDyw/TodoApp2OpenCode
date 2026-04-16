@@ -3,15 +3,11 @@
 @inject IAuthService AuthService
 @inject IBoardService BoardService
 
-<MudNavMenu>
+@if (AuthService.CurrentUser != null)
+{
+    <MudNavMenu>
     <MudNavGroup Title="Tableros" Icon="@Icons.Material.Filled.Dashboard" Expanded="true">
-        @if (!IsAuthenticated)
-        {
-            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="px-4 py-2">
-                Inicia sesión para ver tus tableros
-            </MudText>
-        }
-        else if (isLoading)
+        @if (isLoading)
         {
             <div class="skeleton-wrapper">
                 @for (int i = 0; i < 3; i++)
@@ -56,7 +52,8 @@
             }
         }
     </MudNavGroup>
-</MudNavMenu>
+</MudNavMenu>    
+}
 
 <style>
     .skeleton-wrapper {

@@ -38,24 +38,6 @@ public class TodoService
         _authService = authService;
     }
 
-    private bool CheckPermission(TodoBoard board, Func<BoardPermissions, bool> hasPermission)
-    {
-        var userId = _authService.CurrentUser?.Id;
-        if (string.IsNullOrEmpty(userId))
-            return false;
-
-        if (board.User != userId)
-        {
-            if (!board.ParticipantPermissions.TryGetValue(userId, out var perms) || perms == null)
-                return false;
-
-            if (!hasPermission(perms))
-                return false;
-        }
-
-        return true;
-    }
-
     public async Task<List<TodoColumn>> GetColumnsAsync(string boardId)
     {
         var board = await _boardService.GetBoardAsync(boardId);
@@ -84,7 +66,7 @@ public class TodoService
             if (board == null) 
                 return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
-            var permCheck = CheckPermission(board, p => p.CanAddTasks);
+            var permCheck = BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanAddTasks);
             if (!permCheck)
                 return (SystemMessages.PERMISSION_DENIED, false);
 
@@ -148,7 +130,7 @@ public class TodoService
             var dbItem = await context.Items.FirstOrDefaultAsync(x => x.Id == item.Id);
             if (dbItem == null) return (SystemMessages.ITEM_NOT_EXISTS.Replace(":task", item.Title), false);
 
-            var permCheck = CheckPermission(board, p => p.CanModifyTasks);
+            var permCheck = BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanModifyTasks);
             if (!permCheck)
                 return (SystemMessages.PERMISSION_DENIED, false);
 
@@ -220,7 +202,7 @@ public class TodoService
             var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
-            if (!CheckPermission(board, p => p.CanDeleteTasks))
+            if (!BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanDeleteTasks))
                 return (SystemMessages.PERMISSION_DENIED, false);
 
             var item = await context.Items.FirstOrDefaultAsync(x => x.Id == itemId);
@@ -261,7 +243,7 @@ public class TodoService
             if (await context.Columns.AnyAsync(x => x.Id == targetColumnId) == false)
                 return (null, SystemMessages.COLUMN_DOESNT_EXISTS);
 
-            var permCheck = CheckPermission(board, p => p.CanModifyTasks);
+            var permCheck = BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanModifyTasks);
             if (!permCheck)
                 return (null, SystemMessages.PERMISSION_DENIED);
 
