@@ -486,7 +486,11 @@ else
     private async Task AddColumnAsync()
     {
         if (!_isStillMember) return;
-        if (string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
         if (_perms == null || !_perms.CanAddColumn && !isOwner)
         {
             SnackbarService.Add(SystemMessages.ADD_COLUMN_DENIED, Severity.Warning);
@@ -504,6 +508,8 @@ else
 
         if (result is { Canceled: false, Data: string name } && !string.IsNullOrWhiteSpace(name))
         {
+            _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+
             var column = new TodoColumn
             {
                 Id = Guid.NewGuid().ToString(),
@@ -516,17 +522,27 @@ else
             };
 
             var (msg, success) = await BoardService.AddColumnAsync(BoardId, column);
-            if (success)
+            if (success != null && (bool)success)
             {
                 _columns.Add(column);
-                await InvokeAsync(StateHasChanged);
+                _syncStatus = SyncIndicator.OperationSyncStatus.Success;
                 SnackbarService.Add(msg, Severity.Success);
+            }
+            else
+            {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+                SnackbarService.Add(msg, Severity.Error);
             }
         }
     }
     private async Task EditColumnAsync(TodoColumn Column)
     {
         if (!_isStillMember) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
         if (string.IsNullOrEmpty(BoardId)) return;
 
         var defaultColumnName = Column.Name;
@@ -540,6 +556,8 @@ else
 
         if (result is { Canceled: false, Data: EditColumnDialog.EditColumnResult editResult })
         {
+            _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+
             if (string.IsNullOrWhiteSpace(editResult.NewName) == false)
             {
                 await LogService.AddLogAsync(new LogItem
@@ -561,22 +579,33 @@ else
                 });
             }
 
-            await BoardService.UpdateColumnAsync(BoardId, editing);
-
-            var targetColumnIndex = _columns.IndexOf(_columns.FirstOrDefault(x => x.Id == editing.Id) ?? new());
-            if (targetColumnIndex != -1)
+            var (msg, success) = await BoardService.UpdateColumnAsync(BoardId, editing);
+            if (success != null && (bool)success)
             {
-                _columns[targetColumnIndex] = editing;
+                var targetColumnIndex = _columns.IndexOf(_columns.FirstOrDefault(x => x.Id == editing.Id) ?? new());
+                if (targetColumnIndex != -1)
+                {
+                    _columns[targetColumnIndex] = editing;
+                }
+                _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+                SnackbarService.Add("Columna actualizada", Severity.Success);
             }
-
-            await InvokeAsync(StateHasChanged);
-            SnackbarService.Add("Columna actualizada", Severity.Success);
+            else
+            {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+                SnackbarService.Add(msg, Severity.Error);
+            }
         }
     }
 
     private async Task DeleteColumnAsync(TodoColumn Column)
     {
         if (!_isStillMember) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
         if (string.IsNullOrEmpty(BoardId)) return;
 
         var count = _items.Count(x => x.ColumnId == Column.Id);
@@ -591,16 +620,30 @@ else
 
         if (result is { Canceled: false, Data: true })
         {
-            await BoardService.DeleteColumnAsync(BoardId, Column.Id);
+            _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
 
-            _columns.Remove(_columns.FirstOrDefault(x => x.Id == Column.Id) ?? new());
-            await InvokeAsync(StateHasChanged);
-            SnackbarService.Add("Columna eliminada", Severity.Success);
+            var (deleteMsg, success) = await BoardService.DeleteColumnAsync(BoardId, Column.Id);
+            if (success != null && (bool)success)
+            {
+                _columns.Remove(_columns.FirstOrDefault(x => x.Id == Column.Id) ?? new());
+                _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+                SnackbarService.Add("Columna eliminada", Severity.Success);
+            }
+            else
+            {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+                SnackbarService.Add(deleteMsg, Severity.Error);
+            }
         }
     }
     private async Task OpenNewTaskDialogAsync()
     {
         if (!_isStillMember) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
         if(_currentBoard == null)
         {
             return;
@@ -621,7 +664,8 @@ else
 
         if (result is { Canceled: false, Data: TodoItem newItem })
         {
-            var column = _currentBoard.Columns.FirstOrDefault(x => x.Id == newItem.ColumnId);
+            _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+
             var (msg, success) = await TodoService.AddItemAsync(BoardId!, newItem);
             if (success)
             {
@@ -633,9 +677,14 @@ else
                     User = AuthService.CurrentUser!.Username
                 });
                 _items.Add(newItem);
-                StateHasChanged();
+                _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+                SnackbarService.Add(msg, Severity.Success);
             }
-            SnackbarService.Add(msg, success ? Severity.Success : Severity.Error);
+            else
+            {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+                SnackbarService.Add(msg, Severity.Error);
+            }
         }
     }
 
@@ -664,6 +713,11 @@ else
     private async Task OpenAddParticipantsDialog()
     {
         if (!_isStillMember) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
         if (!isOwner || string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
 
         var options = new DialogOptions
@@ -682,7 +736,12 @@ else
         {
             if (selectedParticipants.Count == 0) return;
 
+            _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+
+            var (msg, success) = await BoardService.AddParticipantAsync(BoardId, "", "", null);
             await ParticipantsService.AddParticipantsAsync(BoardId, _currentBoard, selectedParticipants, AuthService.CurrentUser?.Username ?? "");
+            
+            _syncStatus = SyncIndicator.OperationSyncStatus.Success;
             Navigation.Refresh(forceReload: true);
         }
     }
@@ -690,6 +749,11 @@ else
     private async Task RemoveParticipant(string participantId)
     {
         if (!_isStillMember) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
         if (!isOwner || string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
 
 
@@ -711,8 +775,20 @@ else
                 return;
             }
 
-            await ParticipantsService.RemoveParticipantAsync(BoardId, _currentBoard, participantId, _items, StateHasChanged);
-            SnackbarService.Add("Participante removido", Severity.Info);
+            _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+
+            var (msg, success) = await BoardService.RemoveParticipantAsync(BoardId, participantId);
+            if (success != null && (bool)success)
+            {
+                await ParticipantsService.RemoveParticipantAsync(BoardId, _currentBoard, participantId, _items, StateHasChanged);
+                _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+                SnackbarService.Add("Participante removido", Severity.Info);
+            }
+            else
+            {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+                SnackbarService.Add(msg, Severity.Error);
+            }
         }
     }
 
@@ -793,6 +869,11 @@ else
     private async Task OnDeleteBoardButtonClick()
     {
         if (!_isStillMember) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
+        {
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
+            return;
+        }
         if (_currentBoard == null) return;
 
         var dialogParams = new DialogParameters<SecureDeletionConfirmDialog>();
@@ -808,15 +889,19 @@ else
 
         if (result is { Canceled: false, Data: true })
         {
+            _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+
             var (msg, deletionResult) = await BoardService.DeleteBoardAsync(_currentBoard.Id);
-
-            if (deletionResult == true)
+            if (deletionResult != null && (bool)deletionResult)
             {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Success;
                 Navigation.NavigateTo("/", forceLoad: true);
-                return;
             }
-
-            SnackbarService.Add(msg, Severity.Error);
+            else
+            {
+                _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+                SnackbarService.Add(msg, Severity.Error);
+            }
         }
     }
     private void ItemPicked(MudDragAndDropItemTransaction<TodoItem> dropItem)
@@ -882,16 +967,27 @@ else
 
     private async Task MoveColumnAsync(TodoColumn column, int direction)
     {
-        if (_currentBoard == null) return;
-
-        var (msg, success) = await BoardService.SwapColumnAsync(_currentBoard.Id, column.Id, _currentBoard.Columns[column.Order + Math.Sign(direction)].Id);
-        if(!success)
+        if (!_isStillMember) return;
+        if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
         {
-            SnackbarService.Add(msg, Severity.Error);
+            SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
             return;
         }
+        if (_currentBoard == null) return;
 
-        Navigation.Refresh(forceReload: true);
+        _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
+
+        var (msg, success) = await BoardService.SwapColumnAsync(_currentBoard.Id, column.Id, _currentBoard.Columns[column.Order + Math.Sign(direction)].Id);
+        if (success != null && (bool)success)
+        {
+            _syncStatus = SyncIndicator.OperationSyncStatus.Success;
+            Navigation.Refresh(forceReload: true);
+        }
+        else
+        {
+            _syncStatus = SyncIndicator.OperationSyncStatus.Error;
+            SnackbarService.Add(msg, Severity.Error);
+        }
     }
 
 
