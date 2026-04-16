@@ -299,12 +299,12 @@
                         SnackbarService.Add(msgMove, Severity.Error);
                     }
                 }
+                await ItemUpdated.InvokeAsync(editResult.Item);
             }
             else
             {
                 SnackbarService.Add(msg, Severity.Error);
             }
-            await ItemUpdated.InvokeAsync(editResult.Item);
         }
     }
 

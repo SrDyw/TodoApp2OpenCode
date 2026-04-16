@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
 using Microsoft.JSInterop;
 using MudBlazor;
+using TodoApp2OpenCode.Components.Pages;
 using TodoApp2OpenCode.Constants;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
@@ -37,6 +38,24 @@ public class TodoService
         _authService = authService;
     }
 
+    private bool CheckPermission(TodoBoard board, Func<BoardPermissions, bool> hasPermission)
+    {
+        var userId = _authService.CurrentUser?.Id;
+        if (string.IsNullOrEmpty(userId))
+            return false;
+
+        if (board.User != userId)
+        {
+            if (!board.ParticipantPermissions.TryGetValue(userId, out var perms) || perms == null)
+                return false;
+
+            if (!hasPermission(perms))
+                return false;
+        }
+
+        return true;
+    }
+
     public async Task<List<TodoColumn>> GetColumnsAsync(string boardId)
     {
         var board = await _boardService.GetBoardAsync(boardId);
@@ -49,113 +68,25 @@ public class TodoService
         if (board == null) return new List<TodoItem>();
         return board.Items.Where(i => i.ColumnId == columnId).OrderBy(i => i.Order).ToList();
     }
-
-    public async Task<bool> UpdateColumnAsync(string boardId, TodoColumn column)
-    {
-        try
-        {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
-
-            var index = board.Columns.FindIndex(c => c.Id == column.Id);
-            if (index == -1) return false;
-
-            column.UpdatedAt = DateTime.Now;
-            board.Columns[index] = column;
-
-            await _boardService.UpdateBoardAsync(board);
-            
-            await _logService.AddLogAsync(new LogItem
-            {
-                Action = DatabaseAction.Actualizar,
-                Message = $"Actualiza columna '{column.Name}'",
-                BoardId = boardId,
-                User = _authService.CurrentUser?.Username ?? "Sistema"
-            });
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    public async Task<bool> DeleteColumnAsync(string boardId, string columnId)
-    {
-        try
-        {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
-
-            var column = board.Columns.FirstOrDefault(x => x.Id == columnId);
-            if (column == null) return false;
-
-            board.Columns.RemoveAll(c => c.Id == columnId);
-            board.Items.RemoveAll(i => i.ColumnId == columnId);
-
-
-            await _boardService.UpdateBoardAsync(board);
-            await _logService.AddLogAsync(new LogItem
-            {
-                Action = DatabaseAction.Remover,
-                Message = $"Remueve columna {column.Name}",
-                BoardId = boardId,
-                User = _authService.CurrentUser!.Username
-            });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    public async Task<bool> SwapColumnsAsync(string boardId, int fromIndex, int toIndex)
-    {
-        try
-        {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
-
-            if (fromIndex < 0 || fromIndex >= board.Columns.Count ||
-                toIndex < 0 || toIndex >= board.Columns.Count)
-            {
-                return false;
-            }
-
-            var columns = board.Columns.OrderBy(c => c.Order).ToList();
-            (columns[fromIndex], columns[toIndex]) = (columns[toIndex], columns[fromIndex]);
-
-            for (int i = 0; i < columns.Count; i++)
-            {
-                columns[i].Order = i;
-            }
-            board.Columns = columns;
-
-            await _boardService.UpdateBoardAsync(board);
-            await _logService.AddLogAsync(new LogItem
-            {
-                Action = DatabaseAction.Actualizar,
-                BoardId = boardId,
-                Message = $"Mueve columna {board.Columns[toIndex].Name}",
-                User = _authService.CurrentUser!.Username
-            });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
+    
     public async Task<(string, bool)> AddItemAsync(string boardId, TodoItem item)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+            {
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+            }
+
             await using var context = await _contextFactory.CreateDbContextAsync();
-            if (await context.Boards.AnyAsync(x => x.Id == boardId) == false) 
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+
+            if (board == null) 
                 return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            var permCheck = CheckPermission(board, p => p.CanAddTasks);
+            if (!permCheck)
+                return (SystemMessages.PERMISSION_DENIED, false);
 
             if (string.IsNullOrEmpty(item.Id))
             {
@@ -204,12 +135,22 @@ public class TodoService
     {
         try
         {
+            if (_authService.CurrentUser == null)
+            {
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+            }
+
             await using var context = await _contextFactory.CreateDbContextAsync();
-            if (await context.Boards.AnyAsync(x => x.Id == boardId) == false) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
             
             var dbItem = await context.Items.FirstOrDefaultAsync(x => x.Id == item.Id);
             if (dbItem == null) return (SystemMessages.ITEM_NOT_EXISTS.Replace(":task", item.Title), false);
+
+            var permCheck = CheckPermission(board, p => p.CanModifyTasks);
+            if (!permCheck)
+                return (SystemMessages.PERMISSION_DENIED, false);
 
 
             var stepsDb = await context.Steps
@@ -248,9 +189,9 @@ public class TodoService
             dbItem.StartDate = item.StartDate;
             dbItem.EndDate = item.EndDate;
 
-            await context.Steps.AddRangeAsync(newSteps);
             context.Steps.RemoveRange(toRemoveSteps);
 
+            await context.Steps.AddRangeAsync(newSteps);
             await context.SaveChangesAsync();
 
             await _logService.AddLogAsync(new LogItem
@@ -269,31 +210,37 @@ public class TodoService
         }
     }
 
-    public async Task<bool> DeleteItemAsync(string boardId, string itemId)
+    public async Task<(string, bool)> DeleteItemAsync(string boardId, string itemId)
     {
         try
         {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
-            var todo = board.Items.FirstOrDefault(x => x.Id == itemId);
-            if (todo == null) return false;
+            if (!CheckPermission(board, p => p.CanDeleteTasks))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
-            board.Items.RemoveAll(i => i.Id == itemId);
+            var item = await context.Items.FirstOrDefaultAsync(x => x.Id == itemId);
+            if (item == null) return (SystemMessages.ITEM_NOT_EXISTS, false);
 
-            await _boardService.UpdateBoardAsync(board);
+            context.Items.Remove(item);
+
+            await context.SaveChangesAsync();
             await _logService.AddLogAsync(new LogItem
             {
                 BoardId = boardId,
                 Action = DatabaseAction.Remover,
-                Message = $"Remueve tarea {todo.Title} del tablero {board.Name}",
+                Message = $"Remueve tarea {item.Title} del tablero {board.Name}",
                 User = _authService.CurrentUser!.Username
             });
-            return true;
+            return (SystemMessages.ITEM_REMOVED, true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 
@@ -314,11 +261,9 @@ public class TodoService
             if (await context.Columns.AnyAsync(x => x.Id == targetColumnId) == false)
                 return (null, SystemMessages.COLUMN_DOESNT_EXISTS);
 
-            if (board.User != _authService.CurrentUser.Id)
-            {
-                var permision = board.ParticipantPermissions[_authService.CurrentUser.Id];
-                if (!permision.CanModifyTasks) return (null, SystemMessages.PERMISSION_DENIED);
-            }
+            var permCheck = CheckPermission(board, p => p.CanModifyTasks);
+            if (!permCheck)
+                return (null, SystemMessages.PERMISSION_DENIED);
 
             var items = board.Items;
             var item = items.First(x => x.Id == itemId);
@@ -430,39 +375,4 @@ public class TodoService
             .ToDictionary(g => g.Key, g => g.OrderBy(i => i.Order).ToList());
     }
 
-    public void ClearCache()
-    {
-        _boardService.ClearCache();
-    }
-
-    public async Task<bool> UpdateItemDueDateAsync(string boardId, string itemId, DateTime dueDate)
-    {
-        try
-        {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
-
-            var item = board.Items.FirstOrDefault(i => i.Id == itemId);
-            if (item == null) return false;
-
-            item.DueDate = dueDate;
-            item.UpdatedAt = DateTime.Now;
-
-            await _boardService.UpdateBoardAsync(board);
-            
-            await _logService.AddLogAsync(new LogItem
-            {
-                Action = DatabaseAction.Actualizar,
-                Message = $"Actualiza fecha límite de '{item.Title}' a {dueDate:dd/MM/yyyy}",
-                BoardId = boardId,
-                User = _authService.CurrentUser?.Username ?? "Sistema"
-            });
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
 }

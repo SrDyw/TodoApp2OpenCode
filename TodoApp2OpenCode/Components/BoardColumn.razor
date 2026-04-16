@@ -4,6 +4,7 @@
 
 @inject IDialogService DialogService
 @inject TodoService TodoService
+@inject IBoardService BoardService
 @inject ILogService LogService
 @inject IAuthService AuthService
 @inject ISnackbar SnackbarService
@@ -233,7 +234,7 @@
                 });
             }
 
-            await TodoService.UpdateColumnAsync(BoardId, editing);
+            await BoardService.UpdateColumnAsync(BoardId, editing);
             SnackbarService.Add("Columna actualizada", Severity.Success);
             await ColumnUpdated.InvokeAsync();
         }
@@ -255,7 +256,7 @@
 
         if (result is { Canceled: false, Data: true })
         {
-            await TodoService.DeleteColumnAsync(BoardId, Column.Id);
+            await BoardService.DeleteColumnAsync(BoardId, Column.Id);
             SnackbarService.Add("Columna eliminada", Severity.Success);
             await ColumnDeleted.InvokeAsync();
         }

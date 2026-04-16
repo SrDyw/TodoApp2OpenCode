@@ -391,7 +391,80 @@ public class LocalStorageBoardService : IBoardService
         }
     }
 
-    public Task<(string, bool)> AddColumnAsync(string boardId, TodoColumn column)
+    public async Task<(string, bool)> AddColumnAsync(string boardId, TodoColumn column)
+    {
+        var board = await GetBoardAsync(boardId);
+        if (board == null) return ("", false);
+        
+        board.Columns.Add(column);
+        await SaveBoardsAsync();
+        return ("Columna creada", true);
+    }
+
+    public async Task<(string, bool)> UpdateColumnAsync(string boardId, TodoColumn column)
+    {
+        var board = await GetBoardAsync(boardId);
+        if (board == null) return ("", false);
+        
+        var index = board.Columns.FindIndex(c => c.Id == column.Id);
+        if (index == -1) return ("", false);
+        
+        board.Columns[index] = column;
+        await SaveBoardsAsync();
+        return ("Columna actualizada", true);
+    }
+
+    public async Task<(string, bool)> DeleteColumnAsync(string boardId, string columnId)
+    {
+        var board = await GetBoardAsync(boardId);
+        if (board == null) return ("", false);
+        
+        board.Columns.RemoveAll(c => c.Id == columnId);
+        await SaveBoardsAsync();
+        return ("Columna eliminada", true);
+    }
+
+    public Task<(string, bool)> SwapColumnAsync(string boardId, string columntoSwap, string targetColumnId)
+    {
+        return Task.FromResult(("Función no disponible en modo local", false));
+    }
+
+    Task<(string, TodoBoard?)> IBoardService.CreateBoardAsync(string userId, string name, string? description, List<(string Id, string Name)>? participants)
+    {
+        throw new NotImplementedException();
+    }
+
+    Task<(string, bool)> IBoardService.AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions)
+    {
+        throw new NotImplementedException();
+    }
+
+    Task<(string, bool)> IBoardService.RemoveParticipantAsync(string boardId, string userId)
+    {
+        throw new NotImplementedException();
+    }
+
+    Task<(string, bool)> IBoardService.UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions)
+    {
+        throw new NotImplementedException();
+    }
+
+    Task<(string, bool)> IBoardService.DeleteBoardAsync(string boardId)
+    {
+        throw new NotImplementedException();
+    }
+
+    Task<(string, CalendarEvent?)> IBoardService.AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<(string, bool)> UpdateEventAsync(string boardId, string eventId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<(string, bool)> DeleteEventAsync(string boardId, string eventId)
     {
         throw new NotImplementedException();
     }
