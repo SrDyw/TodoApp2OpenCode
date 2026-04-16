@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using TodoApp2OpenCode.Constants;
 using TodoApp2OpenCode.Models;
 using TodoApp2OpenCode.Services;
 
@@ -15,13 +16,17 @@ public class BoardParticipantsService
         _logService = logService;
     }
 
-    public async Task AddParticipantsAsync(string boardId, TodoBoard board, List<(string Id, string Name)> selectedParticipants, string userName)
+    public async Task<(string, bool)> AddParticipantsAsync(string boardId, TodoBoard board, List<(string Id, string Name)> selectedParticipants, string userName)
     {
         foreach (var (id, name) in selectedParticipants)
         {
             if (!board.Participants.ContainsKey(id))
             {
-                await _boardService.AddParticipantAsync(boardId, id, name);
+                var (msg, success) = await _boardService.AddParticipantAsync(boardId, id, name);
+                if (!success)
+                {
+                    return (msg, false);
+                }
             }
         }
 
@@ -32,6 +37,8 @@ public class BoardParticipantsService
             BoardId = board.Id,
             User = userName
         });
+
+        return (SystemMessages.PARTICIPANT_ADDED, true);
     }
 
     public async Task RemoveParticipantAsync(string boardId, TodoBoard board, string participantId, List<TodoItem> allItems, Action onRemoved)

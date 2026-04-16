@@ -165,7 +165,7 @@ public class BoardService : IBoardService
 
             if (!IsUserOwner(board))
                 return (SystemMessages.PERMISSION_DENIED, false);
-
+            
             if (!board.Participants.ContainsKey(userId))
             {
                 board.Participants[userId] = userName;
