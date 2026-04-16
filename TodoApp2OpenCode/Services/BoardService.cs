@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore;
 using TodoApp2OpenCode.Constants;
 using TodoApp2OpenCode.Data;
@@ -51,6 +52,30 @@ public class BoardService : IBoardService
         return result;
     }
 
+    private bool IsUserOwner(TodoBoard board)
+    {
+        var userId = _authService.CurrentUser?.Id;
+        return board.User == userId;
+    }
+
+    private bool CheckPermission(TodoBoard board, Func<BoardPermissions, bool> hasPermission)
+    {
+        var userId = _authService.CurrentUser?.Id;
+        if (string.IsNullOrEmpty(userId))
+            return false;
+
+        if (board.User != userId)
+        {
+            if (!board.ParticipantPermissions.TryGetValue(userId, out var perms) || perms == null)
+                return false;
+
+            if (!hasPermission(perms))
+                return false;
+        }
+
+        return true;
+    }
+
     public async Task<TodoBoard?> GetBoardAsync(string boardId)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -98,13 +123,13 @@ public class BoardService : IBoardService
         return board;
     }
 
-    public async Task<TodoBoard?> CreateBoardAsync(string userId, string name, string? description = null, List<(string Id, string Name)>? participants = null)
+    public async Task<(string, TodoBoard?)> CreateBoardAsync(string userId, string name, string? description = null, List<(string Id, string Name)>? participants = null)
     {
         try
         {
             if (_authService.CurrentUser == null)
             {
-                return null;
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, null);
             }
             await using var context = await _contextFactory.CreateDbContextAsync();
             
@@ -135,21 +160,27 @@ public class BoardService : IBoardService
             
             await _notifier.NotifyBoardUpdatedAsync(board.Id, _authService.CurrentUser?.Id);
             
-            return board;
+            return (SystemMessages.DASHBOARD_ADDED, board);
         }
         catch
         {
-            return null;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, null);
         }
     }
 
-    public async Task<bool> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null)
+    public async Task<(string, bool)> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             var board = await context.Boards.FindAsync(boardId);
-            if (board == null) return false;
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            if (!IsUserOwner(board))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
             if (!board.Participants.ContainsKey(userId))
             {
@@ -189,21 +220,27 @@ public class BoardService : IBoardService
 
                 await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
             }
-            return true;
+            return (SystemMessages.PARTICIPANT_ADDED, true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 
-    public async Task<bool> RemoveParticipantAsync(string boardId, string userId)
+    public async Task<(string, bool)> RemoveParticipantAsync(string boardId, string userId)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             var board = await context.Boards.FindAsync(boardId);
-            if (board == null) return false;
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            if (!IsUserOwner(board))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
             var removedUserName = board.Participants.GetValueOrDefault(userId);
             board.Participants.Remove(userId);
@@ -231,21 +268,27 @@ public class BoardService : IBoardService
             
             await _notifier.NotifyBoardUpdatedAsync(boardId, _authService.CurrentUser?.Id);
             
-            return true;
+            return (SystemMessages.PARTICIPANT_REMOVED, true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 
-    public async Task<bool> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions)
+    public async Task<(string, bool)> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             var board = await context.Boards.FindAsync(boardId);
-            if (board == null) return false;
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            if (!IsUserOwner(board))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
             var permsDict = board.ParticipantPermissions;
             var oldPerms = permsDict.TryGetValue(userId, out var oldP) ? oldP : new BoardPermissions();
@@ -278,51 +321,27 @@ public class BoardService : IBoardService
                 User = _authService.CurrentUser?.Username ?? "Sistema"
             });
             
-            return true;
+            return (SystemMessages.PARTICIPANT_PERMISSION_UPDATED, true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
-    }
-
-    public bool HasPermission(string boardId, string userId, string permission)
-    {
-        var board = GetBoardAsync(boardId).GetAwaiter().GetResult();
-        if (board == null) return false;
-
-        var currentUserId = _authService.CurrentUser?.Id ?? "";
-        
-        if (board.User == currentUserId)
-        {
-            return true;
-        }
-
-        if (board.ParticipantPermissions.TryGetValue(userId, out var perms))
-        {
-            return permission switch
-            {
-                "CanAddTasks" => perms.CanAddTasks,
-                "CanModifyTasks" => perms.CanModifyTasks,
-                "CanDeleteTasks" => perms.CanDeleteTasks,
-                "CanAddEvents" => perms.CanAddEvents,
-                "CanModifyEvents" => perms.CanModifyEvents,
-                "CanDeleteEvents" => perms.CanDeleteEvents,
-                _ => false
-            };
-        }
-
-        return false;
     }
 
     public async Task<(string, bool)> SwapColumnAsync(string boardId, string columntoSwapId, string targetColumnId)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             var board = context.Boards.FirstOrDefault(x => x.Id == boardId);
 
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+            if (!IsUserOwner(board))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
 
             var columntoSwap = await context.Columns.FirstOrDefaultAsync(x => x.Id == columntoSwapId);
@@ -352,6 +371,12 @@ public class BoardService : IBoardService
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return null;
+
+            if (!IsUserOwner(board))
+                return null;
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             
             var existingBoard = await context.Boards
@@ -492,10 +517,13 @@ public class BoardService : IBoardService
         }
     }
 
-    public async Task<bool> DeleteBoardAsync(string boardId)
+    public async Task<(string, bool)> DeleteBoardAsync(string boardId)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             var board = await context.Boards
                 .Include(b => b.Columns)
@@ -503,7 +531,9 @@ public class BoardService : IBoardService
                     .ThenInclude(i => i.Steps)
                 .FirstOrDefaultAsync(b => b.Id == boardId);
             
-            if (board == null) return false;
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+            if (!IsUserOwner(board))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
             context.Boards.Remove(board);
             await context.SaveChangesAsync();
@@ -518,37 +548,28 @@ public class BoardService : IBoardService
             
             await _notifier.NotifyBoardDeletedAsync(boardId);
             
-            return true;
+            return (SystemMessages.DASHBOARD_REMOVED, true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
         }
     }
 
-    public async Task<TodoBoard?> GetOrCreateDefaultBoardAsync(string userId)
-    {
-        var boards = await GetUserBoardsAsync(userId);
-        if (boards.Any())
-        {
-            return boards.First();
-        }
-
-        return await CreateBoardAsync(userId, "Mi Tablero");
-    }
-
-    public void ClearCache()
-    {
-    }
-
-    public async Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
+    public async Task<(string, CalendarEvent?)> AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, null);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             
             var board = await context.Boards.FindAsync(boardId);
-            if (board == null) return null;
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, null);
+
+            if (!CheckPermission(board, p => p.CanAddEvents))
+                return (SystemMessages.PERMISSION_DENIED, null);
 
             var newEvent = new CalendarEvent
             {
@@ -586,22 +607,32 @@ public class BoardService : IBoardService
                 }
             }
             
-            return newEvent;
+            return (SystemMessages.EVENT_ADDED, newEvent);
         }
         catch
         {
-            return null;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, null);
         }
     }
 
-    public async Task<bool> UpdateEventAsync(string eventId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
+    public async Task<(string, bool)> UpdateEventAsync(string boardId, string eventId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             
-            var evt = await context.CalendarEvents.FindAsync(eventId);
-            if (evt == null) return false;
+
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+            if (board == null) return (SystemMessages.DASHBOARD_REMOVED, false);
+
+            if (!CheckPermission(board, p => p.CanModifyEvents))
+                return (SystemMessages.PERMISSION_DENIED, false);
+
+            var evt = await context.CalendarEvents.FirstOrDefaultAsync(x => x.Id == eventId);
+            if (evt == null) return (SystemMessages.EVENT_NOT_EXISTS, false);
 
             var oldTitle = evt.Title;
             var oldDate = evt.EventDate;
@@ -615,7 +646,6 @@ public class BoardService : IBoardService
 
             await context.SaveChangesAsync();
             
-            var boardId = evt.TodoBoardId;
             var logMessage = $"Actualiza evento '{title}'";
             if (oldDate.Date != eventDate.Date)
             {
@@ -673,25 +703,34 @@ public class BoardService : IBoardService
                 }
             }
 
-            return true;
+            return (SystemMessages.EVENT_UPDATED, true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 
-    public async Task<bool> DeleteEventAsync(string eventId)
+    public async Task<(string, bool)> DeleteEventAsync(string boardId, string eventId)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
             var evt = await context.CalendarEvents.FindAsync(eventId);
-            if (evt == null) return false;
+            if (evt == null) return (SystemMessages.EVENT_NOT_EXISTS, false);
+
+
+            if (!CheckPermission(board, p => p.CanDeleteEvents))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
             var eventTitle = evt.Title;
-            var boardId = evt.TodoBoardId;
             var eventDate = evt.EventDate;
             var participants = evt.Participants;
 
@@ -719,11 +758,11 @@ public class BoardService : IBoardService
                 }
             }
             
-            return true;
+            return (SystemMessages.EVENT_REMOVED, true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 
@@ -795,8 +834,14 @@ public class BoardService : IBoardService
     {
         try
         {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
             var board = await GetBoardAsync(boardId);
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            if (!IsUserOwner(board))
+                return (SystemMessages.PERMISSION_DENIED, false);
 
             await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -820,4 +865,92 @@ public class BoardService : IBoardService
             return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
+
+    public async Task<(string, bool)> UpdateColumnAsync(string boardId, TodoColumn column)
+    {
+        try
+        {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            if (!CheckPermission(board, p => p.CanEditColumn))
+                return (SystemMessages.PERMISSION_DENIED, false);
+
+            var dbColumn = board.Columns.FirstOrDefault(c => c.Id == column.Id);
+            if (dbColumn == null) return (SystemMessages.COLUMN_DOESNT_EXISTS, false);
+
+            dbColumn.UpdatedAt = DateTime.Now;
+            dbColumn.Name = column.Name;
+            dbColumn.Color = column.Color;
+            dbColumn.Order = column.Order;
+
+            await context.SaveChangesAsync();
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                Message = $"Actualiza columna '{column.Name}'",
+                BoardId = boardId,
+                User = _authService.CurrentUser?.Username ?? "Sistema"
+            });
+
+            return (SystemMessages.COLUN_MOVED, true);
+        }
+        catch
+        {
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, true);
+        }
+    }
+
+
+
+    public async Task<(string, bool)> DeleteColumnAsync(string boardId, string columnId)
+    {
+        try
+        {
+            if (_authService.CurrentUser == null)
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            if (!CheckPermission(board, p => p.CanDeleteColumn))
+                return (SystemMessages.PERMISSION_DENIED, false);
+
+            var column = board.Columns.FirstOrDefault(x => x.Id == columnId);
+            if (column == null) return (SystemMessages.COLUMN_DOESNT_EXISTS, false);
+
+            var itemsAtColumn = await context.Items
+                .Where(x => x.ColumnId == columnId)
+                .ToListAsync();
+
+            await context.Items.
+                Where(x => x.ColumnId == columnId)
+                .ExecuteDeleteAsync();
+
+            context.Columns.Remove(column);
+
+            await context.SaveChangesAsync();
+
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Remover,
+                Message = $"Remueve columna {column.Name}",
+                BoardId = boardId,
+                User = _authService.CurrentUser!.Username
+            });
+            return (SystemMessages.COLUN_MOVED, true);
+        }
+        catch
+        {
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
+        }
+    }
+
+
 }

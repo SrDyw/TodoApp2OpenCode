@@ -123,7 +123,7 @@
             return;
         }
 
-        var board = await BoardService.CreateBoardAsync(UserId ?? "", BoardName, BoardDescription, Participants);
+        var (msg, board) = await BoardService.CreateBoardAsync(UserId ?? "", BoardName, BoardDescription, Participants);
         
         if (board != null)
         {
@@ -131,7 +131,7 @@
         }
         else
         {
-            ErrorMessage = "Error al crear el tablero";
+            ErrorMessage = msg;
         }
     }
 

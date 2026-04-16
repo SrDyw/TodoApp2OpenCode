@@ -134,7 +134,7 @@ else
                                 <div class="column-color-dot" style="background-color: @column.Color;"></div>
                                 <MudText Typo="Typo.h6" Class="column-title">@column.Name</MudText>
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">
-                                    @ItemCount
+                                    @(_currentBoard?.Items.Where(x => x.ColumnId == column.Id).Count() ?? 0)
                                 </MudChip>
                             </div>
 
@@ -564,7 +564,7 @@ else
                 });
             }
 
-            await TodoService.UpdateColumnAsync(BoardId, editing);
+            await BoardService.UpdateColumnAsync(BoardId, editing);
 
             var targetColumnIndex = _columns.IndexOf(_columns.FirstOrDefault(x => x.Id == editing.Id) ?? new());
             if (targetColumnIndex != -1)
@@ -594,7 +594,7 @@ else
 
         if (result is { Canceled: false, Data: true })
         {
-            await TodoService.DeleteColumnAsync(BoardId, Column.Id);
+            await BoardService.DeleteColumnAsync(BoardId, Column.Id);
 
             _columns.Remove(_columns.FirstOrDefault(x => x.Id == Column.Id) ?? new());
             await InvokeAsync(StateHasChanged);
@@ -811,7 +811,7 @@ else
 
         if (result is { Canceled: false, Data: true })
         {
-            var deletionResult = await BoardService.DeleteBoardAsync(_currentBoard.Id);
+            var (msg, deletionResult) = await BoardService.DeleteBoardAsync(_currentBoard.Id);
 
             if (deletionResult == true)
             {
@@ -819,7 +819,7 @@ else
                 return;
             }
 
-            SnackbarService.Add("No se pudo eliminar el tablero debido a un error inesperado, intenta luego", Severity.Error);
+            SnackbarService.Add(msg, Severity.Error);
         }
     }
     private void ItemPicked(MudDragAndDropItemTransaction<TodoItem> dropItem)

@@ -68,7 +68,7 @@
     private async Task CheckPermissionsChanged()
     {
         if (string.IsNullOrEmpty(BoardId)) return;
-        
+
         try
         {
             var board = await BoardService.GetBoardAsync(BoardId);
@@ -77,19 +77,19 @@
                 try { await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true)); } catch { }
                 return;
             }
-            
+
             var currentUserId = AuthService.CurrentUser?.Id ?? "";
             var isOwner = board.User == currentUserId;
-            
+
             if (isOwner) return;
-            
+
             bool isParticipant = board.Participants.ContainsKey(currentUserId);
             if (!isParticipant)
             {
                 try { await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true)); } catch { }
                 return;
             }
-            
+
             if (board.ParticipantPermissions != null && 
                 board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
             {
@@ -129,7 +129,7 @@
         {
             if (parsedDate.Year < 1900 || parsedDate.Year > 2100)
                 return DateTime.Today;
-                
+
             return parsedDate;
         }
 
@@ -159,7 +159,7 @@
 
             bool isOwner = currentBoard.User == AuthService.CurrentUser.Id;
             bool isParticipant = currentBoard.Participants.ContainsKey(AuthService.CurrentUser.Id);
-            
+
             if (!isOwner && !isParticipant)
             {
                 await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
@@ -183,10 +183,10 @@
                     return;
                 }
             }
-            
+
             allItems = currentBoard.Items.Where(i => i.DueDate.HasValue || i.StartDate.HasValue || i.EndDate.HasValue).ToList();
             allEvents = currentBoard.Events.ToList();
-            
+
             isOwner = currentBoard.User == AuthService.CurrentUser.Id;
             if (isOwner)
             {
@@ -217,12 +217,12 @@
     {
         var board = await BoardService.GetBoardAsync(BoardId);
         if (board == null) return false;
-        
+
         var currentUserId = AuthService.CurrentUser?.Id ?? "";
         var isOwner = board.User == currentUserId;
-        
+
         if (isOwner) return true;
-        
+
         if (board.ParticipantPermissions != null && 
             board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
         {
@@ -233,7 +233,7 @@
             }
             return true;
         }
-        
+
         SnackbarService.Add("No tienes permiso para añadir eventos", Severity.Warning);
         return false;
     }
@@ -242,12 +242,12 @@
     {
         var board = await BoardService.GetBoardAsync(BoardId);
         if (board == null) return false;
-        
+
         var currentUserId = AuthService.CurrentUser?.Id ?? "";
         var isOwner = board.User == currentUserId;
-        
+
         if (isOwner) return true;
-        
+
         if (board.ParticipantPermissions != null && 
             board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
         {
@@ -258,7 +258,7 @@
             }
             return true;
         }
-        
+
         SnackbarService.Add("No tienes permiso para modificar eventos", Severity.Warning);
         return false;
     }
@@ -267,12 +267,12 @@
     {
         var board = await BoardService.GetBoardAsync(BoardId);
         if (board == null) return false;
-        
+
         var currentUserId = AuthService.CurrentUser?.Id ?? "";
         var isOwner = board.User == currentUserId;
-        
+
         if (isOwner) return true;
-        
+
         if (board.ParticipantPermissions != null && 
             board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
         {
@@ -283,7 +283,7 @@
             }
             return true;
         }
-        
+
         SnackbarService.Add("No tienes permiso para eliminar eventos", Severity.Warning);
         return false;
     }
@@ -297,12 +297,12 @@
     {
         var uri = new Uri(Navigation.Uri);
         var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        
+
         var newUri = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             Navigation.BaseUri.TrimEnd('/') + $"/board/{BoardId}/schedule",
             "date",
             date.ToString("dd-MM-yyyy"));
-        
+
         Navigation.NavigateTo(newUri, replace: true);
     }
 
@@ -310,7 +310,7 @@
     {
         var parameters = new DialogParameters<DatePickerDialog>();
         parameters.Add(x => x.InitialDate, calendarView?.GetCurrentDate() ?? DateTime.Today);
-        
+
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
@@ -319,7 +319,7 @@
 
         var dialog = await DialogService.ShowAsync<DatePickerDialog>("Ir a fecha", parameters, options);
         var result = await dialog.Result;
-        
+
         if (result is { Canceled: false, Data: DateTime selectedDate })
         {
             calendarView?.SetCurrentDate(selectedDate);
@@ -350,7 +350,7 @@
         parameters.Add(x => x.OnAddEvent, EventCallback.Factory.Create<DateTime>(this, OpenAddEventDialogWithDate));
         parameters.Add(x => x.OnEditEvent, EventCallback.Factory.Create<CalendarEvent>(this, OpenEditEventDialog));
         parameters.Add(x => x.OnDeleteEvent, EventCallback.Factory.Create<CalendarEvent>(this, ConfirmDeleteEvent));
-        
+
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
@@ -362,14 +362,14 @@
             date.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("es-ES")), 
             parameters, 
             options);
-        
+
         await LoadData();
     }
 
     private async Task OpenAddEventDialog(DateTime preselectedDate)
     {
         if (!await CheckCanAddEvent()) return;
-        
+
         var participants = new Dictionary<string, string>();
         if (currentBoard != null)
         {
@@ -383,7 +383,7 @@
         var parameters = new DialogParameters<AddEventDialog>();
         parameters.Add(x => x.PreSelectedDate, preselectedDate);
         parameters.Add(x => x.AvailableParticipants, participants);
-        
+
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
@@ -392,22 +392,22 @@
 
         var dialog = await DialogService.ShowAsync<AddEventDialog>("Añadir evento", parameters, options);
         var result = await dialog.Result;
-        
+
         if (result is { Canceled: false, Data: AddEventDialog.AddEventResult addResult })
         {
-            var newEvent = await BoardService.AddEventAsync(BoardId, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
+            var (msg, newEvent) = await BoardService.AddEventAsync(BoardId, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
             if (newEvent != null)
             {
                 await LoadData();
-                SnackbarService.Add("Evento creado", Severity.Success);
             }
+            SnackbarService.Add(msg, newEvent != null ? Severity.Success : Severity.Error);
         }
     }
 
     private async Task OpenEditEventDialog(CalendarEvent evt)
     {
         if (!await CheckCanModifyEvent()) return;
-        
+
         var participants = new Dictionary<string, string>();
         if (currentBoard != null)
         {
@@ -421,7 +421,7 @@
         var parameters = new DialogParameters<AddEventDialog>();
         parameters.Add(x => x.EditEvent, evt);
         parameters.Add(x => x.AvailableParticipants, participants);
-        
+
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
@@ -430,14 +430,14 @@
 
         var dialog = await DialogService.ShowAsync<AddEventDialog>("Editar evento", parameters, options);
         var result = await dialog.Result;
-        
+
         if (result is { Canceled: false, Data: AddEventDialog.AddEventResult addResult })
         {
-            var success = await BoardService.UpdateEventAsync(evt.Id, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
+            var (msg, success) = await BoardService.UpdateEventAsync(BoardId, evt.Id, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
             if (success)
             {
                 await LoadData();
-                
+
                 if (addResult.OriginalEventDate.HasValue && addResult.OriginalEventDate.Value.Date != addResult.EventDate.Date)
                 {
                     SnackbarService.Add($"Evento actualizado. Fecha cambiada a {addResult.EventDate:dd/MM/yyyy}", Severity.Success);
@@ -465,7 +465,9 @@
                 {
                     SnackbarService.Add("Evento actualizado", Severity.Success);
                 }
+                return;
             }
+            SnackbarService.Add(msg, success ? Severity.Success : Severity.Error);
         }
     }
 
@@ -473,12 +475,12 @@
     {
         if (!await CheckCanDeleteEvent()) return;
         
-        var success = await BoardService.DeleteEventAsync(evt.Id);
+        var (msg, success) = await BoardService.DeleteEventAsync(BoardId, evt.Id);
         if (success)
         {
             await LoadData();
-            SnackbarService.Add("Evento eliminado", Severity.Success);
         }
+        SnackbarService.Add(msg, success ? Severity.Success : Severity.Error);
     }
 
     private async Task ConfirmDeleteEvent(CalendarEvent evt)
@@ -526,12 +528,12 @@
         
         if (result is { Canceled: false, Data: AddEventDialog.AddEventResult addResult })
         {
-            var newEvent = await BoardService.AddEventAsync(BoardId, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
+            var (msg, newEvent) = await BoardService.AddEventAsync(BoardId, addResult.Title, addResult.Description, addResult.EventDate, addResult.Participants);
             if (newEvent != null)
             {
                 await LoadData();
-                SnackbarService.Add("Evento creado", Severity.Success);
             }
+            SnackbarService.Add(msg, newEvent != null ? Severity.Success : Severity.Error);
         }
     }
 
