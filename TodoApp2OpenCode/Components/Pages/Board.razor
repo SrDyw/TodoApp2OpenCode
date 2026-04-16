@@ -125,14 +125,11 @@ else
                 @foreach (var column in _columns)
                 {
                     <MudDropZone ItemDisabled="x => _perms.CanModifyTasks == false" T="TodoItem" AllowReorder Identifier="@column.Id" Class="board-column" >
-                        <div class="column-header column-drag-handle">
+                        <div class="column-header">
                             <div class="column-title-area">
-                                @if (_perms.CanEditColumn)
-                                {
-                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" Class="mr-1 column-drag-icon" />
-                                }
+                                
                                 <div class="column-color-dot" style="background-color: @column.Color;"></div>
-                                <MudText Typo="Typo.h6" Class="column-title">@column.Name</MudText>
+                                <MudText Typo="Typo.h6" Style="font-size: 1rem;" Class="column-title">@column.Name</MudText>
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">
                                     @(_currentBoard?.Items.Where(x => x.ColumnId == column.Id).Count() ?? 0)
                                 </MudChip>
@@ -835,6 +832,23 @@ else
     private async Task ItemUpdated(MudItemDropInfo<TodoItem> dropItem)
     {
         if (!_isStillMember) return;
+        if (dropItem.Item == null || _currentBoard == null) return;
+
+        var item = dropItem.Item;
+        var targetIndexInZone = dropItem.IndexInZone;
+        var targetColumnId = dropItem.DropzoneIdentifier;
+
+        if (item.ColumnId == dropItem.DropzoneIdentifier)
+        {
+            var itemCount = _currentBoard.Items
+                .Where(x => x.ColumnId == item.ColumnId)
+                .Count();
+
+            if (itemCount <= 1 || item.Order == targetIndexInZone)
+                return;
+        }
+
+
         if (_syncStatus == SyncIndicator.OperationSyncStatus.Syncing)
         {
             SnackbarService.Add(SystemMessages.PENDING_OPERATION, Severity.Info);
@@ -847,9 +861,7 @@ else
             return;
         }
         _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
-        var item = dropItem.Item;
-        var targetIndexInZone = dropItem.IndexInZone;
-        var targetColumnId = dropItem.DropzoneIdentifier;
+
 
 
         _currentPickedItem = null;
