@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using Microsoft.JSInterop;
 using MudBlazor;
 using TodoApp2OpenCode.Constants;
@@ -199,21 +200,59 @@ public class TodoService
         }
     }
 
-    public async Task<bool> UpdateItemAsync(string boardId, TodoItem item)
+    public async Task<(string, bool)> UpdateItemAsync(string boardId, TodoItem item)
     {
         try
         {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            if (await context.Boards.AnyAsync(x => x.Id == boardId) == false) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
-            var index = board.Items.FindIndex(i => i.Id == item.Id);
-            if (index == -1) return false;
-
-            item.UpdatedAt = DateTime.Now;
-            board.Items[index] = item;
-
-            await _boardService.UpdateBoardAsync(board);
             
+            var dbItem = await context.Items.FirstOrDefaultAsync(x => x.Id == item.Id);
+            if (dbItem == null) return (SystemMessages.ITEM_NOT_EXISTS.Replace(":task", item.Title), false);
+
+
+            var stepsDb = await context.Steps
+                .Where(x => x.ItemId == item.Id)
+                .ToListAsync() ?? [];
+
+            var newSteps = item.Steps?
+                .Where(step => stepsDb.Any(stepDb => stepDb.Id == step.Id) == false)
+                .ToList() ?? [];
+            
+            var toRemoveSteps = stepsDb
+                .Where(stepDb => item.Steps?.Any(step => stepDb.Id == step.Id) == false)
+                .ToList() ?? [];
+
+            if (stepsDb.Count != 0)
+            {
+                foreach(var stepDb in stepsDb ?? [])
+                {
+                    var updateStep = item.Steps!.FirstOrDefault(x => x.Id == stepDb.Id);
+                    if (updateStep == null) continue;
+
+                    stepDb.Order = updateStep.Order;
+                    stepDb.Name = updateStep.Name;
+                    stepDb.IsCompleted = updateStep.IsCompleted;
+                }
+            }
+
+
+            dbItem.Title = item.Title;
+            dbItem.UpdatedAt = item.UpdatedAt;
+            dbItem.DueDate = item.DueDate;
+            dbItem.AssignedUsers = item.AssignedUsers;
+            dbItem.Description = item.Description;
+            dbItem.ColumnId = item.ColumnId;
+            dbItem.CurrentStepIndex = item.CurrentStepIndex;
+            dbItem.StartDate = item.StartDate;
+            dbItem.EndDate = item.EndDate;
+
+            await context.Steps.AddRangeAsync(newSteps);
+            context.Steps.RemoveRange(toRemoveSteps);
+
+            await context.SaveChangesAsync();
+
             await _logService.AddLogAsync(new LogItem
             {
                 Action = DatabaseAction.Actualizar,
@@ -222,11 +261,11 @@ public class TodoService
                 User = _authService.CurrentUser?.Username ?? "Sistema"
             });
             
-            return true;
+            return (SystemMessages.ITEM_ADDED.Replace(":task", item.Title), true);
         }
         catch
         {
-            return false;
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 
@@ -258,62 +297,6 @@ public class TodoService
         }
     }
 
-    public async Task<TodoBoard?> MoveItemToColumnAsync(string boardId, string itemId, string? hoverItemId, string targetColumnId)
-    {
-        try
-        {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return null;
-
-            var item = board.Items.FirstOrDefault(i => i.Id == itemId);
-            if (item == null) return null;
-
-            var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
-            if (column == null) return null;
-
-            var originalColumnId = item.ColumnId;
-
-            var columnItems = board.Items
-                .Where(x => x.ColumnId == targetColumnId && x.Id != itemId)
-                .OrderBy(x => x.Order)
-                .ToList();
-
-            if (string.IsNullOrWhiteSpace(hoverItemId))
-            {
-                item.Order = columnItems.Any() ? columnItems.Max(x => x.Order) + 1 : 0;
-                columnItems.Add(item);
-            }
-            else
-            {
-                var hoverIndex = columnItems.FindIndex(x => x.Id == hoverItemId);
-                if (hoverIndex < 0) hoverIndex = columnItems.Count;
-                columnItems.Insert(hoverIndex, item);
-            }
-
-            for (int i = 0; i < columnItems.Count; i++)
-            {
-                columnItems[i].Order = i;
-                columnItems[i].ColumnId = targetColumnId;
-            }
-
-            item.ColumnId = targetColumnId;
-            item.UpdatedAt = DateTime.Now;
-
-            var updatedBoard = await _boardService.UpdateBoardAsync(board);
-            await _logService.AddLogAsync(new LogItem
-            {
-                Action = DatabaseAction.Actualizar,
-                Message = $"Mueve tarea {item.Title} para la columna {column.Name}",
-                BoardId = boardId,
-                User = _authService.CurrentUser!.Username
-            });
-            return updatedBoard;
-        }
-        catch
-        {
-            return null;
-        }
-    }
     public async Task<(TodoBoard?, string)> MoveItemAsync(string itemId, string boardId,int targetIndexInColumn, string targetColumnId)
     {
         try
@@ -322,9 +305,15 @@ public class TodoService
             {
                 return (null, SystemMessages.OPERATION_AUTH_REQUIRED);
             }
-            var board = await _boardService.GetBoardAsync(boardId);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards
+                .Include(x => x.Items)
+                .FirstOrDefaultAsync(x => x.Id == boardId);
 
             if (board == null) return (null, SystemMessages.DASHBOARD_NOT_EXISTS);
+            if (await context.Columns.AnyAsync(x => x.Id == targetColumnId) == false)
+                return (null, SystemMessages.COLUMN_DOESNT_EXISTS);
+
             if (board.User != _authService.CurrentUser.Id)
             {
                 var permision = board.ParticipantPermissions[_authService.CurrentUser.Id];
@@ -354,7 +343,7 @@ public class TodoService
             var msg = "Tarea movida con éxito";
             if (columnItems.Count > 0)
             {
-                if (targetIndexInColumn < columnItems.Count && columnItems.Count > 1)
+                if (targetIndexInColumn != -1 && targetIndexInColumn < columnItems.Count && columnItems.Count > 1)
                 {
                     hoveredItem = columnItems[targetIndexInColumn];
 
@@ -393,22 +382,18 @@ public class TodoService
             UpdateItemValues(items, originalColumnItems);
 
             item.ColumnId = targetColumnId;
+            await context.SaveChangesAsync();
+            var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
+            var rightMessage = column != null ? $"para la columna {column.Name}" : string.Empty;
 
-            if (await _boardService.UpdateBoardAsync(board) != null)
+            await _logService.AddLogAsync(new LogItem
             {
-                var column = board.Columns.FirstOrDefault(x => x.Id == targetColumnId);
-                var rightMessage = column != null ? $"para la columna {column.Name}" : string.Empty;
-
-                await _logService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Actualizar,
-                    Message = $"Mueve tarea {item.Title} {rightMessage}",
-                    BoardId = boardId,
-                    User = _authService.CurrentUser!.Username
-                });
-                return (board, msg);
-            }
-            throw new Exception();
+                Action = DatabaseAction.Actualizar,
+                Message = $"Mueve tarea {item.Title} {rightMessage}",
+                BoardId = boardId,
+                User = _authService.CurrentUser!.Username
+            });
+            return (board, msg);
         }
         catch
         {

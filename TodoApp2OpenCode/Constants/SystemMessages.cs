@@ -5,6 +5,8 @@
         public const string PENDING_OPERATION = "Hay una operación pendiente, intentalo de nuevo cuando termine.";
         public const string ITEM_UPDATE_ERROR = "Ocurrió un error durante la actualización del elemento";
         public const string ITEM_ADDED = "La tarea :task fué añadida con éxito";
+        public const string ITEM_UPDATED = "La tarea :task fué actualizada con éxito";
+        public const string ITEM_NOT_EXISTS = "La tarea :task no existe o ha sido eliminada";
         public const string OPERATION_AUTH_REQUIRED = "\"Inicia sesión para poder usar esta funcionalidad.\"";
         public const string DASHBOARD_NOT_EXISTS = "El solicitado tablero no existe";
         public const string PERMISSION_DENIED = "No tienes permiso para realizar o acceder a esta funcionaliad";
