@@ -14,6 +14,7 @@ public interface IBoardService
     Task<bool> UpdateParticipantPermissionsAsync(string boardId, string userId, BoardPermissions permissions);
     Task<bool> DeleteBoardAsync(string boardId);
     Task<TodoBoard?> GetOrCreateDefaultBoardAsync(string userId);
+    Task<(string, bool)> SwapColumnAsync(string boardId, string columntoSwap, string targetColumnId);
     void ClearCache();
     Task<CalendarEvent?> AddEventAsync(string boardId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null);
     Task<bool> UpdateEventAsync(string eventId, string title, string? description, DateTime eventDate, Dictionary<string, string>? participants = null);

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
 using Microsoft.JSInterop;
 using MudBlazor;
+using TodoApp2OpenCode.Components.Pages;
 using TodoApp2OpenCode.Constants;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
@@ -111,51 +112,28 @@ public class TodoService
         }
     }
 
-    public async Task<bool> SwapColumnsAsync(string boardId, int fromIndex, int toIndex)
-    {
-        try
-        {
-            var board = await _boardService.GetBoardAsync(boardId);
-            if (board == null) return false;
-
-            if (fromIndex < 0 || fromIndex >= board.Columns.Count ||
-                toIndex < 0 || toIndex >= board.Columns.Count)
-            {
-                return false;
-            }
-
-            var columns = board.Columns.OrderBy(c => c.Order).ToList();
-            (columns[fromIndex], columns[toIndex]) = (columns[toIndex], columns[fromIndex]);
-
-            for (int i = 0; i < columns.Count; i++)
-            {
-                columns[i].Order = i;
-            }
-            board.Columns = columns;
-
-            await _boardService.UpdateBoardAsync(board);
-            await _logService.AddLogAsync(new LogItem
-            {
-                Action = DatabaseAction.Actualizar,
-                BoardId = boardId,
-                Message = $"Mueve columna {board.Columns[toIndex].Name}",
-                User = _authService.CurrentUser!.Username
-            });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     public async Task<(string, bool)> AddItemAsync(string boardId, TodoItem item)
     {
         try
         {
+            if (_authService.CurrentUser == null)
+            {
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+            }
+
             await using var context = await _contextFactory.CreateDbContextAsync();
-            if (await context.Boards.AnyAsync(x => x.Id == boardId) == false) 
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+
+            if (board == null) 
                 return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            if (board.User != _authService.CurrentUser.Id)
+            {
+                board.ParticipantPermissions.TryGetValue(_authService.CurrentUser.Id ?? "", out BoardPermissions? perms);
+
+                if (perms == null || perms.CanAddTasks == false)
+                    return (SystemMessages.PERMISSION_DENIED, false);
+            }
 
             if (string.IsNullOrEmpty(item.Id))
             {
@@ -204,12 +182,26 @@ public class TodoService
     {
         try
         {
+            if (_authService.CurrentUser == null)
+            {
+                return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
+            }
+
             await using var context = await _contextFactory.CreateDbContextAsync();
-            if (await context.Boards.AnyAsync(x => x.Id == boardId) == false) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
             
             var dbItem = await context.Items.FirstOrDefaultAsync(x => x.Id == item.Id);
             if (dbItem == null) return (SystemMessages.ITEM_NOT_EXISTS.Replace(":task", item.Title), false);
+
+            if (board.User != _authService.CurrentUser.Id)
+            {
+                board.ParticipantPermissions.TryGetValue(_authService.CurrentUser.Id ?? "", out BoardPermissions? perms);
+
+                if (perms == null || perms.CanModifyTasks == false)
+                    return (SystemMessages.PERMISSION_DENIED, false);
+            }
 
 
             var stepsDb = await context.Steps

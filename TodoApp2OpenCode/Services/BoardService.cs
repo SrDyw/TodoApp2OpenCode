@@ -315,6 +315,39 @@ public class BoardService : IBoardService
         return false;
     }
 
+    public async Task<(string, bool)> SwapColumnAsync(string boardId, string columntoSwapId, string targetColumnId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = context.Boards.FirstOrDefault(x => x.Id == boardId);
+
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+
+            var columntoSwap = await context.Columns.FirstOrDefaultAsync(x => x.Id == columntoSwapId);
+            var targetColumn = await context.Columns.FirstOrDefaultAsync(x => x.Id == targetColumnId);
+
+            if (columntoSwap == null || targetColumn == null)
+                return (SystemMessages.COLUMN_DOESNT_EXISTS, false);
+
+            (targetColumn.Order, columntoSwap.Order) = (columntoSwap.Order, targetColumn.Order);
+            await context.SaveChangesAsync();
+            await _logService.AddLogAsync(new LogItem
+            {
+                Action = DatabaseAction.Actualizar,
+                BoardId = boardId,
+                Message = $"Mueve columna {columntoSwap.Name}",
+                User = _authService.CurrentUser!.Username
+            });
+            return (SystemMessages.COLUN_MOVED, true);
+        }
+        catch
+        {
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
+        }
+    }
+
     public async Task<TodoBoard?> UpdateBoardAsync(TodoBoard board)
     {
         try

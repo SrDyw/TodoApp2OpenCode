@@ -138,27 +138,39 @@ else
                                 </MudChip>
                             </div>
 
-                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Edge="Edge.End">
-                                @if (_perms.CanEditColumn)
-                                {
-                                    <MudMenuItem OnClick="@(() => EditColumnAsync(column))">
-                                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                                            <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
-                                            <span>Editar</span>
-                                        </MudStack>
-                                    </MudMenuItem>
-                                }
-                                @if (_perms.CanDeleteColumn)
-                                {
-                                    <MudDivider />
-                                    <MudMenuItem Class="text-danger" OnClick="@(() => DeleteColumnAsync(column))">
-                                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                                            <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" />
-                                            <span>Eliminar</span>
-                                        </MudStack>
-                                    </MudMenuItem>
-                                }
-                            </MudMenu>
+                            @if (_perms.CanEditColumn)
+                            {
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Edge="Edge.End">
+                                        <MudMenuItem OnClick="@(() => EditColumnAsync(column))">
+                                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                                <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                                                <span>Editar</span>
+                                            </MudStack>
+                                        </MudMenuItem>
+                                        @if (column.Order > 0)
+                                        {
+                                        <MudMenuItem OnClick="@(() => MoveColumnAsync(column, direction: -1))">
+                                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                                    <MudIcon Icon="@Icons.Material.Filled.ArrowLeft" Size="Size.Small" />
+                                                    <span>Mover a la izquerda</span>
+                                                </MudStack>
+                                            </MudMenuItem>
+                                        }
+                                        @if (column.Order < (_currentBoard?.Columns.Count - 1 ?? 0))
+                                        {
+                                            <MudMenuItem OnClick="@(() => MoveColumnAsync(column, direction: 1))">
+                                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                                    <MudIcon Icon="@Icons.Material.Filled.ArrowRight" Size="Size.Small" />
+                                                    <span>Mover a la derecha</span>
+                                                </MudStack>
+                                            </MudMenuItem>
+                                        }
+                                </MudMenu>
+                            }
+                            @if (_perms.CanDeleteColumn)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Medium" Color="Color.Error" OnClick="@(() => DeleteColumnAsync(column))" />
+                            }
                         </div>
                         <div style="width: 100%; margin-top: 12px"/>
                     </MudDropZone>
@@ -417,7 +429,7 @@ else
         _columns = _currentBoard.Columns;
         _boardLoading = false;
         _isStillMember = true;
-        
+
         _membershipCheckTimer?.Dispose();
         _membershipCheckTimer = new System.Threading.Timer(
             async _ => await CheckMembershipAsync(),
@@ -425,14 +437,14 @@ else
             TimeSpan.FromSeconds(10),
             TimeSpan.FromSeconds(10)
         );
-        
+
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task CheckMembershipAsync()
     {
         if (string.IsNullOrEmpty(BoardId) || AuthService.CurrentUser == null) return;
-        
+
         var board = await BoardService.GetBoardAsync(BoardId);
         if (board == null)
         {
@@ -441,7 +453,7 @@ else
             Navigation.NavigateTo("/");
             return;
         }
-        
+
         if (!BoardUtils.IsUserOwnerOrParticipant(board, AuthService.CurrentUser.Id))
         {
             _membershipCheckTimer?.Dispose();
@@ -450,7 +462,7 @@ else
             Navigation.NavigateTo("/");
             return;
         }
-        
+
         _currentBoard = board;
         _perms = BoardUtils.GetUserPermissions(board, AuthService.CurrentUser.Id);
         await InvokeAsync(StateHasChanged);
@@ -854,6 +866,20 @@ else
 
         _syncStatus = SyncIndicator.OperationSyncStatus.Success;
         item.ColumnId = dropItem.DropzoneIdentifier;
+    }
+
+    private async Task MoveColumnAsync(TodoColumn column, int direction)
+    {
+        if (_currentBoard == null) return;
+
+        var (msg, success) = await BoardService.SwapColumnAsync(_currentBoard.Id, column.Id, _currentBoard.Columns[column.Order + Math.Sign(direction)].Id);
+        if(!success)
+        {
+            SnackbarService.Add(msg, Severity.Error);
+            return;
+        }
+
+        Navigation.Refresh(forceReload: true);
     }
 
 

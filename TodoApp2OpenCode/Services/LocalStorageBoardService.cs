@@ -395,4 +395,9 @@ public class LocalStorageBoardService : IBoardService
     {
         throw new NotImplementedException();
     }
+
+    public Task<(string, bool)> SwapColumnAsync(string boardId, string columntoSwap, string targetColumnId)
+    {
+        throw new NotImplementedException();
+    }
 }
