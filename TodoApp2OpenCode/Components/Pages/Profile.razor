@@ -2,12 +2,16 @@
 
 <PageTitle>Mi Perfil - TodoPila</PageTitle>
 
+@using SixLabors.ImageSharp
+@using SixLabors.ImageSharp.Processing
+@using SixLabors.ImageSharp.Formats.Jpeg
+@using Color = MudBlazor.Color
+@using Size = MudBlazor.Size
+
 @inject IAuthService AuthService
 @inject ISnackbar SnackbarService
+@inject IDialogService DialogService
 @inject NavigationManager Navigation
-
-<PageTitle>Mi Perfil - TodoPila</PageTitle>
-
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
     <MudPaper Elevation="2" Class="pa-6" Style="border-radius: 16px;">
@@ -16,7 +20,7 @@
                 <MudAvatar Color="Color.Primary" Class="profile-avatar">
                     @if (!string.IsNullOrEmpty(_profileImageBase64))
                     {
-                        <MudImage Src="@($"data:image/jpeg;base64,{_profileImageBase64}")" Class="profile-image" />
+                        <img src="@($"data:image/jpeg;base64,{_profileImageBase64}")" class="profile-image" />
                     }
                     else
                     {
@@ -24,18 +28,27 @@
                     }
                 </MudAvatar>
                 
-                <MudFileUpload T="IBrowserFile" 
-                               FilesChanged="OnImageSelected"
-                               Accept=".jpg,.jpeg,.png,.gif,.webp"
-                               MaximumFileCount="1"
-                               Style="position: absolute; bottom: 0; right: 0;">
-                    <ActivatorContent>
-                        <MudIconButton Icon="@Icons.Material.Filled.CameraAlt" 
-                                       Color="Color.Primary" 
+                <MudStack Row="true" Spacing="0" Class="avatar-action-buttons">
+                    @if (!string.IsNullOrEmpty(_profileImageBase64))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Color="Color.Error" 
                                        Size="Size.Medium"
-                                       Class="avatar-edit-btn" />
-                    </ActivatorContent>
-                </MudFileUpload>
+                                       Class="avatar-delete-btn"
+                                       OnClick="DeleteProfileImage" />
+                    }
+                    <MudFileUpload T="IBrowserFile" 
+                                   FilesChanged="OnImageSelected"
+                                   Accept=".jpg,.jpeg,.png,.gif,.webp"
+                                   MaximumFileCount="1">
+                        <ActivatorContent>
+                            <MudIconButton Icon="@Icons.Material.Filled.CameraAlt" 
+                                           Color="Color.Primary" 
+                                           Size="Size.Medium"
+                                           Class="avatar-edit-btn" />
+                        </ActivatorContent>
+                    </MudFileUpload>
+                </MudStack>
             </div>
 
             <MudStack Spacing="0" AlignItems="AlignItems.Center">
@@ -89,6 +102,7 @@
     private string _editingName = string.Empty;
     private bool _isSaving = false;
     private string? _profileImageBase64;
+    private const int MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,29 +123,96 @@
     {
         if (file == null) return;
 
-        if (file.Size > 500 * 1024)
+        if (file.Size > MAX_IMAGE_SIZE_BYTES)
         {
-            SnackbarService.Add("La imagen debe ser menor a 500KB", Severity.Warning);
+            SnackbarService.Add("La imagen debe ser menor a 2MB", Severity.Warning);
             return;
         }
 
+        _isSaving = true;
+
         try
         {
-            using var stream = file.OpenReadStream(maxAllowedSize: 500 * 1024);
+            using var stream = file.OpenReadStream(maxAllowedSize: MAX_IMAGE_SIZE_BYTES);
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream);
             var bytes = memoryStream.ToArray();
-            _profileImageBase64 = Convert.ToBase64String(bytes);
+
+            var compressedBase64 = await CompressImageAsync(bytes);
             
             if (AuthService.CurrentUser != null)
             {
-                await AuthService.SaveUserProfileImageAsync(AuthService.CurrentUser.Id, _profileImageBase64);
+                await AuthService.SaveUserProfileImageAsync(AuthService.CurrentUser.Id, compressedBase64);
             }
+            
+            _profileImageBase64 = compressedBase64;
             SnackbarService.Add("Foto de perfil actualizada", Severity.Success);
         }
         catch (Exception ex)
         {
             SnackbarService.Add("Error al procesar la imagen", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task<string> CompressImageAsync(byte[] imageBytes)
+    {
+        var originalBytes = imageBytes.Length;
+        Console.WriteLine($"[ImageCompression] Original: {originalBytes:N0} bytes ({originalBytes / 1024.0:F1} KB)");
+        
+        using var inputStream = new MemoryStream(imageBytes);
+        using var outputStream = new MemoryStream();
+        
+        using var image = await SixLabors.ImageSharp.Image.LoadAsync(inputStream);
+        
+        var newWidth = image.Width / 2;
+        var newHeight = image.Height / 2;
+        
+        if (newWidth < 50) newWidth = 50;
+        if (newHeight < 50) newHeight = 50;
+        
+        image.Mutate(x => x.Resize(newWidth, newHeight));
+        
+        await image.SaveAsJpegAsync(outputStream, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 80 });
+        
+        var compressedBytes = outputStream.Length;
+        var savings = ((double)(originalBytes - compressedBytes) / originalBytes * 100);
+        Console.WriteLine($"[ImageCompression] Comprimido: {compressedBytes:N0} bytes ({compressedBytes / 1024.0:F1} KB)");
+        Console.WriteLine($"[ImageCompression] Reducción: {savings:F1}% ({originalBytes - compressedBytes:N0} bytes)");
+        
+        return Convert.ToBase64String(outputStream.ToArray());
+    }
+
+    private async Task DeleteProfileImage()
+    {
+        if (AuthService.CurrentUser == null) return;
+
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        parameters.Add(x => x.ContentText, "¿Eliminar tu foto de perfil?");
+        parameters.Add(x => x.ButtonText, "Eliminar");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>("Confirmar", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: true })
+        {
+            _isSaving = true;
+            var success = await AuthService.DeleteUserProfileImageAsync(AuthService.CurrentUser.Id);
+            _isSaving = false;
+
+            if (success)
+            {
+                _profileImageBase64 = null;
+                SnackbarService.Add("Foto de perfil eliminada", Severity.Success);
+            }
+            else
+            {
+                SnackbarService.Add("Error al eliminar la foto", Severity.Error);
+            }
         }
     }
 
@@ -187,16 +268,27 @@
         border-radius: 50% !important;
     }
     
-    .avatar-edit-btn {
+    .avatar-action-buttons {
         position: absolute;
         bottom: -5px;
         right: -5px;
+        gap: 2px !important;
+    }
+    
+    .avatar-edit-btn, .avatar-delete-btn {
         background: var(--mud-palette-surface) !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        width: 32px;
+        height: 32px;
     }
     
     .avatar-edit-btn:hover {
         background: var(--mud-palette-primary) !important;
+        color: white !important;
+    }
+    
+    .avatar-delete-btn:hover {
+        background: var(--mud-palette-error) !important;
         color: white !important;
     }
 </style>

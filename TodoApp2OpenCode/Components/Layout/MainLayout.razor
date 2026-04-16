@@ -43,6 +43,23 @@
             z-index: 2000;
             padding-right: 24px;
         }
+        
+        .user-menu-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .user-avatar-wrapper {
+            overflow: hidden;
+        }
+        
+        .user-avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
     </style>
     <MudAppBar Elevation="3" Class="app-navbar">
             @if (AuthService.CurrentUser != null)
@@ -57,13 +74,35 @@
         
         @if (IsAuthenticated)
         {
-            <MudMenu Label="@CurrentUsername" 
-                     Color="Color.Primary" 
-                     Variant="Variant.Text"
-                     AnchorOrigin="Origin.BottomRight"
-                     TransformOrigin="Origin.TopRight"
-                     StartIcon="@Icons.Material.Filled.Person"
-                     EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+            <MudMenu AnchorOrigin="Origin.BottomRight"
+                     TransformOrigin="Origin.TopRight">
+                <ActivatorContent>
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="cursor-pointer">
+                        <MudAvatar Color="Color.Primary" Size="Size.Medium" Class="user-avatar-wrapper">
+                            @if (!string.IsNullOrEmpty(_profileImageBase64))
+                            {
+                                <img src="@($"data:image/jpeg;base64,{_profileImageBase64}")" class="user-avatar-img" />
+                            }
+                            else
+                            {
+                                @GetAvatarInitial()
+                            }
+                        </MudAvatar>
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2" Class="font-weight-bold">
+                                @(string.IsNullOrWhiteSpace(AuthService.CurrentUser?.Name) ? CurrentUsername : AuthService.CurrentUser?.Name)
+                            </MudText>
+                            @if (!string.IsNullOrWhiteSpace(AuthService.CurrentUser?.Name))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @@@CurrentUsername
+                                </MudText>
+                            }
+                        </MudStack>
+                        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Color="Color.Inherit" />
+                    </MudStack>
+                </ActivatorContent>
+                <ChildContent>
                 <MudMenuItem OnClick="NavigateToProfile">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" />
@@ -83,6 +122,7 @@
                         <span>Cerrar Sesión</span>
                     </MudStack>
                 </MudMenuItem>
+                </ChildContent>
             </MudMenu>
             <MudBadge Content="@UnreadNotificationCount" 
                       Color="Color.Error" 
@@ -227,6 +267,7 @@
     private bool _isDarkMode = true;
     private bool IsAuthenticated => AuthService.IsAuthenticated;
     private string CurrentUsername => AuthService.CurrentUser?.Username ?? "Usuario";
+    private string? _profileImageBase64;
     private MudTheme? _theme = null;
     private List<Notification> Notifications = new();
     private int UnreadNotificationCount = 0;
@@ -246,6 +287,10 @@
         AuthService.SetAuthStateChangedCallback(OnAuthStateChanged);
         await AuthService.CheckAuthStateAsync();
 
+        if (AuthService.CurrentUser != null)
+        {
+            _profileImageBase64 = await AuthService.GetUserProfileImageAsync(AuthService.CurrentUser.Id);
+        }
 
         await LoadNotifications();
 
@@ -548,4 +593,10 @@
         true => Icons.Material.Filled.LightMode,
         false => Icons.Material.Filled.DarkMode,
     };
+
+    private string GetAvatarInitial()
+    {
+        var name = AuthService.CurrentUser?.Name ?? AuthService.CurrentUser?.Username ?? "?";
+        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+    }
 }

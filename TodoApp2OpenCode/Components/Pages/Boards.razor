@@ -75,6 +75,23 @@
         color: var(--mud-palette-text-secondary);
     }
 
+    .board-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+    }
+
+    .owner-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .participant-avatars :deep(.mud-avatar-group .mud-avatar) {
+        margin-left: -8px !important;
+    }
+
 </style>
 
 <div class="boards-page">
@@ -102,7 +119,40 @@
                     <div class="board-card-meta">
                         @(board.Columns?.Count ?? 0) columnas · @(board.Items?.Count ?? 0) tareas
                     </div>
-                    <MudChip T="string" Icon="@Icons.Material.Filled.Person" Style="margin-top:8px">@board.OwnerName</MudChip>
+                    <div class="board-card-footer">
+                        <div class="owner-info">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">
+                                @if (!string.IsNullOrEmpty(_ownerImages.GetValueOrDefault(board.User)))
+                                {
+                                    <img src="@($"data:image/jpeg;base64,{_ownerImages[board.User]}")" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                }
+                                else
+                                {
+                                    @GetUserInitial(board.OwnerName)
+                                }
+                            </MudAvatar>
+                            <MudText Typo="Typo.body2">@board.OwnerName</MudText>
+                        </div>
+                        @if (board.Participants != null && board.Participants.Any())
+                        {
+                            var participantIds = board.Participants.Keys.Take(5).ToList();
+                            <MudAvatarGroup Max="4" Spacing="3" MaxColor="Color.Primary" Class="participant-avatars">
+                                @foreach (var pid in participantIds)
+                                {
+                                    <MudAvatar Color="Color.Secondary" Size="Size.Small">
+                                        @if (!string.IsNullOrEmpty(_participantImages.GetValueOrDefault(pid)))
+                                        {
+                                            <img src="@($"data:image/jpeg;base64,{_participantImages[pid]}")" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                        }
+                                        else
+                                        {
+                                            @GetUserInitial(board.Participants.GetValueOrDefault(pid))
+                                        }
+                                    </MudAvatar>
+                                }
+                            </MudAvatarGroup>
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -112,6 +162,8 @@
 @code {
     private List<TodoBoard> userBoards = new();
     private bool isLoading = true;
+    private Dictionary<string, string?> _ownerImages = new();
+    private Dictionary<string, string?> _participantImages = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,6 +172,7 @@
         if (AuthService.CurrentUser != null)
         {
             userBoards = await BoardService.GetUserBoardsAsync(AuthService.CurrentUser.Id);
+            await LoadParticipantImagesAsync();
         }
         else
         {
@@ -127,6 +180,34 @@
         }
 
         isLoading = false;
+    }
+
+    private async Task LoadParticipantImagesAsync()
+    {
+        foreach (var board in userBoards)
+        {
+            if (!string.IsNullOrEmpty(board.User) && !_ownerImages.ContainsKey(board.User))
+            {
+                _ownerImages[board.User] = await AuthService.GetUserProfileImageAsync(board.User);
+            }
+
+            if (board.Participants != null)
+            {
+                foreach (var pid in board.Participants.Keys)
+                {
+                    if (!_participantImages.ContainsKey(pid))
+                    {
+                        _participantImages[pid] = await AuthService.GetUserProfileImageAsync(pid);
+                    }
+                }
+            }
+        }
+    }
+
+    private string GetUserInitial(string? userName)
+    {
+        if (string.IsNullOrEmpty(userName)) return "?";
+        return userName.Length > 0 ? userName[0].ToString().ToUpper() : "?";
     }
 
     private void NavigateToBoard(string boardId)

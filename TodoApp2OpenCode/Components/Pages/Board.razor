@@ -48,7 +48,16 @@ else
                 <MudMenu Color="Color.Default" Icon="@Icons.Material.Filled.People">
                     <MudMenuItem Disabled="_currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="participant-avatar">
+                                @if (!string.IsNullOrEmpty(_participantImages.GetValueOrDefault(_currentBoard?.User ?? "")))
+                                {
+                                    <img src="@($"data:image/jpeg;base64,{_participantImages[_currentBoard?.User ?? ""]}")" class="participant-avatar-img" />
+                                }
+                                else
+                                {
+                                    @GetUserInitial(_currentBoard?.OwnerName, _currentBoard?.User)
+                                }
+                            </MudAvatar>
                             @_currentBoard?.OwnerName
                             @if (_currentBoard?.OwnerName == AuthService.CurrentUser?.Username)
                             {
@@ -63,7 +72,16 @@ else
                         {
                             <MudMenuItem OnClick="@(() => ShowUserDetails(participant.Value, participant.Key))" Disabled="_currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                    <MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small" Color="Color.Primary" />
+                                    <MudAvatar Color="Color.Primary" Size="Size.Small" Class="participant-avatar">
+                                        @if (!string.IsNullOrEmpty(_participantImages.GetValueOrDefault(participant.Key)))
+                                        {
+                                            <img src="@($"data:image/jpeg;base64,{_participantImages[participant.Key]}")" class="participant-avatar-img" />
+                                        }
+                                        else
+                                        {
+                                            @GetUserInitial(participant.Value, participant.Key)
+                                        }
+                                    </MudAvatar>
                                     @participant.Value
                                     @if (participant.Value == AuthService.CurrentUser?.Username)
                                     {
@@ -364,6 +382,20 @@ else
         min-height: 100px;
         height: 100%;
     }
+
+    .participant-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+        overflow: hidden;
+    }
+
+    .participant-avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
 </style>
 @code {
     [Parameter]
@@ -382,6 +414,7 @@ else
     private bool isOwner = false;
 
     private List<TodoColumn> _columns = [];
+    private Dictionary<string, string?> _participantImages = new();
 
     private MudDropContainer<TodoItem>? _mudDropContainerRef;
 
@@ -426,6 +459,8 @@ else
         _columns = _currentBoard.Columns;
         _boardLoading = false;
         _isStillMember = true;
+
+        await LoadParticipantImagesAsync();
 
         _membershipCheckTimer?.Dispose();
         _membershipCheckTimer = new System.Threading.Timer(
@@ -821,6 +856,7 @@ else
         if (result is { Canceled: false })
         {
             await RemoveParticipant(participantId);
+            
         }
     }
     private void NavigateToLogs()
@@ -1001,4 +1037,30 @@ else
 	{
 		Navigation.NavigateTo("/board/not-found");
 	}
+
+    private async Task LoadParticipantImagesAsync()
+    {
+        if (_currentBoard == null) return;
+
+        var userIds = _currentBoard.Participants.Keys.ToList();
+        if (!string.IsNullOrEmpty(_currentBoard.User))
+        {
+            userIds.Add(_currentBoard.User);
+        }
+
+        foreach (var userId in userIds)
+        {
+            if (!_participantImages.ContainsKey(userId))
+            {
+                var image = await AuthService.GetUserProfileImageAsync(userId);
+                _participantImages[userId] = image;
+            }
+        }
+    }
+
+    private string GetUserInitial(string? userName, string? userId)
+    {
+        var name = userName ?? _currentBoard?.Participants.GetValueOrDefault(userId ?? "") ?? "?";
+        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+    }
 }
