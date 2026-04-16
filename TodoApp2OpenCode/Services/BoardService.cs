@@ -58,23 +58,7 @@ public class BoardService : IBoardService
         return board.User == userId;
     }
 
-    private bool CheckPermission(TodoBoard board, Func<BoardPermissions, bool> hasPermission)
-    {
-        var userId = _authService.CurrentUser?.Id;
-        if (string.IsNullOrEmpty(userId))
-            return false;
 
-        if (board.User != userId)
-        {
-            if (!board.ParticipantPermissions.TryGetValue(userId, out var perms) || perms == null)
-                return false;
-
-            if (!hasPermission(perms))
-                return false;
-        }
-
-        return true;
-    }
 
     public async Task<TodoBoard?> GetBoardAsync(string boardId)
     {
@@ -568,7 +552,7 @@ public class BoardService : IBoardService
             var board = await context.Boards.FindAsync(boardId);
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, null);
 
-            if (!CheckPermission(board, p => p.CanAddEvents))
+            if (!BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanAddEvents))
                 return (SystemMessages.PERMISSION_DENIED, null);
 
             var newEvent = new CalendarEvent
@@ -628,7 +612,7 @@ public class BoardService : IBoardService
             var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
             if (board == null) return (SystemMessages.DASHBOARD_REMOVED, false);
 
-            if (!CheckPermission(board, p => p.CanModifyEvents))
+            if (!BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanModifyEvents))
                 return (SystemMessages.PERMISSION_DENIED, false);
 
             var evt = await context.CalendarEvents.FirstOrDefaultAsync(x => x.Id == eventId);
@@ -727,7 +711,7 @@ public class BoardService : IBoardService
             if (evt == null) return (SystemMessages.EVENT_NOT_EXISTS, false);
 
 
-            if (!CheckPermission(board, p => p.CanDeleteEvents))
+            if (!BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanDeleteEvents))
                 return (SystemMessages.PERMISSION_DENIED, false);
 
             var eventTitle = evt.Title;
@@ -877,7 +861,7 @@ public class BoardService : IBoardService
 
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
-            if (!CheckPermission(board, p => p.CanEditColumn))
+            if (!BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanEditColumn))
                 return (SystemMessages.PERMISSION_DENIED, false);
 
             var dbColumn = board.Columns.FirstOrDefault(c => c.Id == column.Id);
@@ -919,7 +903,7 @@ public class BoardService : IBoardService
 
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
-            if (!CheckPermission(board, p => p.CanDeleteColumn))
+            if (!BoardUtils.CheckPermission(board, _authService.CurrentUser.Id, p => p.CanDeleteColumn))
                 return (SystemMessages.PERMISSION_DENIED, false);
 
             var column = board.Columns.FirstOrDefault(x => x.Id == columnId);

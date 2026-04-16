@@ -36,8 +36,11 @@
         }
     </style>
     <MudAppBar Elevation="1" Class="app-navbar">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        @* <MudText Typo="Typo.h5" Class="ml-3 cursor-pointer" @onclick="@((e) => Navigation.NavigateTo("/board"))">@Config.AppName</MudText> *@
+            @if (AuthService.CurrentUser != null)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+            }
+            @* <MudText Typo="Typo.h5" Class="ml-3 cursor-pointer" @onclick="@((e) => Navigation.NavigateTo("/board"))">@Config.AppName</MudText> *@
             <div class="cursor-pointer">
                 <AppLogo Typo="Typo.h5" OnClick="@(() => Navigation.NavigateTo("/board"))" />
             </div>
@@ -165,9 +168,12 @@
         
         <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggle" />
     </MudAppBar>
-    <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <NavMenu />
-    </MudDrawer>
+    @if (AuthService.CurrentUser != null)
+    {
+        <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+            <NavMenu />
+        </MudDrawer>
+    }
     <MudMainContent Class="pt-16 pa-4 board-page-bg">
         @Body
     </MudMainContent>
