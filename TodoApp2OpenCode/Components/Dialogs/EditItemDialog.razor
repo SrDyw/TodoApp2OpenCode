@@ -261,7 +261,7 @@
 
     private void AddStep()
     {
-        editingSteps.Add(new TodoStep { Name = "" });
+        editingSteps.Add(new TodoStep { Name = "", Order = editingSteps.Count });
     }
 
     private void RemoveStep(TodoStep step)

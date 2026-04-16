@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TodoApp2OpenCode.Constants;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
 
@@ -754,6 +755,36 @@ public class BoardService : IBoardService
         catch
         {
             return new List<TodoItem>();
+        }
+    }
+
+    public async Task<(string, bool)> AddColumnAsync(string boardId, TodoColumn column)
+    {
+        try
+        {
+            var board = await GetBoardAsync(boardId);
+            if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
+
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            await context.Columns.AddAsync(column);
+
+            //board.Columns.Add(column);
+
+            await context.SaveChangesAsync();
+            await _logService.AddLogAsync(new LogItem
+            {
+                Message = $"Añade columna {column.Name} al tablero {board.Name}",
+                Action = DatabaseAction.Crear,
+                BoardId = boardId,
+                User = _authService.CurrentUser!.Username
+            });
+
+            return (SystemMessages.COLUMN_ADDED.Replace(":column", column.Name), true);
+        }
+        catch
+        {
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, false);
         }
     }
 }

@@ -279,30 +279,31 @@
         parameters.Add(x => x.Columns, columns);
         parameters.Add(x => x.Participants, participants);
 
+        var originColumnId = Item.ColumnId;
+
         var dialog = await DialogService.ShowAsync<EditItemDialog>("Editar Tarea", parameters);
         var result = await dialog.Result;
 
         if (result is { Canceled: false, Data: EditItemDialog.EditItemResult editResult })
         {
-            await TodoService.UpdateItemAsync(BoardId, editResult.Item);
-
-            if (editResult.Item.ColumnId != Item.ColumnId)
+            var (msg, success) = await TodoService.UpdateItemAsync(BoardId, editResult.Item);
+            if (success)
             {
-                await TodoService.MoveItemToColumnAsync(BoardId, editResult.Item.Id, null, editResult.Item.ColumnId);
-            }
 
-            if (!string.IsNullOrEmpty(editResult.Item.Description))
-            {
-                await LogService.AddLogAsync(new LogItem
+                SnackbarService.Add("Tarea actualizada", Severity.Success);
+                if (originColumnId != editResult.Item.ColumnId)
                 {
-                    Action = DatabaseAction.Actualizar,
-                    BoardId = BoardId,
-                    Message = $"Actualiza tarea '{editResult.Item.Title}'",
-                    User = AuthService.CurrentUser?.Username ?? ""
-                });
+                    var (boardUpdated, msgMove) = await TodoService.MoveItemAsync(editResult.Item.Id, BoardId, -1, editResult.Item.ColumnId);
+                    if (boardUpdated == null)
+                    {
+                        SnackbarService.Add(msgMove, Severity.Error);
+                    }
+                }
             }
-
-            SnackbarService.Add("Tarea actualizada", Severity.Success);
+            else
+            {
+                SnackbarService.Add(msg, Severity.Error);
+            }
             await ItemUpdated.InvokeAsync(editResult.Item);
         }
     }
