@@ -14,6 +14,10 @@ public interface IAuthService
     void SetLastVisitedBoard(string boardId);
     string? GetLastVisitedBoard();
     void SetAuthStateChangedCallback(Action<User?> callback);
+    Task<bool> UpdateUserNameAsync(string userId, string name);
+    Task<string?> GetUserProfileImageAsync(string userId);
+    Task<bool> SaveUserProfileImageAsync(string userId, string base64Image);
+    Task<bool> DeleteUserProfileImageAsync(string userId);
 }
 
 public class UserInfo

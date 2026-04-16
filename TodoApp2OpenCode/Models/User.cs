@@ -22,5 +22,8 @@ public class User
     [MaxLength(64)]
     public string PasswordHash { get; set; } = string.Empty;
 
+    [MaxLength(100)]
+    public string? Name { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 }

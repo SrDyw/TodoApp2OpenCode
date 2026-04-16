@@ -64,6 +64,12 @@
                      TransformOrigin="Origin.TopRight"
                      StartIcon="@Icons.Material.Filled.Person"
                      EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+                <MudMenuItem OnClick="NavigateToProfile">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" />
+                        <span>Mi Perfil</span>
+                    </MudStack>
+                </MudMenuItem>
                 <MudMenuItem OnClick="NavigateToMySchedule">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.EventNote" Size="Size.Small" />
@@ -410,6 +416,11 @@
     private void NavigateToMySchedule()
     {
         Navigation.NavigateTo("/my-schedule", forceLoad: true);
+    }
+
+    private void NavigateToProfile()
+    {
+        Navigation.NavigateTo("/profile", forceLoad: true);
     }
 
     private async Task OnNotificationClick(Notification notification)

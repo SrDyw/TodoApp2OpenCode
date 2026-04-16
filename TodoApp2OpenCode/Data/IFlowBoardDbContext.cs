@@ -14,6 +14,7 @@ public interface IFlowBoardDbContext : IAsyncDisposable
     DbSet<User> Users { get; set; }
     DbSet<CalendarEvent> CalendarEvents { get; set; }
     DbSet<Notification> Notifications { get; set; }
+    DbSet<UserProfileImage> UserProfileImages { get; set; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

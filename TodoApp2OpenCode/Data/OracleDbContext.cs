@@ -28,6 +28,7 @@ public class OracleDbContext : DbContext, IFlowBoardDbContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<CalendarEvent> CalendarEvents { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<UserProfileImage> UserProfileImages { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -88,6 +89,12 @@ public class OracleDbContext : DbContext, IFlowBoardDbContext
         {
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.Username);
+        });
+
+        modelBuilder.Entity<UserProfileImage>(entity =>
+        {
+            entity.Property(e => e.ImageBase64Clob)
+                .HasColumnType("CLOB");
         });
     }
 }

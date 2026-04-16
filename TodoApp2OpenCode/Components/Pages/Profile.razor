@@ -1,0 +1,202 @@
+@page "/profile"
+
+<PageTitle>Mi Perfil - TodoPila</PageTitle>
+
+@inject IAuthService AuthService
+@inject ISnackbar SnackbarService
+@inject NavigationManager Navigation
+
+<PageTitle>Mi Perfil - TodoPila</PageTitle>
+
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="2" Class="pa-6" Style="border-radius: 16px;">
+        <MudStack Spacing="4" AlignItems="AlignItems.Center">
+            <div class="avatar-container">
+                <MudAvatar Color="Color.Primary" Class="profile-avatar">
+                    @if (!string.IsNullOrEmpty(_profileImageBase64))
+                    {
+                        <MudImage Src="@($"data:image/jpeg;base64,{_profileImageBase64}")" Class="profile-image" />
+                    }
+                    else
+                    {
+                        @GetAvatarInitial()
+                    }
+                </MudAvatar>
+                
+                <MudFileUpload T="IBrowserFile" 
+                               FilesChanged="OnImageSelected"
+                               Accept=".jpg,.jpeg,.png,.gif,.webp"
+                               MaximumFileCount="1"
+                               Style="position: absolute; bottom: 0; right: 0;">
+                    <ActivatorContent>
+                        <MudIconButton Icon="@Icons.Material.Filled.CameraAlt" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Medium"
+                                       Class="avatar-edit-btn" />
+                    </ActivatorContent>
+                </MudFileUpload>
+            </div>
+
+            <MudStack Spacing="0" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    @(string.IsNullOrWhiteSpace(AuthService.CurrentUser?.Name) ? "Añadir nombre" : AuthService.CurrentUser?.Name)
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Primary">
+                    @@@AuthService.CurrentUser?.Username
+                </MudText>
+            </MudStack>
+
+            <MudDivider Class="w-100 my-2" />
+
+            <MudStack Spacing="2" Style="width:100%">
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Nombre</MudText>
+                <MudTextField @bind-Value="_editingName" 
+                             Placeholder="Escribe tu nombre" 
+                             FullWidth
+                             Immediate="true"
+                             AutoFocus="true"
+                             Adornment="Adornment.End"
+                             AdornmentIcon="@Icons.Material.Filled.Edit"
+                             MaxLength="100" />
+            </MudStack>
+
+            <MudButton Color="Color.Primary" 
+                       Variant="Variant.Filled" 
+                       FullWidth="true"
+                       OnClick="SaveName"
+                       Disabled="_isSaving">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Guardar
+            </MudButton>
+
+            <MudStack Row="true" Spacing="1" Class="w-100 mt-4">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Email:</MudText>
+                <MudText Typo="Typo.caption">@AuthService.CurrentUser?.Email</MudText>
+            </MudStack>
+
+            <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                Miembro desde @AuthService.CurrentUser?.CreatedAt.ToString("dd/MM/yyyy")
+            </MudText>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _editingName = string.Empty;
+    private bool _isSaving = false;
+    private string? _profileImageBase64;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _editingName = AuthService.CurrentUser?.Name ?? string.Empty;
+        if (AuthService.CurrentUser != null)
+        {
+            _profileImageBase64 = await AuthService.GetUserProfileImageAsync(AuthService.CurrentUser.Id);
+        }
+    }
+
+    private string GetAvatarInitial()
+    {
+        var name = AuthService.CurrentUser?.Name ?? AuthService.CurrentUser?.Username ?? "?";
+        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+    }
+
+    private async Task OnImageSelected(IBrowserFile? file)
+    {
+        if (file == null) return;
+
+        if (file.Size > 500 * 1024)
+        {
+            SnackbarService.Add("La imagen debe ser menor a 500KB", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 500 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var bytes = memoryStream.ToArray();
+            _profileImageBase64 = Convert.ToBase64String(bytes);
+            
+            if (AuthService.CurrentUser != null)
+            {
+                await AuthService.SaveUserProfileImageAsync(AuthService.CurrentUser.Id, _profileImageBase64);
+            }
+            SnackbarService.Add("Foto de perfil actualizada", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            SnackbarService.Add("Error al procesar la imagen", Severity.Error);
+        }
+    }
+
+    private async Task SaveName()
+    {
+        if (string.IsNullOrWhiteSpace(_editingName) && string.IsNullOrWhiteSpace(AuthService.CurrentUser?.Name))
+        {
+            SnackbarService.Add("Escribe un nombre", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+
+        var success = await AuthService.UpdateUserNameAsync(
+            AuthService.CurrentUser!.Id, 
+            _editingName);
+
+        _isSaving = false;
+
+        if (success)
+        {
+            SnackbarService.Add("Nombre actualizado", Severity.Success);
+            Navigation.NavigateTo("/profile");
+        }
+        else
+        {
+            SnackbarService.Add("Error al guardar", Severity.Error);
+        }
+    }
+}
+
+<style>
+    .mud-stack > .mud-typography {
+        text-align: center;
+    }
+    
+    .avatar-container {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .profile-avatar {
+        width: 120px !important;
+        height: 120px !important;
+        font-size: 3rem !important;
+        border-radius: 50% !important;
+    }
+    
+    .profile-image {
+        width: 120px !important;
+        height: 120px !important;
+        object-fit: cover !important;
+        border-radius: 50% !important;
+    }
+    
+    .avatar-edit-btn {
+        position: absolute;
+        bottom: -5px;
+        right: -5px;
+        background: var(--mud-palette-surface) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .avatar-edit-btn:hover {
+        background: var(--mud-palette-primary) !important;
+        color: white !important;
+    }
+</style>

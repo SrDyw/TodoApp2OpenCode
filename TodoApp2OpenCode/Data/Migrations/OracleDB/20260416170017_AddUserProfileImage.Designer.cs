@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using TodoApp2OpenCode.Data;
 
 #nullable disable
 
-namespace TodoApp2OpenCode.Migrations.OracleDB
+namespace TodoApp2OpenCode.Data.Migrations.OracleDB
 {
     [DbContext(typeof(OracleDbContext))]
-    partial class OracleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260416170017_AddUserProfileImage")]
+    partial class AddUserProfileImage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -361,11 +364,8 @@ namespace TodoApp2OpenCode.Migrations.OracleDB
                         .HasColumnType("TIMESTAMP(7)");
 
                     b.Property<string>("ImageBase64")
-                        .HasMaxLength(2000)
+                        .IsRequired()
                         .HasColumnType("NVARCHAR2(2000)");
-
-                    b.Property<string>("ImageBase64Clob")
-                        .HasColumnType("CLOB");
 
                     b.Property<string>("UserId")
                         .IsRequired()

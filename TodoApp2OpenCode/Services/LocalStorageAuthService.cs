@@ -197,4 +197,101 @@ public class LocalStorageAuthService : IAuthService
             .Select(u => new UserInfo { Id = u.Id, Username = u.Username, Email = u.Email })
             .ToList();
     }
+
+    public async Task<bool> UpdateUserNameAsync(string userId, string name)
+    {
+        try
+        {
+            var users = await GetUsersAsync();
+            var user = users.FirstOrDefault(u => u.Id == userId);
+            if (user == null) return false;
+
+            user.Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+            await SaveUsersAsync(users);
+
+            if (_currentUser?.Id == userId)
+            {
+                _currentUser.Name = user.Name;
+            }
+            
+            await SaveCurrentUserAsync(_currentUser!);
+            _onAuthStateChangedAction?.Invoke(_currentUser);
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private const string PROFILE_IMAGES_KEY = "flowboard_profile_images";
+
+    public async Task<string?> GetUserProfileImageAsync(string userId)
+    {
+        try
+        {
+            var images = await GetProfileImagesAsync();
+            return images.GetValueOrDefault(userId);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> SaveUserProfileImageAsync(string userId, string base64Image)
+    {
+        try
+        {
+            var images = await GetProfileImagesAsync();
+            images[userId] = base64Image;
+            await SaveProfileImagesAsync(images);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteUserProfileImageAsync(string userId)
+    {
+        try
+        {
+            var images = await GetProfileImagesAsync();
+            if (images.ContainsKey(userId))
+            {
+                images.Remove(userId);
+                await SaveProfileImagesAsync(images);
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<Dictionary<string, string>> GetProfileImagesAsync()
+    {
+        try
+        {
+            var json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", PROFILE_IMAGES_KEY);
+            if (string.IsNullOrEmpty(json))
+                return new Dictionary<string, string>();
+
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
+        }
+        catch
+        {
+            return new Dictionary<string, string>();
+        }
+    }
+
+    private async Task SaveProfileImagesAsync(Dictionary<string, string> images)
+    {
+        var json = JsonSerializer.Serialize(images);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", PROFILE_IMAGES_KEY, json);
+    }
 }

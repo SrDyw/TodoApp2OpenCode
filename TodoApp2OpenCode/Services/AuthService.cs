@@ -206,4 +206,100 @@ public class AuthService : IAuthService
         result.AddRange(users);
         return result;
     }
+
+    public async Task<bool> UpdateUserNameAsync(string userId, string name)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var user = await context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            user.Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+            await context.SaveChangesAsync();
+
+            if (_currentUser?.Id == userId)
+            {
+                _currentUser.Name = user.Name;
+            }
+            _onAuthStateChangedAction?.Invoke(_currentUser);
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<string?> GetUserProfileImageAsync(string userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var profileImage = await context.UserProfileImages
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.UserId == userId);
+            return profileImage?.ImageBase64Clob ?? profileImage?.ImageBase64;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> SaveUserProfileImageAsync(string userId, string base64Image)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var existingImage = await context.UserProfileImages
+                .FirstOrDefaultAsync(x => x.UserId == userId);
+
+            if (existingImage != null)
+            {
+                existingImage.ImageBase64Clob = base64Image;
+            }
+            else
+            {
+                var newImage = new UserProfileImage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    UserId = userId,
+                    ImageBase64Clob = base64Image,
+                    CreatedAt = DateTime.Now
+                };
+                await context.UserProfileImages.AddAsync(newImage);
+            }
+
+            await context.SaveChangesAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteUserProfileImageAsync(string userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var profileImage = await context.UserProfileImages
+                .FirstOrDefaultAsync(x => x.UserId == userId);
+
+            if (profileImage != null)
+            {
+                context.UserProfileImages.Remove(profileImage);
+                await context.SaveChangesAsync();
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }
