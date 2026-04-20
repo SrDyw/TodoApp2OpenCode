@@ -22,4 +22,5 @@ public interface IBoardService
     Task<(string, bool)> AddColumnAsync(string boardId, TodoColumn column);
     Task<(string, bool)> UpdateColumnAsync(string boardId, TodoColumn column);
     Task<(string, bool)> DeleteColumnAsync(string boardId, string columnId);
+    Task<string?> GetBoardNameAsync(string boardId);
 }

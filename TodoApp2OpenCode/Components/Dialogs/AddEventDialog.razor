@@ -115,7 +115,7 @@
             MaxWidth = MaxWidth.Small
         };
 
-        var dialog = await DialogService.ShowAsync<UserSelectionDialog>("Seleccionar participantes", parameters, options);
+        var dialog = await DialogService.ShowAsync<UserSelectionDialog>("¿Quienes participan en el evento?", parameters, options);
         var result = await dialog.Result;
         
         if (result is { Canceled: false, Data: List<(string Id, string Username)> selectedUsers })

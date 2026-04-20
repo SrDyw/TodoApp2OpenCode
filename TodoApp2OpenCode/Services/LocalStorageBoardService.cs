@@ -468,4 +468,9 @@ public class LocalStorageBoardService : IBoardService
     {
         throw new NotImplementedException();
     }
+
+    public Task<string?> GetBoardNameAsync(string boardId)
+    {
+        throw new NotImplementedException();
+    }
 }

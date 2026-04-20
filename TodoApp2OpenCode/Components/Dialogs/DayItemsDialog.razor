@@ -1,4 +1,6 @@
 @namespace TodoApp2OpenCode.Components.Dialogs
+@inject IBoardService BoardService
+
 <MudDialog ContentStyle="max-height: 80vh; overflow-y: auto;">
     <DialogContent>
         <MudText Typo="Typo.h6" Class="mb-3">Actividades para el @Date.ToString("dd/MM/yyyy")</MudText>
@@ -26,9 +28,17 @@
                                      Color="Color.Success" />
                         </div>
                         <div class="event-details">
-                            <MudText Typo="Typo.body1" Class="event-title">
-                                @evt.Title
-                            </MudText>
+                            <div class="event-title-group">
+                                <MudText Typo="Typo.body1" Class="event-title">
+                                    @evt.Title
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(evt.TodoBoardId) && _boardNames.TryGetValue(evt.TodoBoardId, out var eventBoardName))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Primary" Class="board-name">
+                                        Tablero: @eventBoardName
+                                    </MudText>
+                                }
+                            </div>
                             @if (!string.IsNullOrEmpty(evt.Description))
                             {
                                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="event-description">
@@ -74,9 +84,17 @@
                                  Size="Size.Small" 
                                  Class="item-indicator"
                                  Color="@(item.IsCompleted ? Color.Success : (item.Priority == TodoPriority.High ? Color.Error : Color.Default))" />
-                        <MudText Typo="Typo.body1" Class="item-title">
-                            @item.Title
-                        </MudText>
+                        <div class="item-title-group">
+                            <MudText Typo="Typo.body1" Class="item-title">
+                                @item.Title
+                            </MudText>
+                            @if (!string.IsNullOrEmpty(item.TodoBoardId) && _boardNames.TryGetValue(item.TodoBoardId, out var itemBoardName))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Primary" Class="board-name">
+                                    Tablero: @itemBoardName
+                                </MudText>
+                            }
+                        </div>
                         @if (item.Priority == TodoPriority.High)
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Error" Class="ml-2">
@@ -150,6 +168,11 @@
         min-width: 0;
     }
 
+    .event-title-group {
+        display: flex;
+        flex-direction: column;
+    }
+
     .event-title {
         font-weight: 500;
         color: var(--mud-palette-text-primary);
@@ -187,7 +210,7 @@
 
     .item-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
     }
 
@@ -199,8 +222,13 @@
         color: var(--mud-palette-error);
     }
 
-    .item-title {
+    .item-title-group {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .item-title {
         font-weight: 500;
     }
 
@@ -214,6 +242,11 @@
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+
+    .board-name {
+        font-weight: 500;
+        margin-top: 2px;
     }
 </style>
 
@@ -230,6 +263,9 @@
     [Parameter]
     public List<CalendarEvent> Events { get; set; } = new();
 
+
+    private Dictionary<string, string> _boardNames = [];
+
     private List<TodoItem> ItemsForDay => Items.Where(i => 
         i.DueDate?.Date == Date.Date ||
         (i.StartDate.HasValue && i.EndDate.HasValue && Date.Date >= i.StartDate.Value.Date && Date.Date <= i.EndDate.Value.Date) ||
@@ -237,6 +273,41 @@
     ).ToList();
 
     private List<CalendarEvent> EventsForDay => Events.Where(e => e.EventDate.Date == Date.Date).ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        
+        var boardIds = new HashSet<string>();
+        
+        foreach (var item in ItemsForDay)
+        {
+            if (!string.IsNullOrEmpty(item.TodoBoardId))
+            {
+                boardIds.Add(item.TodoBoardId);
+            }
+        }
+        
+        foreach (var evt in EventsForDay)
+        {
+            if (!string.IsNullOrEmpty(evt.TodoBoardId))
+            {
+                boardIds.Add(evt.TodoBoardId);
+            }
+        }
+        
+        foreach (var boardId in boardIds)
+        {
+            if (!_boardNames.ContainsKey(boardId))
+            {
+                var boardName = await BoardService.GetBoardNameAsync(boardId);
+                if (!string.IsNullOrEmpty(boardName))
+                {
+                    _boardNames[boardId] = boardName;
+                }
+            }
+        }
+    }
 
     private void GoToEvent(CalendarEvent evt)
     {

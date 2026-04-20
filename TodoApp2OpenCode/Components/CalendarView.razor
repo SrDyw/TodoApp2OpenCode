@@ -10,7 +10,14 @@
                 Volver al tablero
             </MudButton>
         }
-        
+
+        @if (!string.IsNullOrWhiteSpace(Alert))
+        {
+            <MudAlert Severity="Severity.Info">
+                @Alert
+            </MudAlert>
+        }
+
         <div style="display:flex; justify-content:end; flex-direction:column">
             <MudText Typo="Typo.h6" Class="schedule-title" Style="text-align: end">
                 @Title
@@ -514,6 +521,8 @@
 
     [Parameter]
     public bool ShowSidebar { get; set; } = true;
+    [Parameter]
+    public string Alert { get; set; } = "";
 
     [Parameter]
     public List<TodoItem> Items { get; set; } = new();

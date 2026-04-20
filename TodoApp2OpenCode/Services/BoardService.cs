@@ -938,5 +938,19 @@ public class BoardService : IBoardService
         }
     }
 
-
+    public async Task<string?> GetBoardNameAsync(string boardId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var board = await context.Boards
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Id == boardId);
+            return board?.Name;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
