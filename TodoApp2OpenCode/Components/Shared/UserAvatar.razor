@@ -1,0 +1,42 @@
+﻿
+<MudAvatar Color="Color.Primary" Size="Size" Class="participant-avatar">
+    @if (!string.IsNullOrEmpty(UserProfileImage))
+    {
+        <img src="@($"data:image/jpeg;base64,{UserProfileImage}")" class="participant-avatar-img" />
+    }
+    else
+    {
+        @GetUserInitial(Username)
+    }
+</MudAvatar>
+<style>
+    .participant-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+        overflow: hidden;
+    }
+
+    .participant-avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+</style>
+@code 
+{
+    [Parameter]
+    public string? Username { get; set; }
+    [Parameter]
+    public string? UserProfileImage { get; set; }
+    [Parameter]
+    public Size Size { get; set; } = Size.Small;
+
+
+    private string GetUserInitial(string? userName)
+    {
+        var name = userName ?? "?";
+        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+    }
+}

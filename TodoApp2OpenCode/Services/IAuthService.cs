@@ -16,6 +16,7 @@ public interface IAuthService
     void SetAuthStateChangedCallback(Action<User?> callback);
     Task<bool> UpdateUserNameAsync(string userId, string name);
     Task<string?> GetUserProfileImageAsync(string userId);
+    Task<(string, User?)> GetUserAsync(string userId);
     Task<bool> SaveUserProfileImageAsync(string userId, string base64Image);
     Task<bool> DeleteUserProfileImageAsync(string userId);
 }

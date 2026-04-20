@@ -294,4 +294,9 @@ public class LocalStorageAuthService : IAuthService
         var json = JsonSerializer.Serialize(images);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", PROFILE_IMAGES_KEY, json);
     }
+
+    public Task<(string, User?)> GetUserAsync(string userId)
+    {
+        throw new NotImplementedException();
+    }
 }

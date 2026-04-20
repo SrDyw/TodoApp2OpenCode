@@ -30,5 +30,8 @@ namespace TodoApp2OpenCode.Constants
         public const string EVENT_NOT_EXISTS = "El evento no existe o ha sido eliminado";
         public const string EVENT_UPDATED = "Evento actualizado correctamente";
         public const string EVENT_REMOVED = "Evento eliminado correctamente";
+
+        public const string USER_DOESNT_EXISTS = "El usuario no existe";
+        public const string USER_FETCH_SUCCESS = "Usuario encontrado con éxito";
     }
 }

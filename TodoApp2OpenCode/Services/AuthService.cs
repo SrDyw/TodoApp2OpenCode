@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using TodoApp2OpenCode.Configurations;
+using TodoApp2OpenCode.Constants;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
 
@@ -241,6 +242,63 @@ public class AuthService : IAuthService
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.UserId == userId);
             return profileImage?.ImageBase64Clob ?? profileImage?.ImageBase64;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<(string, User?)> GetUserAsync(string userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var user = await context.Users
+                .AsNoTracking()
+                .Select(x => new User
+                {
+                    CreatedAt = x.CreatedAt,
+                    Email = x.Email,
+                    Id = x.Id,
+                    Name = x.Name,
+                    Username = x.Username,
+                })
+                .FirstOrDefaultAsync(x => x.Id == userId);
+            if (user == null)
+            {
+                return (SystemMessages.USER_DOESNT_EXISTS, null);
+            }
+            return (SystemMessages.USER_FETCH_SUCCESS, user);
+        }
+        catch
+        {
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, null);
+        }
+    }
+
+    public async Task<Dictionary<string, User>?> GetUsersAsync(List<string> userId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var users = await context.Users
+                .AsNoTracking()
+                .Select(x => new User
+                {
+                    CreatedAt = x.CreatedAt,
+                    Email = x.Email,
+                    Id = x.Id,
+                    Name = x.Name,
+                    Username = x.Username,
+                })
+                .Where(x => userId.Contains(x.Id))
+                .ToListAsync();
+
+            var usersDic = new Dictionary<string, User>();
+            users.ForEach(x => usersDic.Add(x.Id, x));
+
+            return usersDic;
         }
         catch
         {

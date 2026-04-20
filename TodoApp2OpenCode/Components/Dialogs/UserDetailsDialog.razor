@@ -1,32 +1,47 @@
 @namespace TodoApp2OpenCode.Components.Dialogs
 @inject IDialogService DialogService
+@inject ISnackbar SnackbarService;
+@inject IBoardService BoardService;
+@inject IAuthService AuthService;
+@inject NavigationManager Navigation;
+@inject BoardParticipantsService ParticipantsService;
+
 @using TodoApp2OpenCode.Models
-<MudDialog>
+<MudDialog ContentStyle="width: 500px; max-width: 500px;">
     <DialogContent>
         <div class="user-details-content">
-            <MudAvatar Color="Color.Primary" Size="Size.Large" Class="mb-3">
-                @UserName?.FirstOrDefault()
-            </MudAvatar>
+            <div style="width:200px; aspect-ratio: 1; display:flex; justify-content:center;align-items:center">
+                <div style="transform: scale(3)">
+                    <UserAvatar Size="Size.Large" Username="@UserName" UserProfileImage="@UserProfileImage" />
+                </div>
+            </div>
             
             <MudText Typo="Typo.h5" Class="mb-2">
                 @UserName
             </MudText>
             
             <MudDivider Class="my-3" />
-            
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                ID: @UserId
-            </MudText>
+
             
             @if (!string.IsNullOrEmpty(BoardId))
             {
                 <MudButton Color="Color.Primary" 
-                           Variant="Variant.Outlined" 
+                           Variant="Variant.Filled" 
+                           StartIcon="@Icons.Material.Filled.PermIdentity"
                            Class="mt-4"
+                           FullWidth
                            OnClick="ManagePermissions">
                     Gestionar Permisos
                 </MudButton>
             }
+            <MudButton Color="Color.Error"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Close"
+                       Class="mt-4"
+                       FullWidth
+                       OnClick="@(() => RemoveParticipant(UserId))">
+                Remover del tablero
+            </MudButton>
         </div>
     </DialogContent>
     <DialogActions>
@@ -53,6 +68,9 @@
     public string UserName { get; set; } = "";
 
     [Parameter]
+    public string UserProfileImage { get; set; } = "";
+
+    [Parameter]
     public string UserId { get; set; } = "";
 
     [Parameter]
@@ -60,6 +78,8 @@
 
     [Parameter]
     public BoardPermissions? CurrentPermissions { get; set; }
+
+    private TodoBoard? _currentBoard;
 
     private async Task ManagePermissions()
     {
@@ -77,5 +97,45 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private async Task RemoveParticipant(string participantId)
+    {
+        _currentBoard ??= await BoardService.GetBoardAsync(BoardId);
+
+        if (string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
+        if (_currentBoard.User != AuthService.CurrentUser?.Id) return;
+
+
+        var parameters = new DialogParameters<DeletionConfirmDialog>();
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small
+        };
+        parameters.Add(x => x.ContentText, $"Seguro deseas remover del tablero a {_currentBoard.Participants[participantId]}");
+        var dialog = await DialogService.ShowAsync<DeletionConfirmDialog>($"Remover participante", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Data: true })
+        {
+            if (ParticipantsService.HasIncompleteSteps(participantId, _currentBoard.Items))
+            {
+                SnackbarService.Add("El usuario no se puede quitar del tablero porque tiene tareas asignadas sin completar", Severity.Error);
+                return;
+            }
+
+            var (msg, success) = await BoardService.RemoveParticipantAsync(BoardId, participantId);
+            if (success)
+            {
+                await ParticipantsService.RemoveParticipantAsync(BoardId, _currentBoard, participantId, _currentBoard.Items, StateHasChanged);
+                // SnackbarService.Add("Participante removido", Severity.Info);
+                Navigation.Refresh(forceReload: true);
+            }
+            else
+            {
+                SnackbarService.Add(msg, Severity.Error);
+            }
+        }
     }
 }

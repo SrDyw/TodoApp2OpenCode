@@ -48,16 +48,8 @@ else
                 <MudMenu Color="Color.Default" Icon="@Icons.Material.Filled.People">
                     <MudMenuItem Disabled="_currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="participant-avatar">
-                                @if (!string.IsNullOrEmpty(_participantImages.GetValueOrDefault(_currentBoard?.User ?? "")))
-                                {
-                                    <img src="@($"data:image/jpeg;base64,{_participantImages[_currentBoard?.User ?? ""]}")" class="participant-avatar-img" />
-                                }
-                                else
-                                {
-                                    @GetUserInitial(_currentBoard?.OwnerName, _currentBoard?.User)
-                                }
-                            </MudAvatar>
+                            <UserAvatar Username="@_currentBoard?.OwnerName" UserProfileImage="@_participantImages[_currentBoard?.User ?? ""]" />
+
                             @_currentBoard?.OwnerName
                             @if (_currentBoard?.OwnerName == AuthService.CurrentUser?.Username)
                             {
@@ -72,16 +64,8 @@ else
                         {
                             <MudMenuItem OnClick="@(() => ShowUserDetails(participant.Value, participant.Key))" Disabled="_currentBoard?.OwnerName != AuthService.CurrentUser?.Username">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                    <MudAvatar Color="Color.Primary" Size="Size.Small" Class="participant-avatar">
-                                        @if (!string.IsNullOrEmpty(_participantImages.GetValueOrDefault(participant.Key)))
-                                        {
-                                            <img src="@($"data:image/jpeg;base64,{_participantImages[participant.Key]}")" class="participant-avatar-img" />
-                                        }
-                                        else
-                                        {
-                                            @GetUserInitial(participant.Value, participant.Key)
-                                        }
-                                    </MudAvatar>
+                                    <UserAvatar Username="@participant.Value" UserProfileImage="@_participantImages[participant.Key ?? ""]" />
+
                                     @participant.Value
                                     @if (participant.Value == AuthService.CurrentUser?.Username)
                                     {
@@ -382,20 +366,6 @@ else
         min-height: 100px;
         height: 100%;
     }
-
-    .participant-avatar {
-        width: 28px;
-        height: 28px;
-        font-size: 0.75rem;
-        overflow: hidden;
-    }
-
-    .participant-avatar-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
-    }
 </style>
 @code {
     [Parameter]
@@ -593,34 +563,35 @@ else
         {
             _syncStatus = SyncIndicator.OperationSyncStatus.Syncing;
 
-            if (string.IsNullOrWhiteSpace(editResult.NewName) == false)
-            {
-                await LogService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Actualizar,
-                    BoardId = BoardId,
-                    Message = $"Actualiza columna {defaultColumnName} -> {editResult.NewName}",
-                    User = AuthService.CurrentUser?.Username ?? ""
-                });
-            }
-            if (string.IsNullOrWhiteSpace(editResult.NewColor) == false)
-            {
-                await LogService.AddLogAsync(new LogItem
-                {
-                    Action = DatabaseAction.Actualizar,
-                    BoardId = BoardId,
-                    Message = $"Actualiza color de la columna a {editResult.NewColor}",
-                    User = AuthService.CurrentUser?.Username ?? ""
-                });
-            }
 
             var (msg, success) = await BoardService.UpdateColumnAsync(BoardId, editing);
-            if (success != null && (bool)success)
+            if (success)
             {
                 var targetColumnIndex = _columns.IndexOf(_columns.FirstOrDefault(x => x.Id == editing.Id) ?? new());
                 if (targetColumnIndex != -1)
                 {
                     _columns[targetColumnIndex] = editing;
+                }
+
+                if (string.IsNullOrWhiteSpace(editResult.NewName) == false)
+                {
+                    await LogService.AddLogAsync(new LogItem
+                    {
+                        Action = DatabaseAction.Actualizar,
+                        BoardId = BoardId,
+                        Message = $"Actualiza columna {defaultColumnName} -> {editResult.NewName}",
+                        User = AuthService.CurrentUser?.Username ?? ""
+                    });
+                }
+                if (string.IsNullOrWhiteSpace(editResult.NewColor) == false)
+                {
+                    await LogService.AddLogAsync(new LogItem
+                    {
+                        Action = DatabaseAction.Actualizar,
+                        BoardId = BoardId,
+                        Message = $"Actualiza color de la columna a {editResult.NewColor}",
+                        User = AuthService.CurrentUser?.Username ?? ""
+                    });
                 }
                 _syncStatus = SyncIndicator.OperationSyncStatus.Success;
                 SnackbarService.Add("Columna actualizada", Severity.Success);
@@ -738,10 +709,11 @@ else
             { x => x.UserName, userName },
             { x => x.UserId, userId },
             { x => x.BoardId, BoardId },
-            { x => x.CurrentPermissions, permissions }
+            { x => x.CurrentPermissions, permissions },
+            {x => x.UserProfileImage, _participantImages[userId]}
         };
 
-        var dialog = await DialogService.ShowAsync<UserDetailsDialog>("Usuario", parameters);
+        var dialog = await DialogService.ShowAsync<UserDetailsDialog>("", parameters);
         var result = await dialog.Result;
     }
 
@@ -1056,11 +1028,5 @@ else
                 _participantImages[userId] = image;
             }
         }
-    }
-
-    private string GetUserInitial(string? userName, string? userId)
-    {
-        var name = userName ?? _currentBoard?.Participants.GetValueOrDefault(userId ?? "") ?? "?";
-        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
     }
 }

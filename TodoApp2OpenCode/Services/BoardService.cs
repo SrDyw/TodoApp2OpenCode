@@ -857,7 +857,9 @@ public class BoardService : IBoardService
             if (_authService.CurrentUser == null)
                 return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
             await using var context = await _contextFactory.CreateDbContextAsync();
-            var board = await context.Boards.FirstOrDefaultAsync(x => x.Id == boardId);
+            var board = await context.Boards
+                .Include(x => x.Columns)
+                .FirstOrDefaultAsync(x => x.Id == boardId);
 
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
