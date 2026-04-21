@@ -60,51 +60,58 @@ public class BoardService : IBoardService
 
 
 
-    public async Task<TodoBoard?> GetBoardAsync(string boardId)
+    public async Task<(string, TodoBoard?)> GetBoardAsync(string boardId)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var board = await context.Boards
-            .AsNoTracking()
-            .Include(b => b.Columns.OrderBy(c => c.Order))
-            .Include(b => b.Events)
-            .FirstOrDefaultAsync(b => b.Id == boardId);
-
-        if (board != null)
+        try
         {
-            board.Columns = board.Columns.OrderBy(c => c.Order).ToList();
+            await using var context = await _contextFactory.CreateDbContextAsync();
 
-            var items = await context.Items
+            var board = await context.Boards
                 .AsNoTracking()
-                .Include(i => i.Steps)
-                .Where(i => i.TodoBoardId == boardId)
-                .ToListAsync();
-            
-            foreach (var item in items)
-            {
-                if (!string.IsNullOrEmpty(item.AssignedUsersJson))
-                {
-                    item.AssignedUsers = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(item.AssignedUsersJson) ?? new();
-                }
-                if (item.Steps != null)
-                {
-                    item.Steps = item.Steps.OrderBy(s => s.Order).ToList();
-                }
-            }
-            
-            board.Items = items;
+                .Include(b => b.Columns.OrderBy(c => c.Order))
+                .Include(b => b.Events)
+                .FirstOrDefaultAsync(b => b.Id == boardId);
 
-            if (!string.IsNullOrEmpty(board.ParticipantPermissionsJson))
+            if (board != null)
             {
-                board.ParticipantPermissions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, BoardPermissions>>(board.ParticipantPermissionsJson) ?? new();
+                board.Columns = board.Columns.OrderBy(c => c.Order).ToList();
+
+                var items = await context.Items
+                    .AsNoTracking()
+                    .Include(i => i.Steps)
+                    .Where(i => i.TodoBoardId == boardId)
+                    .ToListAsync();
+
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrEmpty(item.AssignedUsersJson))
+                    {
+                        item.AssignedUsers = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(item.AssignedUsersJson) ?? new();
+                    }
+                    if (item.Steps != null)
+                    {
+                        item.Steps = item.Steps.OrderBy(s => s.Order).ToList();
+                    }
+                }
+
+                board.Items = items;
+
+                if (!string.IsNullOrEmpty(board.ParticipantPermissionsJson))
+                {
+                    board.ParticipantPermissions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, BoardPermissions>>(board.ParticipantPermissionsJson) ?? new();
+                }
+                else
+                {
+                    board.ParticipantPermissions = new Dictionary<string, BoardPermissions>();
+                }
+                return (SystemMessages.OPERATION_SUCCESS, board);
             }
-            else
-            {
-                board.ParticipantPermissions = new Dictionary<string, BoardPermissions>();
-            }
+            return (SystemMessages.DASHBOARD_NOT_EXISTS, null);
         }
-
-        return board;
+        catch
+        {
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, null);
+        }
     }
 
     public async Task<(string, TodoBoard?)> CreateBoardAsync(string userId, string name, string? description = null, List<(string Id, string Name)>? participants = null)
@@ -821,7 +828,7 @@ public class BoardService : IBoardService
             if (_authService.CurrentUser == null)
                 return (SystemMessages.OPERATION_AUTH_REQUIRED, false);
 
-            var board = await GetBoardAsync(boardId);
+            var (msg, board) = await GetBoardAsync(boardId);
             if (board == null) return (SystemMessages.DASHBOARD_NOT_EXISTS, false);
 
             if (!IsUserOwner(board))

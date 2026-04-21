@@ -101,7 +101,9 @@
 
     private async Task RemoveParticipant(string participantId)
     {
-        _currentBoard ??= await BoardService.GetBoardAsync(BoardId);
+        var (msg, board) = await BoardService.GetBoardAsync(BoardId);
+
+        _currentBoard = board;
 
         if (string.IsNullOrEmpty(BoardId) || _currentBoard == null) return;
         if (_currentBoard.User != AuthService.CurrentUser?.Id) return;
@@ -125,7 +127,7 @@
                 return;
             }
 
-            var (msg, success) = await BoardService.RemoveParticipantAsync(BoardId, participantId);
+            var (removeMsg, success) = await BoardService.RemoveParticipantAsync(BoardId, participantId);
             if (success)
             {
                 await ParticipantsService.RemoveParticipantAsync(BoardId, _currentBoard, participantId, _currentBoard.Items, StateHasChanged);
@@ -134,7 +136,7 @@
             }
             else
             {
-                SnackbarService.Add(msg, Severity.Error);
+                SnackbarService.Add(removeMsg, Severity.Error);
             }
         }
     }

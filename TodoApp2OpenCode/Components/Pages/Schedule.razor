@@ -71,9 +71,10 @@
 
         try
         {
-            var board = await BoardService.GetBoardAsync(BoardId);
+            var (msg, board) = await BoardService.GetBoardAsync(BoardId);
             if (board == null)
             {
+                SnackbarService.Add(msg, Severity.Error);
                 try { await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true)); } catch { }
                 return;
             }
@@ -86,6 +87,7 @@
             bool isParticipant = board.Participants.ContainsKey(currentUserId);
             if (!isParticipant)
             {
+                SnackbarService.Add(msg, Severity.Error);
                 try { await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true)); } catch { }
                 return;
             }
@@ -150,9 +152,11 @@
                 }
             }
 
-            currentBoard = await BoardService.GetBoardAsync(BoardId);
+            var (loadMsg, loadedBoard) = await BoardService.GetBoardAsync(BoardId);
+            currentBoard = loadedBoard;
             if (currentBoard == null)
             {
+                SnackbarService.Add(loadMsg, Severity.Error);
                 await InvokeAsync(() => Navigation.NavigateTo("/", forceLoad: true));
                 return;
             }
@@ -215,8 +219,12 @@
 
     private async Task<bool> CheckCanAddEvent()
     {
-        var board = await BoardService.GetBoardAsync(BoardId);
-        if (board == null) return false;
+        var (msg, board) = await BoardService.GetBoardAsync(BoardId);
+        if (board == null)
+        {
+            SnackbarService.Add(msg, Severity.Error);
+            return false;
+        }
 
         var currentUserId = AuthService.CurrentUser?.Id ?? "";
         var isOwner = board.User == currentUserId;
@@ -240,8 +248,12 @@
 
     private async Task<bool> CheckCanModifyEvent()
     {
-        var board = await BoardService.GetBoardAsync(BoardId);
-        if (board == null) return false;
+        var (msg, board) = await BoardService.GetBoardAsync(BoardId);
+        if (board == null)
+        {
+            SnackbarService.Add(msg, Severity.Error);
+            return false;
+        }
 
         var currentUserId = AuthService.CurrentUser?.Id ?? "";
         var isOwner = board.User == currentUserId;
@@ -265,8 +277,12 @@
 
     private async Task<bool> CheckCanDeleteEvent()
     {
-        var board = await BoardService.GetBoardAsync(BoardId);
-        if (board == null) return false;
+        var (msg, board) = await BoardService.GetBoardAsync(BoardId);
+        if (board == null)
+        {
+            SnackbarService.Add(msg, Severity.Error);
+            return false;
+        }
 
         var currentUserId = AuthService.CurrentUser?.Id ?? "";
         var isOwner = board.User == currentUserId;

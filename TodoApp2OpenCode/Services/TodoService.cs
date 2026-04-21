@@ -40,13 +40,13 @@ public class TodoService
 
     public async Task<List<TodoColumn>> GetColumnsAsync(string boardId)
     {
-        var board = await _boardService.GetBoardAsync(boardId);
+        var (_, board) = await _boardService.GetBoardAsync(boardId);
         return board?.Columns ?? new List<TodoColumn>();
     }
 
     public async Task<List<TodoItem>> GetItemsByColumnAsync(string boardId, string columnId)
     {
-        var board = await _boardService.GetBoardAsync(boardId);
+        var (_, board) = await _boardService.GetBoardAsync(boardId);
         if (board == null) return new List<TodoItem>();
         return board.Items.Where(i => i.ColumnId == columnId).OrderBy(i => i.Order).ToList();
     }
@@ -349,7 +349,7 @@ public class TodoService
     }
     public async Task<Dictionary<string, List<TodoItem>>> GetAllItemsByColumnAsync(string boardId)
     {
-        var board = await _boardService.GetBoardAsync(boardId);
+        var (_, board) = await _boardService.GetBoardAsync(boardId);
         if (board == null) return new Dictionary<string, List<TodoItem>>();
 
         return board.Items

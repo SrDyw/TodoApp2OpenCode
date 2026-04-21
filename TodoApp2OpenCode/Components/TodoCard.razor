@@ -271,7 +271,7 @@
         if (string.IsNullOrEmpty(BoardId)) return;
 
         var columns = await TodoService.GetColumnsAsync(BoardId);
-        var board = await BoardService.GetBoardAsync(BoardId);
+        var (_, board) = await BoardService.GetBoardAsync(BoardId);
         var participants = BoardUtils.GetParticipantsDictionary(board ?? new TodoBoard());
 
         var parameters = new DialogParameters<EditItemDialog>();

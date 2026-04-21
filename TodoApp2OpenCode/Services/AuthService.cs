@@ -79,6 +79,9 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
             return (false, "La contraseña debe tener al menos 6 caracteres");
 
+        if (!PrivateConfig.ALLOW_CREATE_ACCOUNT)
+            return (false, "No se permite la creación de cuentas en este sitema");
+
         await using var context = await _contextFactory.CreateDbContextAsync();
         var users = await context.Users.ToListAsync();
         var emailExists = users.Any(u => u.Email.ToLower() == email.Trim().ToLower());
@@ -116,39 +119,46 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(password))
             return (false, "La contraseña es requerida");
 
-        await using var context = await _contextFactory.CreateDbContextAsync();
-
-        var user = await context.Users
-            .FirstOrDefaultAsync(u => u.Username == username);
-
-        if (DatabaseProvider.Value == DatabaseProviderName.Oracle)
+        try
         {
-            var remoteUser = await _infogestiUsersService.GetUserAccount(username, password);
-            if (remoteUser == null) return (false, "Credenciales incorrectas");
-            
-            if (user == null)
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var user = await context.Users
+                .FirstOrDefaultAsync(u => u.Username == username);
+
+            if (DatabaseProvider.Value == DatabaseProviderName.Oracle)
             {
-                var (Success, Error) = await RegisterAsync(username, $"{username}@onat.gob.cu", password);
-                if (!Success) return (false, Error);
-                else user = await context.Users.FirstOrDefaultAsync(u => u.Username == username);
+                var remoteUser = await _infogestiUsersService.GetUserAccount(username, password);
+                if (remoteUser == null) return (false, "Credenciales incorrectas");
+
+                if (user == null)
+                {
+                    var (Success, Error) = await RegisterAsync(username, $"{username}@onat.gob.cu", password);
+                    if (!Success) return (false, Error);
+                    else user = await context.Users.FirstOrDefaultAsync(u => u.Username == username);
+                }
             }
+            else
+            {
+                if (user == null)
+                    return (false, "No existe una cuenta con este usuario");
+
+                var passwordHash = HashPassword(password);
+                if (user.PasswordHash != passwordHash)
+                    return (false, "Contraseña incorrecta");
+            }
+
+
+            _currentUser = user;
+            await SaveCurrentUserAsync(user);
+            _onAuthStateChangedAction?.Invoke(_currentUser);
+
+            return (true, null);
         }
-        else
+        catch
         {
-            if (user == null)
-                return (false, "No existe una cuenta con este usuario");
-
-            var passwordHash = HashPassword(password);
-            if (user.PasswordHash != passwordHash)
-                return (false, "Contraseña incorrecta");
+            return (false, SystemMessages.NETWORK_OR_INTERNAL_ERROR);
         }
-
-
-        _currentUser = user;
-        await SaveCurrentUserAsync(user);
-        _onAuthStateChangedAction?.Invoke(_currentUser);
-
-        return (true, null);
     }
 
     public async Task LogoutAsync()

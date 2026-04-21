@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject IAuthService Auth
 @inject IDialogService DialogService
+@inject ISnackbar SnackbarService
 
 <PageTitle>Ajustes del Tablero - TodoPila</PageTitle>
 
@@ -164,10 +165,10 @@
                 return;
             }
 
-            var board = await BoardService.GetBoardAsync(BoardId);
-            
+            var (loadMsg, board) = await BoardService.GetBoardAsync(BoardId);
             if (board == null)
             {
+                SnackbarService.Add(loadMsg, Severity.Error);
                 Navigation.NavigateTo("/board");
                 return;
             }
@@ -212,7 +213,7 @@
 
         _isSaving = true;
 
-        var board = await BoardService.GetBoardAsync(BoardId);
+        var (saveMsg, board) = await BoardService.GetBoardAsync(BoardId);
         if (board != null)
         {
             board.Name = BoardName.Trim();
@@ -221,6 +222,10 @@
             await BoardService.UpdateBoardAsync(board);
             
             Navigation.NavigateTo($"/board/{BoardId}", forceLoad: true);
+        }
+        else
+        {
+            SnackbarService.Add(saveMsg, Severity.Error);
         }
 
         _isSaving = false;
@@ -248,12 +253,16 @@
 
         if (result != null && !result.Canceled)
         {
-            var board = await BoardService.GetBoardAsync(BoardId);
+            var (loadMsg, board) = await BoardService.GetBoardAsync(BoardId);
             if (board != null)
             {
                 _currentBoard = board;
                 _participants = board.Participants;
                 StateHasChanged();
+            }
+            else
+            {
+                SnackbarService.Add(loadMsg, Severity.Error);
             }
         }
     }

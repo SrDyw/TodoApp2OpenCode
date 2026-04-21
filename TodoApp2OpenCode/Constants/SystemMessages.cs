@@ -33,5 +33,7 @@ namespace TodoApp2OpenCode.Constants
 
         public const string USER_DOESNT_EXISTS = "El usuario no existe";
         public const string USER_FETCH_SUCCESS = "Usuario encontrado con éxito";
+
+        public const string OPERATION_SUCCESS = "Operacion realizada con exito";
     }
 }

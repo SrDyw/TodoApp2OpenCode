@@ -5,7 +5,7 @@ namespace TodoApp2OpenCode.Services;
 public interface INotificationService
 {
     Task CreateAsync(string userId, string title, string message, string? navigateTo = null);
-    Task<int> GetUnreadCountAsync(string userId);
+    Task<(string, int)> GetUnreadCountAsync(string userId);
     Task<List<Notification>> GetAllAsync(string userId);
     Task MarkAsReadAsync(string notificationId);
     Task MarkAllAsReadAsync(string userId);

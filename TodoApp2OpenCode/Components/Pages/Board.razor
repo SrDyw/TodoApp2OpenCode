@@ -401,10 +401,12 @@ else
             NotFound();
             return;
         }
-        _currentBoard = await BoardService.GetBoardAsync(BoardId);
+        var (loadMsg, loadedBoard) = await BoardService.GetBoardAsync(BoardId);
+        _currentBoard = loadedBoard;
 
         if (_currentBoard == null)
         {
+            SnackbarService.Add(loadMsg, Severity.Error);
             NotFound();
             return;
         }
@@ -447,11 +449,11 @@ else
     {
         if (string.IsNullOrEmpty(BoardId) || AuthService.CurrentUser == null) return;
 
-        var board = await BoardService.GetBoardAsync(BoardId);
+        var (msg, board) = await BoardService.GetBoardAsync(BoardId);
         if (board == null)
         {
             _membershipCheckTimer?.Dispose();
-            SnackbarService.Add("El tablero ya no existe", Severity.Warning);
+            SnackbarService.Add(msg, Severity.Error);
             Navigation.NavigateTo("/");
             return;
         }
@@ -850,18 +852,22 @@ else
             return;
         }
 
-        var board = await BoardService.GetBoardAsync(BoardId);
-        if (board == null) return;
+        var (calMsg, calBoard) = await BoardService.GetBoardAsync(BoardId);
+        if (calBoard == null)
+        {
+            SnackbarService.Add(calMsg, Severity.Error);
+            return;
+        }
 
         var currentUserId = AuthService.CurrentUser?.Id ?? "";
-        if (board.User == currentUserId)
+        if (calBoard.User == currentUserId)
         {
             Navigation.NavigateTo($"/board/{BoardId}/schedule");
             return;
         }
 
-        if (board.ParticipantPermissions != null &&
-            board.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
+        if (calBoard.ParticipantPermissions != null &&
+            calBoard.ParticipantPermissions.TryGetValue(currentUserId, out var perms))
         {
             if (!perms.CanViewCalendar)
             {

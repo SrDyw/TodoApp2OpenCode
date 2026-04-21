@@ -5,7 +5,7 @@ namespace TodoApp2OpenCode.Services;
 public interface IBoardService
 {
     Task<List<TodoBoard>> GetUserBoardsAsync(string userId);
-    Task<TodoBoard?> GetBoardAsync(string boardId);
+    Task<(string, TodoBoard?)> GetBoardAsync(string boardId);
     Task<(string, TodoBoard?)> CreateBoardAsync(string userId, string name, string? description = null, List<(string Id, string Name)>? participants = null);
     Task<(string, bool)> AddParticipantAsync(string boardId, string userId, string userName, BoardPermissions? permissions = null);
     Task<(string, bool)> RemoveParticipantAsync(string boardId, string userId);

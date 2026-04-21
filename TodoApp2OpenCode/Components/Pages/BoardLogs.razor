@@ -5,7 +5,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar SnackbarService
 @inject IBoardService BoardService;
-<PageTitle>@Config.AppName | Logs @_currentBoar?.Name</PageTitle>
+<PageTitle>@Config.AppName | Logs @_currentBoard?.Name</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
     <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
@@ -21,7 +21,7 @@
             </MudText>
             <MudSpacer />
             <MudText Color="Color.Primary" Typo="Typo.h4" Style="text-align: end">
-                @_currentBoar?.Name
+@_currentBoard?.Name
             </MudText>
         </div>
     </MudStack>
@@ -91,7 +91,7 @@
     private bool _loading = true;
     private bool Filterable { get; set; }
     private string _searchString = string.Empty;
-    private TodoBoard? _currentBoar;
+    private TodoBoard? _currentBoard;
 
     private Func<LogItem, bool> QuickFilter => x =>
     {
@@ -111,7 +111,7 @@
         {
             _loading = true;
             _logs = await LogService.GetLogsByBoardId(BoardId);
-            _currentBoar = await BoardService.GetBoardAsync(BoardId);
+            (_, _currentBoard) = await BoardService.GetBoardAsync(BoardId);
         }
         catch (Exception ex)
         {

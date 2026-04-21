@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using TodoApp2OpenCode.Constants;
 using TodoApp2OpenCode.Data;
 using TodoApp2OpenCode.Models;
 
@@ -31,13 +33,22 @@ public class NotificationService : INotificationService
         await context.SaveChangesAsync();
     }
 
-    public async Task<int> GetUnreadCountAsync(string userId)
+    public async Task<(string, int)> GetUnreadCountAsync(string userId)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        return await context.Notifications
-            .Where(n => n.UserId == userId && !n.IsRead)
-            .CountAsync();
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var count = await context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .CountAsync();
+
+            return (SystemMessages.OPERATION_SUCCESS, count);
+        }
+        catch
+        {
+            return (SystemMessages.NETWORK_OR_INTERNAL_ERROR, -1);
+        }
     }
 
     public async Task<List<Notification>> GetAllAsync(string userId)

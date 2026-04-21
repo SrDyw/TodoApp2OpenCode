@@ -208,12 +208,15 @@
         }
         else
         {
-            <MudButton Color="Color.Inherit" 
-                       Variant="Variant.Text"
-                       OnClick="OpenRegisterDialog"
-                       Class="mr-2">
-                Registrarse
-            </MudButton>
+            @if (PrivateConfig.ALLOW_CREATE_ACCOUNT)
+            {
+                <MudButton Color="Color.Inherit" 
+                           Variant="Variant.Text"
+                           OnClick="OpenRegisterDialog"
+                           Class="mr-2">
+                    Registrarse
+                </MudButton>
+            }
             <MudButton Color="Color.Primary" 
                        Variant="Variant.Filled"
                        OnClick="OpenLoginDialog">
@@ -311,8 +314,12 @@
                 await InvokeAsync(async () =>
                 {
                     Notifications = await NotificationService.GetAllAsync(AuthService.CurrentUser.Id);
-                    UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser.Id);
-                    StateHasChanged();
+                    var (msg, count) = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser.Id);
+                    if (count != -1)
+                    {
+                        UnreadNotificationCount = count;
+                        StateHasChanged();
+                    }
                 });
             }
         };
@@ -332,7 +339,11 @@
         if (AuthService.CurrentUser != null)
         {
             Notifications = await NotificationService.GetAllAsync(AuthService.CurrentUser.Id);
-            UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser.Id);
+            var (msg, count) = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser.Id);
+            if (count != -1)
+            {
+                UnreadNotificationCount = count;
+            }
         }
     }
 
@@ -422,6 +433,7 @@
 
     private async Task OpenRegisterDialog()
     {
+        if (!PrivateConfig.ALLOW_CREATE_ACCOUNT) return;
         var options = new DialogOptions
         {
             CloseOnEscapeKey = true,
@@ -474,8 +486,13 @@
         {
             await NotificationService.MarkAsReadAsync(notification.Id);
             notification.IsRead = true;
-            UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
-            StateHasChanged();
+            var (msg, notificationCount) = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+
+            if (notificationCount != -1)
+            {
+                UnreadNotificationCount = notificationCount;
+                StateHasChanged();
+            }
         }
 
         if (!string.IsNullOrEmpty(notification.NavigateTo))
@@ -514,7 +531,12 @@
             Notifications.Remove(notification);
             if (!notification.IsRead)
             {
-                UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+                var (msg, notificationCount) = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+
+                if (notificationCount != -1)
+                {
+                    UnreadNotificationCount = notificationCount;
+                }
             }
             StateHasChanged();
         }
@@ -526,7 +548,12 @@
         
         await NotificationService.MarkAsReadAsync(notification.Id);
         notification.IsRead = true;
-        UnreadNotificationCount = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+        var (msg, notificationCount) = await NotificationService.GetUnreadCountAsync(AuthService.CurrentUser?.Id ?? "");
+
+        if (notificationCount != -1)
+        {
+            UnreadNotificationCount = notificationCount;
+        }
         StateHasChanged();
     }
 

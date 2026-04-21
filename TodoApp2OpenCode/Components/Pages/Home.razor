@@ -248,7 +248,10 @@
             Crea tableros, arrastra tareas entre columnas y mantén tu productividad al máximo.
         </p>
         <div class="hero-buttons">
-            <button class="btn-primary" @onclick="OpenRegisterDialog">Crear cuenta</button>
+            @if (PrivateConfig.ALLOW_CREATE_ACCOUNT)
+            {
+                <button class="btn-primary" @onclick="OpenRegisterDialog">Crear cuenta</button>
+            }
             @if (!AuthService.IsAuthenticated)
             {
                 <button class="btn-secondary" @onclick="OpenLoginDialog">Iniciar sesión</button>
